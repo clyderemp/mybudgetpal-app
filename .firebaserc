@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "mybudgetpal",
+    "mybudgetpal": "mybudgetpal"
+  },
+  "targets": {},
+  "etags": {}
+}
