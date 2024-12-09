@@ -1,17 +1,10 @@
 import { fetchCurrentUserData } from "../presenter/services/fetchCurrentUserData.js";
-export let currentUserDataVal = await localStorage.getItem('currentUserData');
+export let currentUserDataVal = null;
 
 export const currentUserData = async() => {
-    currentUserDataVal = await localStorage.getItem('currentUserData');
-
-
-    console.log(currentUserDataVal)
-    if(currentUserDataVal === null){
-        currentUserDataVal = await fetchCurrentUserData();
-    }
-
+    // localStorage?.clear();
+    currentUserDataVal = await fetchCurrentUserData();
     await loadUsersNameOnTopBar(currentUserDataVal);
-    console.log(currentUserDataVal)
 }
 
 const loadUsersNameOnTopBar = async (currentUserDataVal) => {

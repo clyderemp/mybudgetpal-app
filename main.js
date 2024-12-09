@@ -2,6 +2,10 @@ import { db, auth } from './firebase.js'
 import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.7.2/firebase-auth.js";
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.2/firebase-firestore.js"; 
 import { currentUserData } from './src/model/currentUserData.js';
+import { allTransactionsData } from './src/model/allTransactionsData.js';
+import { coUsersData } from './src/model/coUsersData.js';
+import { topbarActionHandlers } from './src/view/components/navbars/topbar.js';
+import { currencyConverter } from './src/presenter/APIs/currencyConverter.js';
 
 let loaderDiv = $('#loading');
 const topNavBar = $('#top-navbar');
@@ -36,10 +40,7 @@ $(function(){
                 }
             });
           }
-
-
-          handleSideBarFunction();
-          await currentUserData();
+          await handleLoggedInUser();
 
         } else {
             console.log('logged out');
@@ -51,7 +52,7 @@ $(function(){
         }
       });
 
-      $('#login-btn').click(function(){
+    $('#login-btn').click(function(){
         const auth = getAuth();
         var email = $('#signin-email').val();
         var password = $('#signin-password').val();
@@ -109,9 +110,10 @@ $(function(){
     });
 });
 
-function handleSideBarFunction(){
-    console.log('here')
-$('#iq-sidebar-toggle').click(function(){
-    console.log('here')
-})
+async function handleLoggedInUser(){
+    await currencyConverter();
+    await currentUserData();
+    await coUsersData();
+    await allTransactionsData();
+    await topbarActionHandlers();
 }

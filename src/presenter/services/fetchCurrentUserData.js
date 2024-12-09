@@ -3,10 +3,20 @@ import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.2/f
 import { uid } from '../../../main.js';
 
 export const fetchCurrentUserData = async() => {
-    console.log(uid)
-    const userDocRef = doc(db, 'users', uid);
-    const userDocSnap = await getDoc(userDocRef);
-    if(userDocSnap.exists()){
-        return userDocSnap?.data();
+    let currentUserDataVal = JSON.parse(await localStorage.getItem('currentUserData-'+uid));
+
+    if(currentUserDataVal === null){
+        console.log('Fetching current user data from firebase...');
+        const userDocRef = doc(db, 'users', uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if(userDocSnap.exists()){
+            currentUserDataVal = userDocSnap?.data();
+        }
+        await localStorage.setItem('currentUserData-'+uid, JSON.stringify(currentUserDataVal));
+        return (currentUserDataVal);
+    } else {
+        console.log('Fetching current user data from local...');
+        return (currentUserDataVal);
     }
+
 }

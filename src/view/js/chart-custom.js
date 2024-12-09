@@ -8560,7 +8560,7 @@ $(".table-add").on("click", "i", () => {
 });
 
 
-if(jQuery('#home-perfomer-chart').length){
+	if(jQuery('#home-perfomer-chart').length){
         var donut = new Morris.Donut({
           element: 'home-perfomer-chart',
           resize: true,

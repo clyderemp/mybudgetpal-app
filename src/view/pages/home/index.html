@@ -20,6 +20,8 @@
       <link href='../../fullcalendar/daygrid/main.css' rel='stylesheet' />
       <link href='../../fullcalendar/timegrid/main.css' rel='stylesheet' />
       <link href='../../fullcalendar/list/main.css' rel='stylesheet' />
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icon-css/css/flag-icon.min.css">
+
 
       <link rel="stylesheet" href="../../css/flatpickr.min.css">
       <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
@@ -51,7 +53,7 @@
                            </div>
                            <p class="text-secondary">Total Money Traffic</p>
                            <div class="d-flex align-items-center justify-content-between">
-                              <h4><b>$18 378</b></h4>
+                              <h4><b id="total-money-traffic-val">$0.00</b></h4>
                               <div id="iq-chart-box1"></div>
                               <span class="text-primary"><b> +14% <i class="ri-arrow-up-fill"></i></b></span>
                            </div>
@@ -66,7 +68,7 @@
                            </div>
                            <p class="text-secondary">Total Expenses</p>
                            <div class="d-flex align-items-center justify-content-between">
-                              <h4><b>$190</b></h4>
+                              <h4><b id="total-expenses-val">$0.00</b></h4>
                               <div id="iq-chart-box2"></div>
                               <span class="text-danger"><b> -6% <i class="ri-arrow-down-fill"></i></b></span>
                            </div>
@@ -81,7 +83,7 @@
                            </div>
                            <p class="text-secondary">Total Savings</p>
                            <div class="d-flex align-items-center justify-content-between">
-                              <h4><b>45</b></h4>
+                              <h4><b id="total-savings-val">$0.00</b></h4>
                               <div id="iq-chart-box3"></div>
                               <span class="text-success"><b> +0.36% <i class="ri-arrow-up-fill"></i></b></span>
                            </div>
@@ -96,7 +98,7 @@
                            </div>
                            <p class="text-secondary">Total Income</p>
                            <div class="d-flex align-items-center justify-content-between">
-                              <h4><b>60</b></h4>
+                              <h4><b id="total-income-val">$0.00</b></h4>
                               <div id="iq-chart-box4"></div>
                               <span class="text-warning"><b> +0.45% <i class="ri-arrow-up-fill"></i></b></span>
                            </div>
@@ -112,13 +114,13 @@
                            <div class="iq-card-header-toolbar d-flex align-items-center">
                               <ul class="nav nav-pills">
                                  <li class="nav-item">
-                                    <a href="#" class="nav-link active">Personal</a>
+                                    <a href="#" class="nav-link active">Weekly</a>
                                  </li>
                                  <li class="nav-item">
-                                    <a href="#" class="nav-link">Business</a>
+                                    <a href="#" class="nav-link">Monthly</a>
                                  </li>
                                  <li class="nav-item">
-                                    <a href="#" class="nav-link">Credit</a>
+                                    <a href="#" class="nav-link">Yearly</a>
                                  </li>
                               </ul>
                            </div>
@@ -187,115 +189,15 @@
                               <table class="table mb-0">
                                  <thead class="thead-light">
                                     <tr>
-                                       <th scope="col">Customer</th>
                                        <th scope="col">Date</th>
-                                       <th scope="col">Invoice</th>
+                                       <th scope="col">Type</th>
+                                       <th scope="col">Category</th>
                                        <th scope="col">Amount</th>
                                        <th scope="col">Status</th>
-                                       <th scope="col">Action</th>
+                                       <th scope="col">Added by</th>
                                     </tr>
                                  </thead>
-                                 <tbody>
-                                    <tr>
-                                       <td>Ira Membrit</td>
-                                       <td>18/10/2019</td>
-                                       <td>20156</td>
-                                       <td>$1500</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Copy</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Pete Sariya</td>
-                                       <td>26/10/2019</td>
-                                       <td>7859</td>
-                                       <td>$2000</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Send Email</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Cliff Hanger</td>
-                                       <td>18/11/2019</td>
-                                       <td>6396</td>
-                                       <td>$2500</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-danger">Past Due</div>
-                                       </td>
-                                       <td>Before Due</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Terry Aki</td>
-                                       <td>14/12/2019</td>
-                                       <td>7854</td>
-                                       <td>$5000</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Copy</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Anna Mull</td>
-                                       <td>24/12/2019</td>
-                                       <td>568569</td>
-                                       <td>$10000</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Send Email</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Alex john</td>
-                                       <td>05/12/2019</td>
-                                       <td>45896</td>
-                                       <td>$15236</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Send Email</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Rock lai</td>
-                                       <td>28/12/2019</td>
-                                       <td>458965</td>
-                                       <td>$50200</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Send Email</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Cliff Hanger</td>
-                                       <td>18/11/2019</td>
-                                       <td>6396</td>
-                                       <td>$2500</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-danger">Past Due</div>
-                                       </td>
-                                       <td>Before Due</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Terry Aki</td>
-                                       <td>14/12/2019</td>
-                                       <td>7854</td>
-                                       <td>$5000</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Copy</td>
-                                    </tr>
-                                    <tr>
-                                       <td>Anna Mull</td>
-                                       <td>24/12/2019</td>
-                                       <td>568569</td>
-                                       <td>$10000</td>
-                                       <td>
-                                          <div class="badge badge-pill badge-success">Paid</div>
-                                       </td>
-                                       <td>Send Email</td>
-                                    </tr>
+                                 <tbody id="transaction-table">
                                  </tbody>
                               </table>
                            </div>
@@ -304,114 +206,16 @@
                   </div>
                   <div class="col-lg-4">
                      <div class="iq-card iq-card-block iq-card-stretch iq-card-height">
-                        <div class="iq-card-body">
-                           <div class="d-flex align-items-center mt-3">
-                              <div class="icon iq-icon-box rounded iq-bg-danger mr-3">
-                                 <i class="ri-shopping-bag-line"></i>
-                              </div>
-                              <div class="iq-details col-sm-9 p-0">
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="title text-dark">Daily expenses</span>
-                                    <div class="percentage"><b><span>$</span> 620 </b></div>
-                                 </div>
-                                 <div class="iq-progress-bar-linear d-inline-block w-100">
-                                    <div class="iq-progress-bar">
-                                       <span class="bg-danger" data-percent="67"></span>
-                                    </div>
-                                 </div>
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="">45 Transaction</span>
-                                    <div class="percentage">67<span>%</span></div>
-                                 </div>
-                              </div>
+                        <div class="iq-card-header d-flex justify-content-between">
+                           <div class="iq-header-title">
+                              <h4 class="card-title">Top 10 Expenses</h4>
                            </div>
-                           <hr class="mt-4 mb-4">
-                           <div class="d-flex align-items-center">
-                              <div class="icon iq-icon-box rounded iq-bg-warning mr-3">
-                                 <i class="ri-home-8-line"></i>
-                              </div>
-                              <div class="iq-details col-sm-9 p-0">
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="title text-dark">House, bills</span>
-                                    <div class="percentage"><b><span>$</span> 230 </b></div>
-                                 </div>
-                                 <div class="iq-progress-bar-linear d-inline-block w-100">
-                                    <div class="iq-progress-bar">
-                                       <span class="bg-warning" data-percent="32"></span>
-                                    </div>
-                                 </div>
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="">38 Transaction</span>
-                                    <div class="percentage">32<span>%</span></div>
-                                 </div>
-                              </div>
-                           </div>
-                           <hr class="mt-4 mb-4">
-                           <div class="d-flex align-items-center">
-                              <div class="icon iq-icon-box rounded iq-bg-success mr-3">
-                                 <i class="ri-camera-lens-line"></i>
-                              </div>
-                              <div class="iq-details col-sm-9 p-0">
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="title text-dark">Children</span>
-                                    <div class="percentage float-right"><b><span>$</span> 120 </b></div>
-                                 </div>
-                                 <div class="iq-progress-bar-linear d-inline-block w-100">
-                                    <div class="iq-progress-bar">
-                                       <span class="bg-success" data-percent="20"></span>
-                                    </div>
-                                 </div>
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="">9 Transaction</span>
-                                    <div class="percentage float-right">20<span>%</span></div>
-                                 </div>
-                              </div>
-                           </div>
-                           <hr class="mt-4 mb-4">
-                           <div class="d-flex align-items-center">
-                              <div class="icon iq-icon-box rounded iq-bg-primary mr-3">
-                                 <i class="ri-hospital-line"></i>
-                              </div>
-                              <div class="iq-details col-sm-9 p-0">
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="title text-dark">Health</span>
-                                    <div class="percentage float-right"><b><span>$</span> 80 </b></div>
-                                 </div>
-                                 <div class="iq-progress-bar-linear d-inline-block w-100">
-                                    <div class="iq-progress-bar">
-                                       <span class="bg-primary" data-percent="30"></span>
-                                    </div>
-                                 </div>
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="">18 Transaction</span>
-                                    <div class="percentage">30<span>%</span></div>
-                                 </div>
-                              </div>
-                           </div>
-                           <hr class="mt-4 mb-4">
-                           <div class="d-flex align-items-center">
-                              <div class="icon iq-icon-box rounded iq-bg-info mr-3">
-                                 <i class="ri-bank-line"></i>
-                              </div>
-                              <div class="iq-details col-sm-9 p-0">
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="title text-dark">Banking</span>
-                                    <div class="percentage float-right"><b><span>$</span> 110 </b></div>
-                                 </div>
-                                 <div class="iq-progress-bar-linear d-inline-block w-100">
-                                    <div class="iq-progress-bar">
-                                       <span class="bg-info" data-percent="60"></span>
-                                    </div>
-                                 </div>
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="">50 Transaction</span>
-                                    <div class="percentage">60<span>%</span></div>
-                                 </div>
-                              </div>
-                           </div>
+                        </div>
+                        <div class="iq-card-body" id="topExpensesTable">
                         </div>
                      </div>
                   </div>
+                  <!--EXPENDICTURES SPLIT-->
                   <div class="col-lg-4">
                      <div class="iq-card iq-card-block iq-card-stretch iq-card-height">
                         <div class="iq-card-header d-flex justify-content-between">
@@ -420,69 +224,20 @@
                            </div>
                         </div>
                         <div class="iq-card-body">
-                           <div id="home-perfomer-chart"></div>
+                           <div id="expenditure-chart"></div>
                         </div>
                      </div>
                   </div>
+                  <!--SAVINGS ACCOUNT-->
                   <div class="col-lg-4">
                      <div class="iq-card iq-card-block iq-card-stretch iq-card-height">
                         <div class="iq-card-header d-flex justify-content-between">
                            <div class="iq-header-title">
-                              <h4 class="card-title">Co-Users</h4>
+                              <h4 class="card-title">Savings Account</h4>
                            </div>
                         </div>
                         <div class="iq-card-body">
-                           <ul class="perfomer-lists m-0 p-0">
-                              <li class="d-flex mb-4 align-items-center">
-                                 <div class="user-img img-fluid"><img src="images/page-img/29.png" alt="story-img" class="rounded avatar-40"></div>
-                                 <div class="media-support-info ml-3">
-                                    <h6>Dribble</h6>
-                                    <p class="mb-0 font-size-12">Graphics Designer</p>
-                                 </div>
-                                 <div class="iq-card-header-toolbar d-flex align-items-center">
-                                    <span class="text-primary"><b>$10.00</b></span>
-                                 </div>
-                              </li>
-                              <li class="d-flex mb-4 align-items-center">
-                                 <div class="user-img img-fluid"><img src="images/page-img/30.png" alt="story-img" class="rounded avatar-40"></div>
-                                 <div class="media-support-info ml-3">
-                                    <h6>Behance</h6>
-                                    <p class="mb-0 font-size-12">Developer</p>
-                                 </div>
-                                 <div class="iq-card-header-toolbar d-flex align-items-center">
-                                    <span class="text-primary"><b>$25.50</b></span>
-                                 </div>
-                              </li>
-                              <li class="d-flex mb-4 align-items-center">
-                                 <div class="user-img img-fluid"><img src="images/page-img/31.png" alt="story-img" class="rounded avatar-40"></div>
-                                 <div class="media-support-info ml-3">
-                                    <h6>Instagram</h6>
-                                    <p class="mb-0 font-size-12">Posts</p>
-                                 </div>
-                                 <div class="iq-card-header-toolbar d-flex align-items-center">
-                                    <span class="text-primary"><b>$15.00</b></span>
-                                 </div>
-                              </li>
-                              <li class="d-flex mb-4 align-items-center">
-                                 <div class="user-img img-fluid"><img src="images/page-img/32.png" alt="story-img" class="rounded avatar-40"></div>
-                                 <div class="media-support-info ml-3">
-                                    <h6>Twitter</h6>
-                                    <p class="mb-0 font-size-12">Latest News</p>
-                                 </div>
-                                 <div class="iq-card-header-toolbar d-flex align-items-center">
-                                    <span class="text-primary"><b>$5.00</b></span>
-                                 </div>
-                              </li>
-                              <li class="d-flex mb-4 align-items-center">
-                                 <div class="user-img img-fluid"><img src="images/page-img/33.png" alt="story-img" class="rounded avatar-40"></div>
-                                 <div class="media-support-info ml-3">
-                                    <h6>Bootstrap</h6>
-                                    <p class="mb-0 font-size-12">Ui/Ux Design</p>
-                                 </div>
-                                 <div class="iq-card-header-toolbar d-flex align-items-center">
-                                    <span class="text-primary"><b>$5.00</b></span>
-                                 </div>
-                              </li>
+                           <ul class="perfomer-lists m-0 p-0" id="savings-account-table">
                            </ul>
                         </div>
                      </div>
@@ -529,6 +284,7 @@
       <!-- Optional JavaScript -->
       <!-- jQuery first, then Popper.js, then Bootstrap JS -->
       <script type="module" src="../../../../main.js"></script>
+      <script type="module" src="../../../presenter/APIs/dashboard.js"></script>
       <script src="../../js/jquery.min.js"></script>
       <script src="../../js/popper.min.js"></script>
       <script src="../../js/bootstrap.min.js"></script>

@@ -36,7 +36,7 @@ Index Of Script
 Index Of Script
 ----------------------------------------------*/
 
-$(function(jQuery) {
+(function(jQuery) {
     "use strict";
 
     jQuery(document).ready(function() {
@@ -259,7 +259,7 @@ $(function(jQuery) {
         Scrollbar
         -----------------------------------------------------------------------*/
         let Scrollbar = window.Scrollbar;
-        if ($('#sidebar-scrollbar').length) {
+        if (jQuery('#sidebar-scrollbar').length) {
             Scrollbar.init(document.querySelector('#sidebar-scrollbar'), options);
         }
         let Scrollbar1 = window.Scrollbar;
