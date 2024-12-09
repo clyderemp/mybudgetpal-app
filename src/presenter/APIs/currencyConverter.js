@@ -343,7 +343,7 @@ export async function currencyConverter(){
     preSelectedCurrencyCodes.forEach(code => {
         const dual_code = code.slice(0,2).toLowerCase();
         const html = `
-            <button class="iq-sub-card form-control exchangeRateOption-btn" value="${code}">
+            <button style="text-align: left;" class="iq-sub-card form-control exchangeRateOption-btn" value="${code}">
                 <i class="flag-icon flag-icon-${dual_code} mx-2 mb-1 mt-1"></i>
                 ${code} (1 ${selectedCurrencyCode} = ${exchangeRates[code]} ${code})
             </button>

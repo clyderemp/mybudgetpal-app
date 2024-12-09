@@ -32,3 +32,8 @@ export function convertFormattedDateBack(dateString){
 
     return dateObj;
 }
+
+//FOR MONTHS
+export const reg_month_strings = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ];
+export const short_month_strings = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];
+export const days_of_the_week = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
