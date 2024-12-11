@@ -3,16 +3,20 @@ import { incomeBalanceTracker, incomeData, loadIncomeData, totalIncomeVal } from
 import { loadSavingsData, savingsAccountPerUser, savingsData, totalSavingsVal } from "../../model/savingsData.js";
 import { allTransactions, reportPercentage, totalMoneyTrafficVal } from "../../model/allTransactionsData.js";
 import { formatToMoneyValue } from "./valueFormatter.js";
-import { currencySymbol, currentExchangeRateVal } from "./currencyConverter.js";
+import { currencySymbol, currentExchangeRateVal, selectedCurrencyCode } from "./currencyConverter.js";
 import { capitalEachFirstLetter } from "./textFormatters.js";
 import { days_of_the_week } from "./dateFormatters.js";
+import { launchInvoiceForm } from "./invoiceForm.js";
+
 
 $(function(){
+    $('#invoiceForm').load('../../components/modals/invoiceForm.html');
     setTimeout(function() {
         console.log("Delayed execution");
 
         if (allTransactions !== null) {
             loadHomeDashboard();
+            $('#invoiceForm-currency').text(selectedCurrencyCode +' '+currencySymbol);
         }
     }, 2000);  // Delay by 2 seconds
 });
@@ -37,7 +41,6 @@ async function loadTopTiles(){
     $('#total-savings-val').text(currencySymbol+' '+await formatToMoneyValue(totalSavingsVal * currentExchangeRateVal));
     $('#total-income-val').text(currencySymbol+' '+await formatToMoneyValue(totalIncomeVal * currentExchangeRateVal));
 }
-
 async function loadWeeklySpendingTracker(){
     var options = {
         series: [{
@@ -86,7 +89,7 @@ async function loadWeeklySpendingTracker(){
       tooltip: {
         y: {
           formatter: function (val) {
-            return "$ " + val + " thousands"
+            return "$ " + val
           }
         }
       }
@@ -98,17 +101,16 @@ async function loadWeeklySpendingTracker(){
       const highestValue = Math.max(...weeklyExpenses);
       const amount = currencySymbol +' '+ await formatToMoneyValue(Math.max(...weeklyExpenses) * currentExchangeRateVal);
       const highestIndex = weeklyExpenses.indexOf(highestValue);
-      console.log(highestIndex, weeklyExpenses)
       const peakDay = days_of_the_week[highestIndex]+'s';
-      $('#weekly-chart-peakday').append(peakDay);
+      $('#weekly-chart-customMessage').text(highestValue > 0 ? 'Woah! Slown down.' : 'Not enough data! :(');
+      $('#weekly-chart-peakday').append(highestValue > 0 ? `You spend the most on `+peakDay : 'Make sure to report your invoices!');
       $('#weekly-chart-highest-val').text(amount);
       $('#fixed-percent').text(weekExpenseType.fixed);
       $('#variable-percent').text(weekExpenseType.variable);
 }
-
 async function loadTransactionTable(){
-
-    allTransactions?.slice(0, 18).forEach(async (data) => {
+    allTransactions.slice(0, 18).forEach(async (data) => {
+        console.log(data)
         let reportedBy = data?.reportedBy?.replaceAll('Me - ','')?.split(' ');
             reportedBy = reportedBy[0]+' '+reportedBy[reportedBy.length-1][0]+'.';
         const date = data?.date;
@@ -160,20 +162,22 @@ async function loadTopExpenses(){
     });
 }
 async function loadExpenditureChart(){
-    const incomeSplitPercentage = parseInt((reportPercentage?.income / reportPercentage?.total) * 100);
-    const expenseSplitPercentage = parseInt((reportPercentage?.expenses / reportPercentage?.total) * 100);
-    const savingsSplitPercentage = parseInt((reportPercentage?.savings / reportPercentage?.total) * 100);
-    var donut = new Morris.Donut({
-        element: 'expenditure-chart',
-        resize: true,
-        colors: ["#1e3d73", "#fe517e", "#99f6ca"],
-        data: [
-          {label: "Income", value: incomeSplitPercentage},
-          {label: "Expenses", value: expenseSplitPercentage},
-          {label: "Savings", value: savingsSplitPercentage}
-        ],
-        hideHover: 'auto'
-    });
+    if(reportPercentage?.total > 0){
+        const incomeSplitPercentage = parseInt((reportPercentage?.income / reportPercentage?.total) * 100);
+        const expenseSplitPercentage = parseInt((reportPercentage?.expenses / reportPercentage?.total) * 100);
+        const savingsSplitPercentage = parseInt((reportPercentage?.savings / reportPercentage?.total) * 100);
+        var donut = new Morris.Donut({
+            element: 'expenditure-chart',
+            resize: true,
+            colors: ["#1e3d73", "#fe517e", "#99f6ca"],
+            data: [
+            {label: "Income", value: incomeSplitPercentage},
+            {label: "Expenses", value: expenseSplitPercentage},
+            {label: "Savings", value: savingsSplitPercentage}
+            ],
+            hideHover: 'auto'
+        });
+    }
 }
 async function loadSavingsAccount(){
     for(const key in savingsAccountPerUser){
@@ -286,3 +290,5 @@ async function loadSplitMarginCharts(){
       var chart = new ApexCharts(document.querySelector("#income-savings-chart"), options);
       chart.render();
 }
+
+$('#invoiceFormButton').click(async function(){await launchInvoiceForm()})

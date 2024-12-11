@@ -128,9 +128,9 @@
                            </div>
                            <div class="col-md-4">
                               <div class="chart-data-block">
-                                 <h4><b>Woah! Slow down.</b></h4>
+                                 <h4><b><span id="weekly-chart-customMessage"></span></b></h4>
                                  <h2><b id="weekly-chart-highest-val">$ 0.00 </b></h2>
-                                 <p id="weekly-chart-peakday">You spend the most on </p>
+                                 <p id="weekly-chart-peakday"></p>
                                  <div class="chart-box d-flex align-items-center justify-content-between mt-5 mb-5">
                                     <!-- <div id="iq-chart-boxleft"></div>
                                     <div id="iq-chart-boxright"></div> -->
@@ -157,9 +157,13 @@
                      </div>
                   </div>
                   <div class="col-lg-4">
-                     <div class="iq-card iq-card-block iq-card-stretch iq-card-height banner-image-block-bg position-relative" style="background: transparent url(../../images/AL.png) no-repeat scroll center bottom; background-size: contain; height: 440px; box-shadow: none;">
-                     </div>
+                     <button type="button" class="btn btn-outline-primary btn-block" data-toggle="modal" data-target="#invoiceForm" id="invoiceFormButton">Add a new invoice</button>
+                     <button type="button" class="btn btn-outline-primary btn-block">Plan my grocery list</button>
+                     <button type="button" class="btn btn-outline-primary btn-block">Edit my budget plan</button>
+                     <div class="iq-card iq-card-block iq-card-stretch iq-card-height banner-image-block-bg position-relative" style="background: transparent url(../../images/AL.png) no-repeat scroll center bottom; background-size: contain; height: 300px; box-shadow: none;"></div>
                   </div>
+                  <div class="modal fade" id="invoiceForm" tabindex="-1" role="dialog" aria-labelledby="invoiceFormTitle" aria-hidden="true"></div>
+                  <!--TRANSACTION INVOICES-->
                   <div class="col-lg-8">
                      <div class="iq-card iq-card-block iq-card-stretch iq-card-height">
                         <div class="iq-card-header d-flex justify-content-between">
@@ -201,6 +205,7 @@
                         </div>
                      </div>
                   </div>
+                  <!--TOP EXPENSES-->
                   <div class="col-lg-4">
                      <div class="iq-card iq-card-block iq-card-stretch iq-card-height">
                         <div class="iq-card-header d-flex justify-content-between">
@@ -209,6 +214,7 @@
                            </div>
                         </div>
                         <div class="iq-card-body" id="topExpensesTable">
+                           No Sufficient Data
                         </div>
                      </div>
                   </div>

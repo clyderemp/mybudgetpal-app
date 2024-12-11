@@ -1,25 +1,13 @@
 import { db, auth } from '../../../firebase.js'
 import { doc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.2/firebase-firestore.js";
 import { uid } from '../../../main.js';
-import { convertFormattedDateBack, getFormattedTodayDate } from '../APIs/dateFormatters.js';
+import { convertFormattedDateBack, getFormattedTodayDate, getStartOfMonth } from '../APIs/dateFormatters.js';
 
 export const fetchAllTransactions = async() => {
     // localStorage.clear();
-    let transactions = JSON.parse(await localStorage.getItem('transactionData-'+uid)) || [];
-    const todayDate = await getFormattedTodayDate();// Find the earliest date in the transactions array
-    const earliestDateTransaction = transactions.reduce((earliest, currentTransaction) => {
-        const currentDate = new Date(currentTransaction.date);
-        const earliestDate = new Date(earliest.date);
     
-        return currentDate < earliestDate ? currentTransaction : earliest;
-    });
+    let transactions = await JSON.parse(await localStorage.getItem('transactionData-'+uid)) || [];
 
-    const startDateFilterVal = await localStorage.getItem('startDateFilter') || earliestDateTransaction?.date;
-    const endDateFilterVal = await localStorage.getItem('endDateFilterVal') || todayDate;
-
-    $('#start-date-filter').val(startDateFilterVal);
-    $('#end-date-filter').val(endDateFilterVal);
-    
     if(transactions === null || transactions?.length <= 0){
         console.log('Fetching transactions from firebase...');
         const collectionRef = collection(db, 'users', uid, 'transactions');
@@ -33,6 +21,21 @@ export const fetchAllTransactions = async() => {
     } else {
         console.log('Fetching transactions from local...');
     }
+
+    const firstDayOfTheMonth = await getStartOfMonth();// Find the earliest date in the transactions array
+    const todayDate = await getFormattedTodayDate();// Find the earliest date in the transactions array
+    const earliestDateTransaction = transactions?.reduce((earliest, currentTransaction) => {
+        const currentDate = new Date(currentTransaction.date);
+        const earliestDate = new Date(earliest.date);
+    
+        return currentDate < earliestDate ? currentTransaction : earliest;
+    });
+
+    const startDateFilterVal = await localStorage.getItem('startDateFilter') || firstDayOfTheMonth;
+    const endDateFilterVal = await localStorage.getItem('endDateFilterVal') || todayDate;
+
+    $('#start-date-filter').val(startDateFilterVal);
+    $('#end-date-filter').val(endDateFilterVal);
 
     var arr = [];
     for( var key in transactions){

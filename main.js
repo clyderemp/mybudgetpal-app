@@ -30,10 +30,10 @@ $(function(){
            */
           
           var currentPage = currentLocation.pathname.toString();
-          if(!currentPage.includes('/index.html')){
+          if(!currentPage.includes('home')){
             getDoc(doc(db, "users", uid)).then(docSnap => {
                 if (docSnap.exists()) {
-                    window.location.replace("../home/index.html");
+                    window.location.replace("../home/");
                 } else {
                     alert('No user data exists!');
                     signOut(auth);
@@ -46,8 +46,8 @@ $(function(){
             console.log('logged out');
             var currentPage = currentLocation.pathname.toString();
             console.log(currentLocation, currentPage)
-            if(currentPage=='/src/view/pages/home/index.html'){
-                window.location.replace("../auth/login.html");
+            if(currentPage=='/src/view/pages/home/'){
+                window.location.replace("../auth/");
             }
         }
       });

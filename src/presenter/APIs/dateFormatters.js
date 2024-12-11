@@ -7,6 +7,15 @@ export function getFormattedTodayDate() {
     return `${year}-${month}-${day}`;  // Format as YYYY-MM-DD
 }
 
+export function getStartOfMonth(){
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');   // Ensure two digits for day
+    const month = String(date.getMonth()+1).padStart(2, '0'); // Ensure two digits for month
+    const year = date.getFullYear();
+
+    return `${year}-${month}-01`;  // Format as YYYY-MM-DD
+}
+
 export function convertToFormattedDate(dateObj){
 
     const day = String(dateObj.getDate()).padStart(2, '0');   // Ensure two digits for day
