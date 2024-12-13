@@ -149,7 +149,7 @@ async function analyzeSelectedWeekExpense() {
     });
     const expensesDataLength = Object.values(expensesData).length;
     weekExpenseType = {
-        fixed: expensesDataLength > 0 ? (totalFixed / expensesDataLength).toFixed(2) * 100 +' %' : '0%',
-        variable: expensesDataLength > 0 ? (totalVariable / expensesDataLength).toFixed(2) * 100 +' %' : '0%',
+        fixed: expensesDataLength > 0 ? ((totalFixed / expensesDataLength).toFixed(2) * 100).toPrecision(3) +' %' : '0%',
+        variable: expensesDataLength > 0 ? ((totalVariable / expensesDataLength).toFixed(2) * 100).toPrecision(3) +' %' : '0%',
     }
 }

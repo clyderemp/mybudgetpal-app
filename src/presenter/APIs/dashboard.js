@@ -7,10 +7,13 @@ import { currencySymbol, currentExchangeRateVal, selectedCurrencyCode } from "./
 import { capitalEachFirstLetter } from "./textFormatters.js";
 import { days_of_the_week } from "./dateFormatters.js";
 import { launchInvoiceForm } from "./invoiceForm.js";
+import { launchInvoiceTable } from "./invoiceTable.js";
+import { downloadPDFFile } from "./pdfDownloader.js";
 
 
 $(function(){
     $('#invoiceForm').load('../../components/modals/invoiceForm.html');
+    $('#invoiceTableModal').load('../../components/modals/invoiceTable.html');
     setTimeout(function() {
         console.log("Delayed execution");
 
@@ -31,8 +34,8 @@ export const loadHomeDashboard = async () => {
     await loadTransactionTable();
     await loadTopExpenses();
     await loadExpenditureChart();
-    await loadSavingsAccount();
-    await loadSplitMarginCharts();
+    // await loadSavingsAccount();
+    // await loadSplitMarginCharts();
 }
 
 async function loadTopTiles(){
@@ -110,7 +113,6 @@ async function loadWeeklySpendingTracker(){
 }
 async function loadTransactionTable(){
     allTransactions.slice(0, 18).forEach(async (data) => {
-        console.log(data)
         let reportedBy = data?.reportedBy?.replaceAll('Me - ','')?.split(' ');
             reportedBy = reportedBy[0]+' '+reportedBy[reportedBy.length-1][0]+'.';
         const date = data?.date;
@@ -132,34 +134,51 @@ async function loadTransactionTable(){
                     </tr>`
 
         $('#transaction-table').append(html);
+    });
+
+    $('#transaction-table-viewAll').click(async function(event){
+        event.preventDefault();
+        await launchInvoiceTable();
+    });
+
+    $('#download-invoiceTable').click(async function(event){
+        event.preventDefault();
+        console.log('here')
+        await downloadPDFFile('invoiceTableTile', 'invoice');
+
     })
 }
 async function loadTopExpenses(){
-    totalExpenseValPerType?.forEach(async (expense) => {
-        const expenseType = await capitalEachFirstLetter(expense.type);
-        const transactions = totalExpenseTransactionsPerType[expense.type];
-        const html = `  <div class="d-flex align-items-center mt-0">
-                              <div class="icon iq-icon-box rounded iq-bg-danger mr-3">
-                                 ${expenseIcons[expenseType]}
-                              </div>
-                              <div class="iq-details col-sm-9 p-0">
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="title text-dark">${expenseType?.split('(')[0]}</span>
-                                    <div class="percentage"><b><span>${currencySymbol}</span> ${await formatToMoneyValue(expense.value * currentExchangeRateVal)} </b></div>
-                                 </div>
-                                 <div class="iq-progress-bar-linear d-inline-block w-100">
-                                    <div class="iq-progress-bar">
-                                       <span class="bg-danger" data-percent="67"></span>
-                                    </div>
-                                 </div>
-                                 <div class="d-flex align-items-center justify-content-between">
-                                    <span class="">${transactions} Transaction${transactions === 1 ? '' : 's' }</span>
-                                    <div class="percentage">${(transactions / totalExpenseValPerType.length)}<span>%</span></div>
-                                 </div>
-                              </div>
-                           </div><hr class="mt-4 mb-4">`;
-        $('#topExpensesTable').append(html);
-    });
+    if(totalExpenseValPerType?.length <= 0){
+        $('#topExpensesTable').text('No Sufficient Data');
+    } else {
+        totalExpenseValPerType?.forEach(async (expense) => {
+            const expenseType = await capitalEachFirstLetter(expense.type);
+            const transactions = totalExpenseTransactionsPerType[expense.type];
+            const html = `  <div class="d-flex align-items-center mt-0">
+                                  <div class="icon iq-icon-box rounded iq-bg-danger mr-3">
+                                     ${expenseIcons[expenseType]}
+                                  </div>
+                                  <div class="iq-details col-sm-9 p-0">
+                                     <div class="d-flex align-items-center justify-content-between">
+                                        <span class="title text-dark">${expenseType?.split('(')[0]}</span>
+                                        <div class="percentage"><b><span>${currencySymbol}</span> ${await formatToMoneyValue(expense.value * currentExchangeRateVal)} </b></div>
+                                     </div>
+                                     <div class="iq-progress-bar-linear d-inline-block w-100">
+                                        <div class="iq-progress-bar">
+                                           <span class="bg-danger" data-percent="67"></span>
+                                        </div>
+                                     </div>
+                                     <div class="d-flex align-items-center justify-content-between">
+                                        <span class="">${transactions} Transaction${transactions === 1 ? '' : 's' }</span>
+                                        <div class="percentage">${(transactions / totalExpenseValPerType.length)}<span>%</span></div>
+                                     </div>
+                                  </div>
+                               </div><hr class="mt-4 mb-4">`;
+            $('#topExpensesTable').append(html);
+        });
+
+    }
 }
 async function loadExpenditureChart(){
     if(reportPercentage?.total > 0){
