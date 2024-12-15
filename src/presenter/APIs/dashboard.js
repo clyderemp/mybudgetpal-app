@@ -9,11 +9,13 @@ import { days_of_the_week } from "./dateFormatters.js";
 import { launchInvoiceForm } from "./invoiceForm.js";
 import { launchInvoiceTable } from "./invoiceTable.js";
 import { downloadPDFFile } from "./pdfDownloader.js";
+import { launchBudgetPlanForm } from "./budgetPlanForm.js";
 
 
 $(function(){
     $('#invoiceForm').load('../../components/modals/invoiceForm.html');
     $('#invoiceTableModal').load('../../components/modals/invoiceTable.html');
+    $('#budgetPlanForm').load('../../components/modals/budgetPlanForm.html');
     setTimeout(function() {
         console.log("Delayed execution");
 
@@ -171,7 +173,7 @@ async function loadTopExpenses(){
                                      </div>
                                      <div class="d-flex align-items-center justify-content-between">
                                         <span class="">${transactions} Transaction${transactions === 1 ? '' : 's' }</span>
-                                        <div class="percentage">${(transactions / totalExpenseValPerType.length)}<span>%</span></div>
+                                        <div class="percentage">${(transactions / totalExpenseValPerType.length).toFixed(2) * 100}<span>%</span></div>
                                      </div>
                                   </div>
                                </div><hr class="mt-4 mb-4">`;
@@ -311,3 +313,4 @@ async function loadSplitMarginCharts(){
 }
 
 $('#invoiceFormButton').click(async function(){await launchInvoiceForm()})
+$('#budgetPlanFormButton').click(async function(){await launchBudgetPlanForm()})

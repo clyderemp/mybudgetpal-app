@@ -129,7 +129,7 @@ $('#invoiceForm').on('submit', async function(event){
     event.preventDefault();
     const recipient = $('#invoiceForm-paidToFrom').val();
     const date = $('#invoiceForm-date').val();
-    const amount = $('#invoiceForm-amount').val();
+    const amount = ($('#invoiceForm-amount').val()) / currentExchangeRateVal;
     const category = $('#invoiceForm-category').val();
     const type = $('#invoiceForm-type').val();
     const paymentMethod = $('#invoiceForm-paymentMethod').val();
@@ -149,7 +149,7 @@ $('#invoiceForm').on('submit', async function(event){
         creation_date: creation_date,
         exchange_rate: currentExchangeRateVal? currentExchangeRateVal : 1,
     };
-
+    
     const collectionPath = `users/${uid}/transactions`;
     const documentPath = transactionID;
     const success = await saveDocument(collectionPath, documentPath, docData);
