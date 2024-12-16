@@ -18,6 +18,7 @@ export async function launchBudgetPlanForm(){
 }
 
 async function launchUsersSalaryForm() {
+    userOptions = [];
     $('#usersSalaryInput').empty();
     const primaryUser = `${currentUserDataVal?.fname}`;
     totalSalary[primaryUser] = 0;
@@ -63,10 +64,14 @@ async function launchUsersSalaryForm() {
     $('#usersSalaryInput').append(html);
 
     // Add event listener for primary user's salary amount change
-    $(`#budgetSalary-${primaryUser}-amount`).on('input', function() {
+    $(`#budgetSalary-${primaryUser}-amount`).on('input', async function() {
+
         const salaryAmount = parseFloat($(this).val()) || 0;  // Get the salary value, default to 0 if invalid
         totalSalary[primaryUser] = salaryAmount;  // Update totalSalary object
-        console.log(`Total Salary for ${primaryUser}: ${totalSalary[primaryUser]}`);  // For debugging
+        if(salaryAmount >= 0){
+            $(this).removeClass('is-invalid');
+        }
+        // await calculatePercentage(index);
     });
 
     // Now loop over co-users (if applicable) to generate similar inputs for them
@@ -82,7 +87,7 @@ async function launchUsersSalaryForm() {
                 <div class="form-row">
                     <!-- Day Input (1-31) -->
                     <div class="col-md-6">
-                        <select class="form-control" id="budgetSalary-${coUserName}-day" required>
+                        <select class="form-control" id="budgetSalary-${coUserInputListenerID}-day" required>
                             <option value="" disabled selected>Select Day</option>
                             ${Array.from({ length: 31 }, (_, i) => i + 1).map(day => 
                                 `<option value="${day}">${day} of every month</option>`
@@ -91,7 +96,7 @@ async function launchUsersSalaryForm() {
                     </div>
                     <!-- Frequency Input -->
                     <div class="col-md-6">
-                        <select class="form-control" id="budgetSalary-${coUserName}-frequency" required>
+                        <select class="form-control" id="budgetSalary-${coUserInputListenerID}-frequency" required>
                             <option value="" disabled selected>Select Frequency</option>
                             <option value="monthly">Monthly</option>
                             <option value="biweekly">Biweekly</option>
@@ -100,7 +105,7 @@ async function launchUsersSalaryForm() {
                     </div>
                 </div>
                 <div class="input-group mt-2">
-                    <span class="input-group-text" id="budgetSalary-${coUserName}-currency">${currencySymbol}</span>
+                    <span class="input-group-text" id="budgetSalary-${coUserInputListenerID}-currency">${currencySymbol}</span>
                     <input type="number" class="form-control" id="budgetSalary-${coUserInputListenerID}-amount" aria-describedby="inputGroupPrepend" required>
                 </div>
                 <div class="valid-feedback">
@@ -117,15 +122,19 @@ async function launchUsersSalaryForm() {
         $(`#budgetSalary-${coUserInputListenerID}-amount`).on('input', function() {
             const salaryAmount = parseFloat($(this).val()) || 0;  // Get the salary value, default to 0 if invalid
             totalSalary[coUserInputListenerID] = salaryAmount;  // Update totalSalary object
-            console.log(`Total Salary for ${coUserName}: ${totalSalary[coUserInputListenerID]}`);  // For debugging
+            if(salaryAmount >= 0){
+                $(this).removeClass('is-invalid');
+            }
         });
     });
 }
 
-
 async function launchBudgetCategorySection() {
     // Empty the previous content inside the target container
     $('#categoryPercentInput').empty();
+
+    // Initialize a variable to track the total percentage sum
+    let totalPercentage = 0;
 
     // Calculate the vertical alignment based on the number of categories
     const filteredCategories = categories.filter(category => category !== 'income');
@@ -144,7 +153,7 @@ async function launchBudgetCategorySection() {
                         <span class="input-group-text">%</span>
                     </div>
                     <div class="invalid-feedback">
-                        Please enter a valid amount.
+                        Total percentage cannot exceed 100%.
                     </div>
                 </div>
             </div>
@@ -154,25 +163,36 @@ async function launchBudgetCategorySection() {
         $('#categoryPercentInput').append(html);
 
         // Bind the input change event for each category input
-        $(`#budgetForm-${category}-amount`).on('input', function() {
+        $(`#budgetForm-${category}-amount`).on('input', async function() {
             const amount = parseFloat($(this).val()) || 0; // Get the amount or default to 0
-            totalBudget[category] = amount/100; // Update the totalBudget for this category
+            totalBudget[category] = amount; // Update the totalBudget for this category
+            
+            // Calculate the total percentage of all category inputs
+            totalPercentage = Object.values(totalBudget).reduce((sum, value) => sum + value, 0);
 
-            // Optional: Do something with totalBudget, e.g., update UI or calculate totals
-            console.log(totalBudget);
+            // Check if the total percentage exceeds 100
+            if (totalPercentage > 100) {
+                $(this).addClass('is-invalid'); // Add 'is-invalid' class if total exceeds 100
+                $(this).next('.invalid-feedback').text('Total percentage cannot exceed 100%.'); // Update error message
+            } else {
+                $(this).removeClass('is-invalid'); // Remove 'is-invalid' if the input is valid
+                $(this).next('.invalid-feedback').text(''); // Clear the error message
+            }
         });
     });
 }
 
 
+
 async function launchBudgetTableSection() {
     // Reset the content and rowIndex when modal is opened
     $('#budgetTableInput').empty();
-
     // Reset rowIndex each time the modal is opened
     let rowIndex = 1;
     let userOptionsHTML = '';
-    userOptions.push('both');
+    if(!userOptions.includes('both')){
+        userOptions.push('both');
+    }
     // Loop through categories to generate category options
     for (const user of userOptions || []) {
         userOptionsHTML += `<option value="${user}">${await capitalEachFirstLetter(user)}</option>`;
@@ -192,7 +212,7 @@ async function launchBudgetTableSection() {
     const html = `
         <div class="col-md-12 mb-3" id="budget-row-${rowIndex}">
             <label for="budgetTable-category-${rowIndex}">Budget Plan:</label>
-            <div class="form-row" id="form-row-${rowIndex}">
+            <div class="form-row budget-row" id="form-row-${rowIndex}">
                 <div class="col-md-2">
                     <select class="form-control budgetTable-users" id="budgetTable-users-${rowIndex}" required>
                         ${userOptionsHTML}
@@ -231,6 +251,7 @@ async function launchBudgetTableSection() {
     `);
 
     // Bind events for the first row
+    bindUserChangeEvent(rowIndex);
     bindCategoryChangeEvent(rowIndex);
     bindAmountInputEvent(rowIndex);
 
@@ -246,7 +267,7 @@ async function launchBudgetTableSection() {
         let newRowHTML = `
             <div class="col-md-12 mb-3" id="budget-row-${rowIndex}">
                 <hr class="mt-1 mb-3">
-                <div class="form-row" id="form-row-${rowIndex}">
+                <div class="form-row budget-row" id="form-row-${rowIndex}">
                     <div class="col-md-2">
                         <select class="form-control budgetTable-users" id="budgetTable-users-${rowIndex}" required>
                             ${userOptionsHTML}
@@ -280,6 +301,7 @@ async function launchBudgetTableSection() {
         $('#budgetTableInput').append(newRowHTML);
 
         // Rebind events for the new row
+        bindUserChangeEvent(rowIndex);
         bindCategoryChangeEvent(rowIndex);
         bindAmountInputEvent(rowIndex);
 
@@ -288,6 +310,58 @@ async function launchBudgetTableSection() {
         //     <button type="button" class="btn btn-primary" id="addBudgetRowBtn">Add Another Row</button>
         // `);
     });
+}
+
+// Function to bind users change event
+function bindUserChangeEvent(index) {
+    $(`#budgetTable-users-${index}`).on('change', async function() {
+        const selectedUser = ($(this).val())?.replaceAll(' ', '');;
+        const typeArray = types[selectedCategory] || [];
+        let typeOptionsHTML = '';
+
+        // Loop through types for the selected category and generate options
+        for (const type of typeArray) {
+            typeOptionsHTML += `<option value="${type}">${await capitalEachFirstLetter(type)}</option>`;
+        }
+
+        // Update the type dropdown with the new options
+        $(`#budgetTable-type-${index}`).html(typeOptionsHTML);
+
+        // Check if the current category has an 'is-invalid' class
+        if ($(`#budgetTable-category-${index}`).hasClass('is-invalid')) {
+            // Remove 'is-invalid' from the previous category if it exists
+            $(`#budgetTable-category-${index}`).removeClass('is-invalid');
+            // Clear the feedback message
+            $(`#budgetTable-category-${index}`).next().text('');
+        }
+
+        const selectedCategory = $(`#budgetTable-category-${index}`).val();
+        // Get the user's total salary from the `totalSalary` object
+        const userSalary = totalSalary[selectedUser] || 0;
+        
+        // Get the category value from the `totalBudget` object
+        const categoryValue = totalBudget[selectedCategory] || 0;
+        
+        // Get the amount entered in the input field
+        const amount = parseFloat($(this).val()) || 0;
+        
+        // Validate inputs
+        let isValid = true;
+        
+        // Check if any of the fields are missing or invalid
+        if (!selectedUser || !selectedCategory || !userSalary || !categoryValue ) {
+            isValid = false;
+            
+            // Add the 'is-invalid' class to the fields to highlight them as invalid
+            $(`#budgetSalary-${selectedUser}-amount`).addClass('is-invalid');
+            $(`#budgetForm-${selectedCategory}-amount`).addClass('is-invalid');
+            
+            // Display an invalid feedback message (optional)
+        } 
+    });
+
+    // Trigger change on the category select to load types for the initially selected category
+    $(`#budgetTable-category-${index}`).trigger('change');
 }
 
 // Function to bind category change event
@@ -312,16 +386,39 @@ function bindCategoryChangeEvent(index) {
             // Clear the feedback message
             $(`#budgetTable-category-${index}`).next().text('');
         }
+
+        const selectedUser = ($(`#budgetTable-users-${index}`).val())?.replaceAll(' ', '');
+        // Get the user's total salary from the `totalSalary` object
+        const userSalary = totalSalary[selectedUser] || 0;
+        
+        // Get the category value from the `totalBudget` object
+        const categoryValue = totalBudget[selectedCategory] || 0;
+        
+        // Get the amount entered in the input field
+        const amount = parseFloat($(this).val()) || 0;
+        
+        // Validate inputs
+        let isValid = true;
+        
+        // Check if any of the fields are missing or invalid
+        if (!selectedUser || !selectedCategory || !userSalary || !categoryValue ) {
+            isValid = false;
+            
+            // Add the 'is-invalid' class to the fields to highlight them as invalid
+            $(`#budgetSalary-${selectedUser}-amount`).addClass('is-invalid');
+            $(`#budgetForm-${selectedCategory}-amount`).addClass('is-invalid');
+            
+            // Display an invalid feedback message (optional)
+        } 
     });
 
     // Trigger change on the category select to load types for the initially selected category
     $(`#budgetTable-category-${index}`).trigger('change');
 }
 
-
 // Function to bind the amount input event for percentage calculation
 function bindAmountInputEvent(index) {
-    $(`#budgetTable-amount-${index}`).on('input', function() {
+    $(`#budgetTable-amount-${index}`).on('input', async function() {
         let totalSalaryForBoth = 0;
         totalSalary.both = 0;
         for(const user in totalSalary){
@@ -329,7 +426,6 @@ function bindAmountInputEvent(index) {
             totalSalaryForBoth += salary;
         }
         totalSalary.both = totalSalaryForBoth;
-        console.log(totalSalary)
         // Get the selected user and category from the form
         const selectedUser = ($(`#budgetTable-users-${index}`).val())?.replaceAll(' ', '');
         const selectedCategory = $(`#budgetTable-category-${index}`).val();
@@ -369,11 +465,9 @@ function bindAmountInputEvent(index) {
         
         // If the form is valid, calculate the percentage
         if (isValid) {
-            const totalAmount = (amount / (userSalary * categoryValue)).toFixed(2) * 100;
-            const percentage = totalAmount.toFixed(2);
             
             // Update the percentage display next to the amount input field
-            $(`#budgetTable-amount-${index}`).next().text(`= ${percentage} %`);
+            await calculatePercentage(index, amount);
         } else {
             // Clear the percentage display if the form is invalid
             $(`#budgetTable-amount-${index}`).next().text('= 0.00 %');
@@ -381,3 +475,88 @@ function bindAmountInputEvent(index) {
     });
     
 }
+
+async function calculatePercentage(index, amount){
+
+    const selectedUser = ($(`#budgetTable-users-${index}`).val())?.replaceAll(' ', '');
+    const selectedCategory = $(`#budgetTable-category-${index}`).val();
+
+    // Get the user's total salary from the `totalSalary` object
+    const userSalary = totalSalary[selectedUser] || 0;
+    
+    // Get the category value from the `totalBudget` object
+    const categoryValue = totalBudget[selectedCategory] || 0;
+
+    const totalAmount = (amount / (userSalary * categoryValue)).toFixed(2) * 100;
+    const percentage = totalAmount.toFixed(2);
+
+    $(`#budgetTable-amount-${index}`).next().text(`= ${percentage} %`);
+}
+
+$('#budgetPlanForm').on('submit', async function(event){
+    event.preventDefault();
+    /**
+     * SALARY
+     */
+    userOptions = userOptions.filter(user => user !== 'both');
+    let userSalaryArray = [];
+    userOptions.forEach(async(user)=>{
+        console.log(user)
+        const coUserInputListenerID = user.replaceAll(' ','');
+        const day = $(`#budgetSalary-${coUserInputListenerID}-day`).val();
+        const frequency = $(`#budgetSalary-${coUserInputListenerID}-frequency`).val();
+        const amount = $(`#budgetSalary-${coUserInputListenerID}-amount`).val();
+        console.log(day, frequency, amount)
+        const salaryObj = {
+            frequency: frequency,
+            amount: amount,
+            day: day
+        }
+        userSalaryArray.push(salaryObj);
+    });
+
+    /**
+     * CATEGORIES
+     */
+    let categoryBudgetPercentVal = {};
+    const filteredCategories = categories.filter(category => category !== 'income');
+    filteredCategories?.forEach(async (category) => {
+        const categoryBudgetPercent = $(`#budgetForm-${category}-amount`).val();
+        categoryBudgetPercentVal[category] = parseFloat(categoryBudgetPercent);
+    });
+    
+    /**
+     * BUDGET PLAN
+     */
+    let budgetPlanArray = [];
+    $('.budget-row').each(async function() {
+        const rowIndex = $(this).attr('id').split('-')[2];  // Get the row index dynamically
+        const user = $(`#budgetTable-users-${rowIndex}`).val();
+        const category = $(`#budgetTable-category-${rowIndex}`).val();
+        const type = $(`#budgetTable-type-${rowIndex}`).val();
+        const amount = parseFloat($(`#budgetTable-amount-${rowIndex}`).val()) || 0;
+
+        // If a valid user is selected and the amount is non-zero, save this row's data
+        if (user && amount > 0) {
+            const rowData = {
+                user: user,
+                category: category,
+                type: type,
+                amount: amount
+            };
+
+            // Push the row data into the array
+            budgetPlanArray.push(rowData);
+        }
+    });
+
+    const budgetFormDocData = {
+        userSalary: userSalaryArray,
+        categoryPercent: categoryBudgetPercentVal,
+        budgetPlanArray: budgetPlanArray,
+    };
+
+    // await updateDoc('users', uid, budgetFormDocData);
+
+    console.log(budgetFormDocData)
+});
