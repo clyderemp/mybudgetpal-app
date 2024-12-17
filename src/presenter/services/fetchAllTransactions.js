@@ -58,6 +58,7 @@ export const fetchAllTransactions = async() => {
     });
     
     transactions = arr;
+    console.log(arr)
     // setFilterDates(transactions);
     return transactions;
 }

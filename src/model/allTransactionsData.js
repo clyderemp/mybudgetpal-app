@@ -21,7 +21,6 @@ export const allTransactionsData = async () => {
         totalMoneyTrafficVal += value;
         reportPercentage.total += value;
         reportPercentage[category] += value;
-        
         switch(category){
             case 'expenses':
                 expensesData[key] = obj;
@@ -30,6 +29,7 @@ export const allTransactionsData = async () => {
                 incomeData[key] = obj;
                 break;
             case 'savings':
+                console.log(obj)
                 savingsData[key] = obj;
                 break;
             default:

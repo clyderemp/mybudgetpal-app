@@ -3,6 +3,7 @@ export let totalSavingsVal = 0;
 export let savingsAccountPerUser = {};
 
 export async function loadSavingsData(){
+    console.log(savingsData)
     for(const key in savingsData){
         const obj = savingsData[key];
         const value = parseFloat(obj?.value) || 0;

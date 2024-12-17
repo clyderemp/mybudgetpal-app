@@ -3,6 +3,7 @@ import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.2/f
 import { uid } from '../../../main.js';
 
 export const fetchCurrentUserData = async() => {
+    // await localStorage.removeItem('currentUserData-'+uid);
     let currentUserDataVal = JSON.parse(await localStorage.getItem('currentUserData-'+uid));
 
     if(currentUserDataVal === null){

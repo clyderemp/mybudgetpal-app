@@ -20,8 +20,12 @@ $(function(){
         console.log("Delayed execution");
 
         if (allTransactions !== null) {
-            loadHomeDashboard();
-            $('#invoiceForm-currency').text(selectedCurrencyCode +' '+currencySymbol);
+            try{
+              loadHomeDashboard();
+              $('#invoiceForm-currency').text(selectedCurrencyCode +' '+currencySymbol);
+            } catch (err){
+              window.location.reload()
+            }
         }
     }, 2000);  // Delay by 2 seconds
 });
@@ -36,8 +40,8 @@ export const loadHomeDashboard = async () => {
     await loadTransactionTable();
     await loadTopExpenses();
     await loadExpenditureChart();
-    // await loadSavingsAccount();
-    // await loadSplitMarginCharts();
+    await loadSavingsAccount();
+    await loadSplitMarginCharts();
 }
 
 async function loadTopTiles(){
@@ -201,6 +205,9 @@ async function loadExpenditureChart(){
     }
 }
 async function loadSavingsAccount(){
+    if(Object.keys(savingsAccountPerUser).length <= 0){
+      $('#savings-account-table').append('No Sufficient Data! :(');
+    }
     for(const key in savingsAccountPerUser){
         const obj = savingsAccountPerUser[key];
         const name = await capitalEachFirstLetter(obj.name);

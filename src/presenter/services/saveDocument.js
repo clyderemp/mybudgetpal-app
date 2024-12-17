@@ -11,7 +11,5 @@ export const saveDocument = async (collectionPath, documentPath, docData) => {
 
 export const updateDocument = async (collectionPath, documentPath, docData) => {
     const docRef = doc(db, collectionPath, documentPath);
-    const result = await updateDoc(docRef, docData);
-
-    return result;
+    await updateDoc(docRef, docData);
 }

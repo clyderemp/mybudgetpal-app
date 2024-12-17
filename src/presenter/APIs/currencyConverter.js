@@ -353,7 +353,7 @@ export async function currencyConverter(){
     
     currencySymbol = currencySymbols[selectedCurrencyCode];
     currentExchangeRateVal = 1 / exchangeRates['CAD'];
-    console.log(exchangeRates)
+    console.log(currentExchangeRateVal)
 }
 
 export async function getExchangeRates(baseCurrency) {
