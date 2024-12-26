@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="description" content="Responsive Admin &amp; Dashboard Template based on Bootstrap 5">
+	<meta name="author" content="Clyde John">
+	<meta name="keywords" content="adminkit, bootstrap, bootstrap 5, admin, dashboard, template, responsive, css, sass, html, theme, front-end, ui kit, web">
+
+	<link rel="preconnect" href="https://fonts.gstatic.com">
+	<link rel="shortcut icon" href="../img/icons/icon-48x48.png" />
+
+	<link rel="canonical" href="https://demo-basic.adminkit.io/" />
+	<script src="https://unpkg.com/feather-icons"></script>
+	<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+	<script type="module" src="../../../js/firebase.js"></script>
+	<script type="module" src="../js/main.js"></script>
+	<script type="module" src="../js/currencyExchange.js"></script>
+	<script type="module" src="../js/add.js"></script>
+
+	<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+	<link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+
+	<title>myBudgetPal</title>
+
+	<link href="../css/app.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+	<div class="wrapper">
+		<nav id="sidebar-container" class="sidebar js-sidebar"></nav>
+
+		<div class="main">
+			<nav class="navbar navbar-expand navbar-light navbar-bg">
+				<a class="sidebar-toggle js-sidebar-toggle">
+          <i class="hamburger align-self-center"></i>
+        </a>
+
+				<div class="navbar-collapse collapse">
+					<ul class="navbar-nav navbar-align">
+
+						<!--TRANSACTION REPORT-->
+						<li class="nav-item dropdown">
+							<a class="nav-icon dropdown-toggle" href="#" id="messagesDropdown" data-bs-toggle="dropdown">
+								<div class="position-relative">
+									<i class="align-middle" data-feather="edit"></i>
+								</div>
+							</a>
+							<div class="dropdown-menu dropdown-menu-lg dropdown-menu-end py-0" aria-labelledby="messagesDropdown">
+								<div class="dropdown-menu-header">
+									<div class="position-relative">
+										Transaction Report Assistant
+									</div>
+								</div>
+								<div class="list-group">
+									<a href="add.html" class="list-group-item">
+										<div class="row g-0 align-items-center">
+											<div class="col-2 position-relative">
+												<i class="avatar img-fluid" data-feather="edit-2"></i>
+											</div>
+											<div class="col-10 ps-2">
+												<div class="text-dark">Submit a Transaction</div>
+												<div class="text-muted small mt-1">Add a new transaction report</div>
+												<div class="text-muted small mt-1" id="last-save-txt">Last report: </div>
+											</div>
+										</div>
+									</a>
+									<a href="transactions-report.html" class="list-group-item">
+										<div class="row g-0 align-items-center">
+											<div class="col-2 position-relative">
+												<i class="avatar img-fluid" data-feather="edit"></i>
+											</div>
+											<div class="col-10 ps-2">
+												<div class="text-dark">Modify a Transaction</div>
+												<div class="text-muted small mt-1">Modify an existing transaction report</div>
+											</div>
+										</div>
+									</a>
+									<a href="transactions-report.html" class="list-group-item">
+										<div class="row g-0 align-items-center">
+											<div class="col-2 position-relative">
+												<i class="avatar img-fluid" data-feather="edit-3"></i>
+											</div>
+											<div class="col-10 ps-2">
+												<div class="text-dark">Delete a Transaction</div>
+												<div class="text-muted small mt-1">Delete an existing report</div>
+												<div class="text-muted small mt-1" id="last-delete-txt">Last delete: </div>
+											</div>
+										</div>
+									</a>
+								</div>
+							</div>
+						</li>
+
+						<li class="nav-item dropdown">
+							<a class="nav-icon dropdown-toggle d-inline-block d-sm-none" href="#" data-bs-toggle="dropdown">
+               					<i class="align-middle" data-feather="settings"></i>
+              				</a>
+							<a class="nav-link dropdown-toggle d-none d-sm-inline-block" href="#" data-bs-toggle="dropdown">
+                				<img src="../img/avatars/user.png" class="avatar img-fluid rounded me-1" alt="User" /> <span class="text-dark" id="topright-title"></span>
+              				</a>
+							<div class="dropdown-menu dropdown-menu-end">
+								<a class="dropdown-item" href="profile.html"><i class="align-middle me-1" data-feather="user"></i> View my Profile</a>
+								<a class="dropdown-item" href="../manage-users/view.html"><i class="align-middle me-1" data-feather="user-plus"></i> Manage co-user</a>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" href="../settings/user.html"><i class="align-middle me-1" data-feather="settings"></i>Settings</a>
+								
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item">Currency:
+									<select class="form-control m-auto" id="currencyDropdown" style="text-align: center;">
+										<option value="" disabled selected>$$$</option>
+									</select>
+								</a>
+								<div class="dropdown-divider"></div>
+								<a class="dropdown-item" id="logout-btn"><i class="align-middle me-1" data-feather="log-out"></i>Log out</a>
+							</div>
+						</li>
+					</ul>
+				</div>
+			</nav>
+
+			<main class="content">
+				<div class="container-fluid p-0">
+					<div class="mb-3">
+						<h1 class="h3 d-inline align-middle mb-4">Submit a transaction report</h1>
+						<br><br>
+						<span class="mb-3" style="text-align: left; font-weight: 600;">Selected Currency: <span class="currencyCodes"></span>
+						<br><br>
+						Please input the values in your selected currency. 
+						</span>
+						<div class="mb-3" style="text-align: right;">
+							<a class="btn btn-primary btn-group-lg mb-2" href="transactions-report.html"><i class="fa-solid fa-arrow-left"></i> Go back to reports</a>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-6 col-lg-6">
+							<div class="card" style="height: 150px;">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Paid to/from:</h5>
+								</div>
+								<div class="card-body">
+									<input type="text" class="form-control" placeholder="Recipient" id="add-title">
+								</div>
+							</div>
+						</div>
+						<div class="col-6 col-lg-6">
+							<div class="card" style="height: 150px;">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Item Note:</h5>
+								</div>
+								<div class="card-body">
+									<textarea class="form-control" rows="2" placeholder="Write additional item note here such as the items purchases, etc." id="add-note"></textarea>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-6 col-lg-6">
+							<div class="card">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Category:</h5>
+								</div>
+								<div class="card-body">
+									<select class="form-select mb-3" id="add-category">
+										<option selected>Select the category</option>
+										<option value="expenses" id="expenses">Expenses</option>
+										<option value="savings">Savings</option>
+										<option value="income">Income</option>
+										<option value="credit">Credit</option>
+									</select>
+								</div>
+							</div>
+						</div>
+						<div class="col-6 col-lg-6" id="type-card">
+							<div class="card">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Type:</h5>
+								</div>
+								<div class="card-body">
+									<select class="form-select mb-3" id="add-type">
+										<option value="N/A" selected>Select the type</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-6 col-lg-6">
+							<div class="card" style="height: 150px;">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Value (<span class="currencyCodes"></span>):</h5>
+									<span class="card-title mb-0" style="font-size: 12px;">Currency Exchange Rate: <span id="exchangeRate"></span> <span class="currencyCodes"></span> =  $1.00 CAD</span>
+								</div>
+								<div class="card-body">
+									<input class="form-control w-50 d-inline-block" type="number" id="add-value"/>
+									<span class="currencyCodes"></span> = <span id="exchangeValue"></span> CAD</span>
+								</div>
+								
+							</div>
+						</div>
+						<div class="col-6 col-lg-6">
+							<div class="card" style="height: 150px;">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Payment Method:</h5>
+								</div>
+								<div class="card-body">
+									<select class="form-select mb-3" id="add-paymentMethod">
+										<option selected>Select the category</option>
+										<option value="cash">Cash Payment</option>
+										<option value="debit">Debit Account</option>
+										<option value="credit">Credit Card</option>
+										<option value="cheque">Cheque Payment</option>
+										<option value="savings">Short-term Savings</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-6 col-lg-6">
+							<div class="card" style="height: 150px;">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Date:</h5>
+								</div>
+								<div class="card-body">
+									<input class="card-body m-0 form-control w-100 datepicker" type="date" id="add-date">
+								</div>
+							</div>
+						</div>
+						<div class="col-6 col-lg-6">
+							<div class="card" style="height: 150px;">
+								<div class="card-header">
+									<h5 class="card-title mb-0">Submitted by:</h5>
+								</div>
+								<div class="card-body">
+									<div>
+										<label class="form-check">
+										<select class="form-select mb-3" id="add-reportedBy">
+											<option selected>Select a person</option>
+										</select>
+										<input type="text" class="form-control" placeholder="Name" id="otherReporter-name" hidden>
+									</label>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="col-12 col-lg-12">
+						<button class="btn btn-lg btn-success col-12 p-3" id="add-submitReport">Submit Report</button>
+					</div>
+				</div>
+			</main>
+
+			<footer class="footer">
+				<div class="container-fluid">
+					<div class="row text-muted">
+						<div class="col-6 text-start">
+							<p class="mb-0">
+								<a class="text-muted" href="" target="_blank"><strong>This report will be tagged: </strong></a> - <a class="text-muted" href="#" target="_blank"><strong id="item_id"></strong></a>								&copy;
+							</p>
+						</div>
+						<div class="col-6 text-end">
+							<ul class="list-inline">
+								<li class="list-inline-item">
+									<a class="text-muted" href="https://adminkit.io/" target="_blank">Support</a>
+								</li>
+								<li class="list-inline-item">
+									<a class="text-muted" href="https://adminkit.io/" target="_blank">Help Center</a>
+								</li>
+								<li class="list-inline-item">
+									<a class="text-muted" href="https://adminkit.io/" target="_blank">Privacy</a>
+								</li>
+								<li class="list-inline-item">
+									<a class="text-muted" href="https://adminkit.io/" target="_blank">Terms</a>
+								</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</footer>
+		</div>
+	</div>
+
+	<script src="../js/app.js"></script>
+</body>
+
+</html>

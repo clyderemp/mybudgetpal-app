@@ -3,7 +3,7 @@ import { incomeBalanceTracker, incomeData, loadIncomeData, totalIncomeVal } from
 import { loadSavingsData, savingsAccountPerUser, savingsData, totalSavingsVal } from "../../model/savingsData.js";
 import { allTransactions, reportPercentage, totalMoneyTrafficVal } from "../../model/allTransactionsData.js";
 import { formatToMoneyValue } from "./valueFormatter.js";
-import { currencySymbol, currentExchangeRateVal, selectedCurrencyCode } from "./currencyConverter.js";
+import { currencySymbol, selectedCurrencyCode } from "./currencyConverter.js";
 import { capitalEachFirstLetter } from "./textFormatters.js";
 import { days_of_the_week } from "./dateFormatters.js";
 import { launchInvoiceForm } from "./invoiceForm.js";
@@ -45,10 +45,10 @@ export const loadHomeDashboard = async () => {
 }
 
 async function loadTopTiles(){
-    $('#total-money-traffic-val').text(currencySymbol+' '+await formatToMoneyValue(totalMoneyTrafficVal * currentExchangeRateVal));
-    $('#total-expenses-val').text(currencySymbol+' '+await formatToMoneyValue(totalExpenseVal * currentExchangeRateVal));
-    $('#total-savings-val').text(currencySymbol+' '+await formatToMoneyValue(totalSavingsVal * currentExchangeRateVal));
-    $('#total-income-val').text(currencySymbol+' '+await formatToMoneyValue(totalIncomeVal * currentExchangeRateVal));
+    $('#total-money-traffic-val').text(currencySymbol+' '+await formatToMoneyValue(totalMoneyTrafficVal));
+    $('#total-expenses-val').text(currencySymbol+' '+await formatToMoneyValue(totalExpenseVal));
+    $('#total-savings-val').text(currencySymbol+' '+await formatToMoneyValue(totalSavingsVal));
+    $('#total-income-val').text(currencySymbol+' '+await formatToMoneyValue(totalIncomeVal));
 }
 async function loadWeeklySpendingTracker(){
     var options = {
@@ -108,7 +108,7 @@ async function loadWeeklySpendingTracker(){
       chart.render();
 
       const highestValue = Math.max(...weeklyExpenses);
-      const amount = currencySymbol +' '+ await formatToMoneyValue(Math.max(...weeklyExpenses) * currentExchangeRateVal);
+      const amount = currencySymbol +' '+ await formatToMoneyValue(Math.max(...weeklyExpenses));
       const highestIndex = weeklyExpenses.indexOf(highestValue);
       const peakDay = days_of_the_week[highestIndex]+'s';
       $('#weekly-chart-customMessage').text(highestValue > 0 ? 'Woah! Slown down.' : 'Not enough data! :(');
@@ -124,19 +124,19 @@ async function loadTransactionTable(){
         const date = data?.date;
         const category = data?.category;
         const type = data?.type?.split('(')[0];
-        const amount = currencySymbol +' '+ await formatToMoneyValue(parseFloat(data?.value) * currentExchangeRateVal);
+        const amount = currencySymbol +' '+ data?.value;
         const paidTo = data?.transaction;
         const html = `<tr>
-                        <td>${date}</td>
+                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${date}<a></td>
                         <td>
                             <div class="badge badge-pill badge-${
                                 category === 'expenses' ? 'danger' : category === 'savings' ? 'success' : 'warning'
                             }">${category}</div>
                         </td>
-                        <td>${type}</td>
-                        <td>${amount}</td>
-                        <td>${paidTo?.length > 20 ? paidTo.slice(0,20)+'...' : paidTo}</td>
-                        <td>${reportedBy}</td>
+                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${type}</a></td>
+                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${amount}</a></td>
+                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${paidTo?.length > 20 ? paidTo.slice(0,20)+'...' : paidTo}</a></td>
+                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${reportedBy}</a></td>
                     </tr>`
 
         $('#transaction-table').append(html);
@@ -152,7 +152,18 @@ async function loadTransactionTable(){
         console.log('here')
         await downloadPDFFile('invoiceTableTile', 'invoice');
 
-    })
+    });
+
+    $('.edit-transaction').off('click').click(async function(e) {
+      e.preventDefault();
+      const id = $(this).attr('id');
+      const data = Object.entries(allTransactions)
+                      .find(([key, transaction]) => transaction.item_id === id)
+                      ?.[1]; 
+      $('#invoiceForm').modal('show');
+      const showBackBtn = false;
+      await launchInvoiceForm(true, data, showBackBtn);
+    });
 }
 async function loadTopExpenses(){
     if(totalExpenseValPerType?.length <= 0){
@@ -168,7 +179,7 @@ async function loadTopExpenses(){
                                   <div class="iq-details col-sm-9 p-0">
                                      <div class="d-flex align-items-center justify-content-between">
                                         <span class="title text-dark">${expenseType?.split('(')[0]}</span>
-                                        <div class="percentage"><b><span>${currencySymbol}</span> ${await formatToMoneyValue(expense.value * currentExchangeRateVal)} </b></div>
+                                        <div class="percentage"><b><span>${currencySymbol}</span> ${await formatToMoneyValue(expense.value)} </b></div>
                                      </div>
                                      <div class="iq-progress-bar-linear d-inline-block w-100">
                                         <div class="iq-progress-bar">
@@ -211,7 +222,7 @@ async function loadSavingsAccount(){
     for(const key in savingsAccountPerUser){
         const obj = savingsAccountPerUser[key];
         const name = await capitalEachFirstLetter(obj.name);
-        const amount = currencySymbol +' '+await formatToMoneyValue(obj.amount * currentExchangeRateVal);
+        const amount = currencySymbol +' '+await formatToMoneyValue(obj.amount);
         const html = `      <li class="d-flex mb-4 align-items-center">
                                  <div class="user-img img-fluid"><img src="../../images/logo.png" alt="story-img" class="rounded avatar-40"></div>
                                  <div class="media-support-info ml-3">
@@ -234,15 +245,13 @@ async function loadSplitMarginCharts(){
     let expenseDailyArray = [];
     let incomeDailyArray = [];
     for(const date in incomeBalanceTracker){
-        console.log(date)
         categoriesIncToExp.push(date);
         const obj1 = incomeBalanceTracker[date];
         incomeDailyArray.push(parseInt(obj1));
         const obj2 = expenseBalanceTracker[date] || 0;
         expenseDailyArray.push(parseInt(obj2));
     }
-
-    console.log(categoriesIncToExp, incomeBalanceTracker, expenseDailyArray)
+    
     var options = {
         series: [{
         name: 'Income',
@@ -319,5 +328,9 @@ async function loadSplitMarginCharts(){
       chart.render();
 }
 
-$('#invoiceFormButton').click(async function(){await launchInvoiceForm()})
+$('#invoiceFormButton').off('click').click(async function(e) {
+  e.preventDefault();
+  launchInvoiceForm(false, null);
+});
+
 $('#budgetPlanFormButton').click(async function(){await launchBudgetPlanForm()})

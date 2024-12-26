@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!--CSS ONLY-->
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+
+  <!--JQUERY-->
+  <script src="https://code.jquery.com/jquery-3.6.1.js" integrity="sha256-3zlB5s2uwoUzrXK3BT7AX3FyvojsraNFxCc2vC/7pNI=" crossorigin="anonymous"></script>
+
+  <title>Budget Manager</title>
+</head>
+<body>
+  <div class="login">
+    <h1>Welcome to Budget Manager</h1>
+      <form autocomplete="off" method="post" action="/index.php">
+        <input type="text" name="u" placeholder="Username"/>
+        <input type="password" name="p" placeholder="Password"/>
+        <button type="submit" class="btn btn-primary btn-block btn-large">Log in</button>
+      </form>
+      <br>
+      <button class="btn btn-block btn-small" id="sign-up">Sign up</button>
+  </div>
+</body>
+<footer>
+  <p>Created by: Clyde Rempillo</p>
+</footer>
+
+<script type="module" src="js/firebase.js"></script>
+<script type="module" src="js/main.js"></script>
+</html>

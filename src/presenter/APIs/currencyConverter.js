@@ -335,10 +335,11 @@ export const currencySymbols = {
 export let selectedCurrencyCode = null;
 export let currencySymbol = null;
 export let currentExchangeRateVal = 1;
+export let exchangeRates = {};
 
 export async function currencyConverter(){
     selectedCurrencyCode = await localStorage.getItem('selectedCurrencyCode-'+uid) || 'CAD';
-    const exchangeRates = await getExchangeRates(selectedCurrencyCode);
+    exchangeRates = await getExchangeRates(selectedCurrencyCode);
     $('#selectedCurrency').html(`<a class="flag-icon flag-icon-${selectedCurrencyCode.slice(0,2).toLowerCase()} mr-2"> </a>${selectedCurrencyCode}`);
     preSelectedCurrencyCodes.forEach(code => {
         const dual_code = code.slice(0,2).toLowerCase();
@@ -353,7 +354,6 @@ export async function currencyConverter(){
     
     currencySymbol = currencySymbols[selectedCurrencyCode];
     currentExchangeRateVal = 1 / exchangeRates['CAD'];
-    console.log(currentExchangeRateVal)
 }
 
 export async function getExchangeRates(baseCurrency) {

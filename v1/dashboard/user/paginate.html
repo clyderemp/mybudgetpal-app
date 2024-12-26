@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Paginatejs | Ligne</title>
+    <link rel="stylesheet" href="css/paginate.css">
+    <link rel="stylesheet" href="css/ligne.css">
+    <script type="text/javascript" src="js/paginate.js"></script>
+
+
+	<script src="https://code.jquery.com/jquery-3.7.1.js" integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+	<script type="module" src="../../js/firebase.js"></script>
+	<script type="module" src="js/main.js"></script>
+	<script type="module" src="js/transactionReport.js"></script>
+
+    <style>
+        *{
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div>
+        <h1>Ligne Paginatejs</h1>
+    </div>
+    <div class="panel">
+        <div class="body">
+            <div class="input-group">
+                <label for="searchBox">Filtrar</label>
+                <input type="search" id="searchBox" placeholder="Filtrar...">
+            </div>
+        </div>
+    </div>
+    <table class="myTable table hover" id="full-transaction-table">
+        <tbody>
+        <tr>
+            <th>USER ID</th>
+            <th>ID</th>
+            <th>TITTLE</th>
+            <th>COMPLETED</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>1</td>
+            <td>delectus aut autem</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>2</td>
+            <td>quis ut nam facilis et officia qui</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>3</td>
+            <td>fugiat veniam minus</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>4</td>
+            <td>et porro tempora</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>5</td>
+            <td>laboriosam mollitia et enim quasi adipisci quia provident illum</td>
+            <td></td>
+        </tr>
+        
+        <tr>
+            <td>10</td>
+            <td>189</td>
+            <td>culpa eius et voluptatem et</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>10</td>
+            <td>190</td>
+            <td>accusamus sint iusto et voluptatem exercitationem</td>
+            <td></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<script>
+
+    let options = {
+        numberPerPage:5, //Cantidad de datos por pagina
+        goBar:true, //Barra donde puedes digitar el numero de la pagina al que quiere ir
+        pageCounter:true, //Contador de paginas, en cual estas, de cuantas paginas
+    };
+
+    let filterOptions = {
+        el:'#searchBox' //Caja de texto para filtrar, puede ser una clase o un ID
+    };
+
+    paginate.init('.myTable',options,filterOptions);
+</script>
+</body>
+</html>

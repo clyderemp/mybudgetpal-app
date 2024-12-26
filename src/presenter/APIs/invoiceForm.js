@@ -1,14 +1,15 @@
 import { uid } from "../../../main.js";
 import { coUsersDataVal } from "../../model/coUsersData.js";
 import { currentUserDataVal } from "../../model/currentUserData.js";
-import { saveDocument } from "../services/saveDocument.js";
-import { currentExchangeRateVal } from "./currencyConverter.js";
+import { saveDocument, updateDocument } from "../services/saveDocument.js";
+import { currentExchangeRateVal, exchangeRates, selectedCurrencyCode } from "./currencyConverter.js";
 import { generateTransactionID } from "./IDGenerators.js";
+import { launchSuccessModal } from "./sweetAlertModals.js";
 import { capitalEachFirstLetter } from "./textFormatters.js";
 
 export let allUserReporters = [];
 export const categories = ['income', 'savings', 'expenses', 'credit'];
-export const paymentMethod = ['Debit Account', 'Cash Payment', 'Credit Card', 'Cheque Payment', 'Short-Term Savings'];
+export const paymentMethod = {'debit':'Debit Account', 'cash':'Cash Payment', 'credit':'Credit Card', 'cheque':'Cheque Payment', 'savings':'Short-Term Savings'};
 export const types = {
     expenses: [
         //FIXED EXPENSES
@@ -67,42 +68,83 @@ export const types = {
     ]
 }
 export let transactionID = null;
-export async function launchInvoiceForm(){
-    transactionID = await generateTransactionID();
-    await loadCategories();
-    await loadUserReporters();
-    await loadPaymentMethods();
+let editForm = false;
+let editFormData = null;
+
+export async function launchInvoiceForm(isEdit, data, showBackBtn){
+    editForm = isEdit;
+    console.log(data)
+    if(showBackBtn){
+        $('#invoice-back-btn').show();
+        $('#invoice-close-btn').hide();
+    } else {
+        $('#invoice-back-btn').hide();
+        $('#invoice-close-btn').show();
+    }
+
+    //HANDLE THE FORM DATA
+    if(isEdit){
+        transactionID = data?.item_id;
+        editFormData = data;
+        await loadCategories();
+        await loadUserReporters();
+        await loadPaymentMethods();
+        await loadExistingDataOntoTheForm(data);
+
+        $('#invoice-back-btn').click(async ()=>{
+            await loadInvoiceTable();
+        });
+    } else {
+        transactionID = await generateTransactionID();
+        await loadCategories();
+        await loadUserReporters();
+        await loadPaymentMethods();
+    }
+
+
+    // Handle category change event
+    $('#invoiceForm-category').off('change').on('change', async function() {
+        // console.log('Category changed');
+        await loadCategoryType(this.value);
+    });
+
 }
 
 async function loadCategories(){
     $('#invoiceForm-category').empty();
-    categories?.forEach(async (category) => {
+   await categories?.forEach(async (category) => {
         const html = `<option value="${category}">${await capitalEachFirstLetter(category)}</option>`;
         $('#invoiceForm-category').append(html);
     });
 
-    await loadCategoryType(categories[0]);
-
-    $('#invoiceForm-category').change(async function(){
-        $('#invoiceForm-type').empty();
-        await loadCategoryType(this.value);
-    })
+    if(editForm){
+        await loadCategoryType(editFormData?.category);
+    } else {
+        await loadCategoryType(categories[0]);
+    }
 }
 
 async function loadCategoryType(category){
     let html = ``;
     const categoryType = types[category];
+    $('#invoiceForm-type').html(html);
     categoryType?.forEach(async (type)=>{
-        html += `<option value="${type}">${await capitalEachFirstLetter(type)}</option>`;
+        html = `<option value="${type}">${await capitalEachFirstLetter(type)}</option>`;
+
         $('#invoiceForm-type').append(html);
     });
+    
+    if(editForm){
+        $('#invoiceForm-type').val(editFormData.type);
+    }
 }
 
 async function loadUserReporters(){
+    $('#invoiceForm-reporter').empty();
     const fullName = currentUserDataVal?.fname +' '+currentUserDataVal?.lname;
     const html = `<option value="${fullName}">${fullName}</option>`;
     $('#invoiceForm-reporter').append(html);
-    coUsersDataVal?.forEach(coUser => {
+    await coUsersDataVal?.forEach(coUser => {
 
         const fname = coUser?.fname;
         const lname = coUser?.lname;
@@ -115,27 +157,54 @@ async function loadUserReporters(){
 
 async function loadPaymentMethods(){
     $('#invoiceForm-paymentMethod').empty();
-    paymentMethod?.forEach(method => {
-        const html = `<option value="${method}">${method}</option>`;
+    await Object.entries(paymentMethod).forEach(([key, method]) => {
+        const html = `<option value="${key}">${method}</option>`;
         $('#invoiceForm-paymentMethod').append(html);
     });
 }
 
-export async function submitInvoiceForm(){
-    console.log('here')
+async function loadExistingDataOntoTheForm(data){
+    //Load data into variables first
+    const conversionBasedOnCurrency = data.currency ===  selectedCurrencyCode ? 1 : data.currency !== undefined ? exchangeRates[data.currency] : exchangeRates['CAD'];
+    const recipient = data?.transaction;
+    const date = data?.date;
+    const amount = (data?.value / conversionBasedOnCurrency).toFixed(2);
+    const category = data?.category;
+    const type = data?.type;
+    const paymentMethod = data?.paymentMethod;
+    const reporter = (data?.reportedBy)?.replaceAll('Me - ','');
+    const note = data?.note;
+
+    //Load onto the form
+    $('#invoiceForm-paidToFrom').val(recipient);
+    $('#invoiceForm-paidToFrom').addClass('success');
+    $('#invoiceForm-date').val(date);
+    $('#invoiceForm-amount').val(amount);
+    $('#invoiceForm-category').val(category);
+    $('#invoiceForm-category').trigger('change');
+    $('#invoiceForm-type').val(type) //Not working but oh well
+    $('#invoiceForm-paymentMethod').val(paymentMethod);
+    $('#invoiceForm-reporter').val(reporter);
+    $('#invoiceForm-note').val(note);
 }
+
+async function loadInvoiceTable(){
+    $('#invoiceTableModal').modal('show');
+    $('#invoiceForm').modal('hide');
+}
+
 
 $('#invoiceForm').on('submit', async function(event){
     event.preventDefault();
     const recipient = $('#invoiceForm-paidToFrom').val();
     const date = $('#invoiceForm-date').val();
-    const amount = ($('#invoiceForm-amount').val()) / currentExchangeRateVal;
+    const amount = ($('#invoiceForm-amount').val());
     const category = $('#invoiceForm-category').val();
     const type = $('#invoiceForm-type').val();
     const paymentMethod = $('#invoiceForm-paymentMethod').val();
     const reporter = $('#invoiceForm-reporter').val();
     const note = $('#invoiceForm-note').val();
-    const creation_date = new Date();
+    const creation_date = editForm ? editFormData?.creation_date : new Date();
     const docData = {
         item_id: transactionID,
         transaction: recipient,
@@ -147,14 +216,23 @@ $('#invoiceForm').on('submit', async function(event){
         reportedBy: reporter,
         paymentMethod: paymentMethod,
         creation_date: creation_date,
-        exchange_rate: currentExchangeRateVal? currentExchangeRateVal : 1,
+        exchange_rate: currentExchangeRateVal,
+        currency: selectedCurrencyCode,
     };
     
     const collectionPath = `users/${uid}/transactions`;
     const documentPath = transactionID;
-    const success = await saveDocument(collectionPath, documentPath, docData);
+    let success = false;
+    if(editForm){
+        success = await updateDocument(collectionPath, documentPath, docData);
+    } else {
+        success = await saveDocument(collectionPath, documentPath, docData);
+    }
+    console.log(success, docData)
     
     if(success){
-        Alert.alert('Success!', 'Your invoice has been saved!');
+        await launchSuccessModal('Changes', 'Your invoice has been saved!');
+        localStorage.removeItem('transactionData-'+uid);
+        window.location.reload();
     }
 })

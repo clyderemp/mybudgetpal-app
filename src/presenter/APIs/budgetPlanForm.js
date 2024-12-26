@@ -2,7 +2,7 @@ import { uid } from "../../../main.js";
 import { coUsersDataVal } from "../../model/coUsersData.js";
 import { currentUserDataVal } from "../../model/currentUserData.js";
 import { saveDocument, updateDocument } from "../services/saveDocument.js";
-import { currencySymbol, currentExchangeRateVal, selectedCurrencyCode } from "./currencyConverter.js";
+import { currencySymbol, exchangeRates, selectedCurrencyCode } from "./currencyConverter.js";
 import { generateTransactionID } from "./IDGenerators.js";
 import { allUserReporters, categories, types } from "./invoiceForm.js";
 import { capitalEachFirstLetter } from "./textFormatters.js";
@@ -25,7 +25,8 @@ async function launchUsersSalaryForm() {
     $('#usersSalaryInput').empty();
     const primaryUser = `${currentUserDataVal?.fname}`;
     const existingSalaryData = budgetPlanData?.userSalary;
-    totalSalary[primaryUser] = existingSalaryData[0].amount * currentExchangeRateVal || 0;
+    const dataCurrencyVal = existingSalaryData[0]?.currency ===  selectedCurrencyCode ? 1 : exchangeRates[existingSalaryData[0]?.currency];
+    totalSalary[primaryUser] = existingSalaryData[0].amount / dataCurrencyVal || 0;
     userOptions.push(primaryUser);
     totalSalary.both = 0;
     // HTML for the primary user's salary form
@@ -67,7 +68,7 @@ async function launchUsersSalaryForm() {
     $('#usersSalaryInput').append(html);
     $(`#budgetSalary-${primaryUser}-day`).val(existingSalaryData[0]?.day);
     $(`#budgetSalary-${primaryUser}-frequency`).val(existingSalaryData[0]?.frequency);
-    $(`#budgetSalary-${primaryUser}-amount`).val(existingSalaryData[0]?.amount * currentExchangeRateVal);
+    $(`#budgetSalary-${primaryUser}-amount`).val(existingSalaryData[0]?.amount / dataCurrencyVal);
 
     // Add event listener for primary user's salary amount change
     $(`#budgetSalary-${primaryUser}-amount`).on('input', async function() {
@@ -83,9 +84,10 @@ async function launchUsersSalaryForm() {
     // Now loop over co-users (if applicable) to generate similar inputs for them
     coUsersDataVal?.forEach(async(coUser, index) => {
         const coUserName = coUser?.fname;
+        const dataCurrencyVal = existingSalaryData[index+1]?.currency ===  selectedCurrencyCode ? 1 : exchangeRates[existingSalaryData[index+1]?.currency];
         userOptions.push(coUserName);
         const coUserInputListenerID = coUserName?.replaceAll(' ','');
-        totalSalary[coUserInputListenerID] = existingSalaryData[index+1].amount * currentExchangeRateVal || 0;
+        totalSalary[coUserInputListenerID] = existingSalaryData[index+1].amount / dataCurrencyVal || 0;
         // HTML for co-user's salary form
         const coUserHtml = `
             <div class="col-md-6 mb-3">
@@ -125,7 +127,7 @@ async function launchUsersSalaryForm() {
         $('#usersSalaryInput').append(coUserHtml);
         $(`#budgetSalary-${coUserInputListenerID}-day`).val(existingSalaryData[index+1].day);
         $(`#budgetSalary-${coUserInputListenerID}-frequency`).val(existingSalaryData[index+1].frequency);
-        $(`#budgetSalary-${coUserInputListenerID}-amount`).val(existingSalaryData[index+1].amount * currentExchangeRateVal);
+        $(`#budgetSalary-${coUserInputListenerID}-amount`).val(existingSalaryData[index+1].amount / dataCurrencyVal);
 
         // Add event listener for co-user's salary amount change
         $(`#budgetSalary-${coUserInputListenerID}-amount`).on('input', function() {
@@ -194,7 +196,6 @@ async function launchBudgetCategorySection() {
 }
 
 
-
 async function launchBudgetTableSection() {
 
     const budgetPlanArrayData = budgetPlanData?.budgetPlanArray;
@@ -229,13 +230,14 @@ async function launchBudgetTableSection() {
             typeArray = types[data?.category] || [];
             // Loop through categories to generate category options
             for (const typeVal of typeArray || []) {
-                console.log(typeVal)
+                // console.log(typeVal)
                 typeOptionsHTML += `<option value="${typeVal}">${await capitalEachFirstLetter(typeVal)}</option>`;
             }
         }
 
         const categoryValue = totalBudget[data.category]/100 || 0;
-        const totalAmount = ((data.amount * currentExchangeRateVal) / ((totalSalary[(data.user)?.replaceAll(' ','')]) * categoryValue)) * 100;
+        const dataCurrencyVal = data.currency ===  selectedCurrencyCode ? 1 : exchangeRates[data.currency];
+        const totalAmount = ((data.amount /  dataCurrencyVal) / ((totalSalary[(data.user)?.replaceAll(' ','')]) * categoryValue)) * 100;
         const percentage = totalAmount.toFixed(2);
     
         // HTML structure for the initial row
@@ -272,12 +274,11 @@ async function launchBudgetTableSection() {
         `;
     
         // Append the initial row to the DOM
-        console.log(data.type)
         $('#budgetTableInput').append(html);
         $(`#budgetTable-users-${index}`).val(data.user);
         $(`#budgetTable-category-${index}`).val(data.category);
         $(`#budgetTable-type-${index}`).val(data.type);
-        $(`#budgetTable-amount-${index}`).val(data.amount * currentExchangeRateVal);
+        $(`#budgetTable-amount-${index}`).val((data.amount / dataCurrencyVal).toFixed(2));
 
 
         // Bind events for the first row
@@ -585,7 +586,8 @@ $('#budgetPlanForm').on('submit', async function(event){
         const amount = $(`#budgetSalary-${coUserInputListenerID}-amount`).val();
         const salaryObj = {
             frequency: frequency,
-            amount: amount / currentExchangeRateVal,
+            amount: amount,
+            currency:  selectedCurrencyCode,
             day: day
         }
         userSalaryArray.push(salaryObj);
@@ -618,7 +620,8 @@ $('#budgetPlanForm').on('submit', async function(event){
                 user: user,
                 category: category,
                 type: type,
-                amount: amount / currentExchangeRateVal,
+                amount: amount,
+                currency: selectedCurrencyCode,
             };
 
             // Push the row data into the array

@@ -1,13 +1,28 @@
 <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
    <div class="modal-content">
       <div class="modal-header">
-         <h5 class="modal-title" id="exampleModalScrollableTitle">Invoice Table</h5>
+         <h5 class="modal-title" id="exampleModalScrollableTitle">Invoice Table <span id="date-filter-val"></span></h5>
          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-         <span aria-hidden="true">&times;</span>
+            <span aria-hidden="true">&times;</span>
          </button>
       </div>
       <div class="modal-body">
-         <p>You can view your up-to-date invoices here!</p>
+
+         <div class="container-fluid mb-3">
+            <div class="row">
+               <div class="col-sm-4 col-md-4 col-xl-8">
+                  <p>You can view your up-to-date invoices here!<span id="result-text"></span></p>
+               </div>
+               <div class="col-xl-4 col-md-12 col-sm-12">
+                  <div class="input-group">
+                     <input id="invoice-search" class="form-control" type="text" placeholder="Search here..." />
+                     <button id="clear-search" class="input-group-text" style="display: none;">
+                       <span>&times;</span>
+                     </button>
+                   </div>
+               </div>
+            </div>
+         </div>
          <div class="table-responsive">
             <table class="table mb-0">
                <thead class="thead-light">
@@ -18,6 +33,7 @@
                      <th scope="col">Amount</th>
                      <th scope="col">Recipient</th>
                      <th scope="col">Added by</th>
+                     <th scope="col"></th>
                   </tr>
                </thead>
                <tbody id="full-invoice-table">
