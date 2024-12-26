@@ -3,6 +3,7 @@ import { doc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.
 import { uid } from '../../../main.js';
 import { convertFormattedDateBack, getFormattedTodayDate, getStartOfMonth } from '../APIs/dateFormatters.js';
 import { exchangeRates, selectedCurrencyCode } from '../APIs/currencyConverter.js';
+import { selectedPrimaryUserVal } from '../../view/components/navbars/topbar.js';
 
 export const fetchAllTransactions = async() => {
     // localStorage.clear();
@@ -58,8 +59,9 @@ export const fetchAllTransactions = async() => {
         return 0;
     });
     
-    transactions = arr;
-    console.log(transactions)
+    const fullName = selectedPrimaryUserVal?.lname === 'All Users' ? '' : `${selectedPrimaryUserVal?.fname} ${selectedPrimaryUserVal?.lname}`;
+    transactions = arr.filter((data)=>{ return data.reportedBy.includes(fullName)});
+
     await Promise.all(transactions.map(async (data, index) => {
         // Default conversion factor to 1 (i.e., no conversion)
         let conversionBasedOnCurrency;
@@ -86,8 +88,6 @@ export const fetchAllTransactions = async() => {
         };
     }));
     
-    console.log(transactions)
-    // setFilterDates(transactions);
     return transactions;
 }
 

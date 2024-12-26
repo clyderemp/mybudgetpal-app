@@ -1,8 +1,8 @@
 {
   "projects": {
-    "default": "mybudgetpal",
-    "mybudgetpal": "mybudgetpal"
+    "default": "mybudgetpal"
   },
   "targets": {},
-  "etags": {}
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
 }

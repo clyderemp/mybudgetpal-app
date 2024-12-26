@@ -1,6 +1,7 @@
 import { uid } from "../../../main.js";
 import { coUsersDataVal } from "../../model/coUsersData.js";
 import { currentUserDataVal } from "../../model/currentUserData.js";
+import { selectedPrimaryUserVal } from "../../view/components/navbars/topbar.js";
 import { saveDocument, updateDocument } from "../services/saveDocument.js";
 import { currentExchangeRateVal, exchangeRates, selectedCurrencyCode } from "./currencyConverter.js";
 import { generateTransactionID } from "./IDGenerators.js";
@@ -153,6 +154,9 @@ async function loadUserReporters(){
         const html = `<option value="${fullName}">${fullName}</option>`;
         $('#invoiceForm-reporter').append(html);
     });
+
+    const selected = selectedPrimaryUserVal?.lname === 'All Users' ? fullName : `${selectedPrimaryUserVal?.fname} ${selectedPrimaryUserVal?.lname}`;
+    $('#invoiceForm-reporter').val(selected)
 }
 
 async function loadPaymentMethods(){

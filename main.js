@@ -6,6 +6,7 @@ import { allTransactionsData } from './src/model/allTransactionsData.js';
 import { coUsersData } from './src/model/coUsersData.js';
 import { topbarActionHandlers } from './src/view/components/navbars/topbar.js';
 import { currencyConverter } from './src/presenter/APIs/currencyConverter.js';
+import { launchPrimaryUserPicker } from './src/presenter/APIs/primaryUserPicker.js'
 
 let loaderDiv = $('#loading');
 const topNavBar = $('#top-navbar');
@@ -13,21 +14,25 @@ export let uid = auth?.currentUser?.uid;
 
 $('#side-navbar').load('../../components/navbars/sidebar.html');
 $('#top-navbar').load('../../components/navbars/topbar.html');
+$('#primaryUserModal').load('../../components/modals/primaryUserModal.html')
 $(function(){
     console.log('main.js loaded...');
-    loaderDiv.fadeOut(500); // 500ms fade duration
+    loaderDiv.fadeOut(2000); // 500ms fade duration
     const currentLocation = window.location; //get current html page
     onAuthStateChanged(auth, async (user) => {
         if (user) {
           // User is signed in, see docs for a list of available properties
           // https://firebase.google.com/docs/reference/js/auth.user
             uid = user.uid;
-          console.log('logged in: '+uid);
-          //window.location.replace("/dashboard/user/home/index.html");
-        //   window.location.replace("../home/index.html");
-          /**
-           * SEND USER TO DASHBOARD IF LOGGED IN
-           */
+            // localStorage.removeItem('primaryUserData-'+uid);
+            const primaryUser = await localStorage.getItem('primaryUserData-'+uid);
+            if(primaryUser === null || primaryUser === undefined){
+                $('#primaryUserModal').modal('show');
+                await launchPrimaryUserPicker();
+            }
+            console.log('logged in: '+uid);
+          
+
           
           var currentPage = currentLocation.pathname.toString();
           if(!currentPage.includes('home')){
@@ -114,6 +119,6 @@ async function handleLoggedInUser(){
     await currencyConverter();
     await currentUserData();
     await coUsersData();
-    await allTransactionsData();
     await topbarActionHandlers();
+    await allTransactionsData();
 }
