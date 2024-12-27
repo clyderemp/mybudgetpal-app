@@ -7,6 +7,7 @@ import { coUsersData } from './src/model/coUsersData.js';
 import { topbarActionHandlers } from './src/view/components/navbars/topbar.js';
 import { currencyConverter } from './src/presenter/APIs/currencyConverter.js';
 import { launchPrimaryUserPicker } from './src/presenter/APIs/primaryUserPicker.js'
+import { launchReminderManager } from './src/presenter/APIs/reminderManager.js';
 
 let loaderDiv = $('#loading');
 const topNavBar = $('#top-navbar');
@@ -121,4 +122,5 @@ async function handleLoggedInUser(){
     await coUsersData();
     await topbarActionHandlers();
     await allTransactionsData();
+    await launchReminderManager();
 }

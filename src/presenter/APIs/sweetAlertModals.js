@@ -30,3 +30,26 @@ export async function launchSuccessModal(actionText, successText) {
   
     return result.isConfirmed;
 }
+
+export async function launchReminderModal(imageUrl, title, content, confirmText, cancelText, onConfirmAction) {
+  const result = await Swal.fire({
+      title: title ? title : null,
+      html: content ? content : null,
+      imageUrl: imageUrl, // The URL for your custom image
+      imageAlt: 'AL', // Alt text for the image (optional)
+      imageWidth: 300, // Set the width of the image (adjust as needed)
+      imageHeight: 250, // Set the height of the image (adjust as needed)
+      showCancelButton: true, // Show cancel button
+      confirmButtonText: confirmText ? confirmText : 'Got it!', // Customize confirm button text
+      confirmButtonColor: 'green',
+      cancelButtonText: cancelText ? cancelText : 'Cancel', // Customize cancel button text
+      showCancelButton: cancelText ? true : false, // Show the cancel button
+      reverseButtons: false, // Optionally reverse the buttons (Confirm left, Cancel right)
+  });
+
+  // Check if the user confirmed
+  if (result.isConfirmed && onConfirmAction) {
+      // Execute the callback function on confirmation
+      onConfirmAction();
+  }
+}

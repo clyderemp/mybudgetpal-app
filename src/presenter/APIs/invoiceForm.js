@@ -33,6 +33,8 @@ export const types = {
         "Clothings",
         "Commute",
         "Dining Out",
+        "Dining Out - Food",
+        "Dining Out - Drinks",
         "Entertainment",
         "E-Purchases",
         "Gas",
@@ -45,7 +47,10 @@ export const types = {
         "Recreation",
         "Taxes",
         "Travels",
-        "Personal Care"
+        "Personal Care",
+        "Gym Related",
+        "Vitamins & Supplements",
+        "Unknown"
     ],
     credit: [
         'Personal Loan',
@@ -74,7 +79,6 @@ let editFormData = null;
 
 export async function launchInvoiceForm(isEdit, data, showBackBtn){
     editForm = isEdit;
-    console.log(data)
     if(showBackBtn){
         $('#invoice-back-btn').show();
         $('#invoice-close-btn').hide();
@@ -91,10 +95,6 @@ export async function launchInvoiceForm(isEdit, data, showBackBtn){
         await loadUserReporters();
         await loadPaymentMethods();
         await loadExistingDataOntoTheForm(data);
-
-        $('#invoice-back-btn').click(async ()=>{
-            await loadInvoiceTable();
-        });
     } else {
         transactionID = await generateTransactionID();
         await loadCategories();
@@ -107,6 +107,11 @@ export async function launchInvoiceForm(isEdit, data, showBackBtn){
     $('#invoiceForm-category').off('change').on('change', async function() {
         // console.log('Category changed');
         await loadCategoryType(this.value);
+    });
+
+    //Back button
+    $('#invoice-back-btn').click(async ()=>{
+        await loadInvoiceTable();
     });
 
 }
@@ -169,10 +174,10 @@ async function loadPaymentMethods(){
 
 async function loadExistingDataOntoTheForm(data){
     //Load data into variables first
-    const conversionBasedOnCurrency = data.currency ===  selectedCurrencyCode ? 1 : data.currency !== undefined ? exchangeRates[data.currency] : exchangeRates['CAD'];
+    // const conversionBasedOnCurrency = data.currency ===  selectedCurrencyCode ? 1 : data.currency !== undefined ? exchangeRates[data.currency] : exchangeRates['CAD'];
     const recipient = data?.transaction;
     const date = data?.date;
-    const amount = (data?.value / conversionBasedOnCurrency).toFixed(2);
+    const amount = (data?.value).toFixed(2);
     const category = data?.category;
     const type = data?.type;
     const paymentMethod = data?.paymentMethod;
@@ -232,7 +237,6 @@ $('#invoiceForm').on('submit', async function(event){
     } else {
         success = await saveDocument(collectionPath, documentPath, docData);
     }
-    console.log(success, docData)
     
     if(success){
         await launchSuccessModal('Changes', 'Your invoice has been saved!');

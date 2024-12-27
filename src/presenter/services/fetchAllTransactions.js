@@ -61,7 +61,7 @@ export const fetchAllTransactions = async() => {
     
     const fullName = selectedPrimaryUserVal?.lname === 'All Users' ? '' : `${selectedPrimaryUserVal?.fname} ${selectedPrimaryUserVal?.lname}`;
     transactions = arr.filter((data)=>{ return data.reportedBy.includes(fullName)});
-
+    // transactions = arr;
     await Promise.all(transactions.map(async (data, index) => {
         // Default conversion factor to 1 (i.e., no conversion)
         let conversionBasedOnCurrency;

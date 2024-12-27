@@ -42,6 +42,26 @@ export function convertFormattedDateBack(dateString){
     return dateObj;
 }
 
+export async function calculateDaysUntil(startDate, endDate){
+    // Calculate the difference in time (milliseconds)
+    const diffInTime = endDate.getTime() - startDate.getTime();
+
+    // Convert the difference from milliseconds to days
+    const diffInDays = Math.ceil(diffInTime / (1000 * 3600 * 24)); // Use Math.ceil to round up
+
+    return diffInDays;
+}
+
+export async function calculateDaysPast(today, target){
+    // Calculate the difference in time (milliseconds)
+    const diffInTime = target.getTime() - today.getTime();
+
+    // Convert the difference from milliseconds to days
+    const diffInDays = Math.ceil(diffInTime / (1000 * 3600 * 24)); // Use Math.ceil to round up
+
+    return diffInDays*-1;
+}
+
 //FOR MONTHS
 export const reg_month_strings = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ];
 export const short_month_strings = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];

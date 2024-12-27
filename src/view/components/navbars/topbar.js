@@ -74,7 +74,7 @@ async function loadCoUsersOntoTopBarNav(){
         accountUsers.push(coUser);
     });
 
-    $('#coUser-totalVal').text(accountUsers?.length);
+    $('#coUser-totalVal').text(accountUsers?.length-1);
 
     accountUsers?.forEach(async(coUser, index) => {
         const fname = coUser?.fname !== undefined ? coUser?.fname : '';

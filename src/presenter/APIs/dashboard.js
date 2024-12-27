@@ -118,7 +118,8 @@ async function loadWeeklySpendingTracker(){
       $('#variable-percent').text(weekExpenseType.variable);
 }
 async function loadTransactionTable(){
-    allTransactions.slice(0, 18).forEach(async (data) => {
+  try{
+    allTransactions?.slice(0, 18).forEach(async (data) => {
         let reportedBy = data?.reportedBy?.replaceAll('Me - ','')?.split(' ');
             reportedBy = reportedBy[0]+' '+reportedBy[reportedBy.length-1][0]+'.';
         const date = data?.date;
@@ -141,6 +142,9 @@ async function loadTransactionTable(){
 
         $('#transaction-table').append(html);
     });
+  } catch (err){
+    window.location.reload();
+  }
 
     $('#transaction-table-viewAll').click(async function(event){
         event.preventDefault();

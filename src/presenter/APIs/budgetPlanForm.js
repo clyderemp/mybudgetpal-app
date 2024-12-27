@@ -1,9 +1,9 @@
 import { uid } from "../../../main.js";
+import { budgetPlanData } from "../../model/budgetPlanData.js";
 import { coUsersDataVal } from "../../model/coUsersData.js";
 import { currentUserDataVal } from "../../model/currentUserData.js";
 import { saveDocument, updateDocument } from "../services/saveDocument.js";
 import { currencySymbol, exchangeRates, selectedCurrencyCode } from "./currencyConverter.js";
-import { generateTransactionID } from "./IDGenerators.js";
 import { allUserReporters, categories, types } from "./invoiceForm.js";
 import { capitalEachFirstLetter } from "./textFormatters.js";
 
@@ -11,9 +11,7 @@ export let transactionID = null;
 let userOptions = [];
 let totalBudget = {};
 let totalSalary = {};
-let budgetPlanData = currentUserDataVal?.budgetPlanData;
 export async function launchBudgetPlanForm(){
-    budgetPlanData = currentUserDataVal?.budgetPlanData;
     totalBudget = budgetPlanData?.categoryPercent || {expenses: 0, savings: 0, credit: 0};
     launchUsersSalaryForm();
     launchBudgetCategorySection();
@@ -588,7 +586,8 @@ $('#budgetPlanForm').on('submit', async function(event){
             frequency: frequency,
             amount: amount,
             currency:  selectedCurrencyCode,
-            day: day
+            day: day,
+            user: user,
         }
         userSalaryArray.push(salaryObj);
     });
