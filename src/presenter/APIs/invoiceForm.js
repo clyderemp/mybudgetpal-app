@@ -1,4 +1,5 @@
 import { uid } from "../../../main.js";
+import { allTransactions, allTransactionsData } from "../../model/allTransactionsData.js";
 import { coUsersDataVal } from "../../model/coUsersData.js";
 import { currentUserDataVal } from "../../model/currentUserData.js";
 import { selectedPrimaryUserVal } from "../../view/components/navbars/topbar.js";
@@ -235,12 +236,18 @@ $('#invoiceForm').on('submit', async function(event){
     if(editForm){
         success = await updateDocument(collectionPath, documentPath, docData);
     } else {
+        // success = true;
         success = await saveDocument(collectionPath, documentPath, docData);
     }
     
     if(success){
         await launchSuccessModal('Changes', 'Your invoice has been saved!');
-        localStorage.removeItem('transactionData-'+uid);
+        let transactions = await JSON.parse(await localStorage.getItem('transactionData-'+uid)) || [];
+        transactions.push(docData);
+        await localStorage.setItem('transactionData-'+uid, JSON.stringify(transactions));
+        // console.log(allTransactions);
+        // allTransactionsData()
+        // localStorage.removeItem('transactionData-'+uid);
         window.location.reload();
     }
 })

@@ -12,6 +12,7 @@ import { downloadPDFFile } from "./pdfDownloader.js";
 import { launchBudgetPlanForm } from "./budgetPlanForm.js";
 import { launchLoadingModal } from "./sweetAlertModals.js";
 import { launchGroceryPlanner } from "./grocery.js";
+import { budgetPlanData } from "../../model/budgetPlanData.js";
 
 
 $(function() {
@@ -351,7 +352,8 @@ $('#budgetPlanFormButton').click(async function(){await launchBudgetPlanForm()})
 $('#planGroceryButton').click(async function(){
   await launchLoadingModal();
   $('#content-page').load('./grocery.html');
-  await launchGroceryPlanner();
+  const groceryPlan = budgetPlanData?.budgetPlanArray.find(item => item.type?.toLowerCase() === 'groceries');
+  // await launchGroceryPlanner(groceryPlan);
   setTimeout(()=>{
     Swal.close();
   }, 10);
