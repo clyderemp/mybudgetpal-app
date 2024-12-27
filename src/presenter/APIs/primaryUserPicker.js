@@ -23,7 +23,6 @@ export async function launchPrimaryUserPicker(){
 async function loadUserAccountSelections() {
     // Loop through each user and create an HTML element for them
     Object.values(accountUsers).forEach(async (user, index) => {
-        console.log('here', index);
         const fname = user.fname;
         const lname = user.lname;
         const html = `

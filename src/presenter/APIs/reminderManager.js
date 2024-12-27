@@ -6,9 +6,13 @@ import { selectedPrimaryUserVal } from "../../view/components/navbars/topbar.js"
 import { calculateDaysPast, calculateDaysUntil } from "./dateFormatters.js";
 import { launchReminderModal } from "./sweetAlertModals.js";
 
+export let reminderModalIsLaunched = false;
 export async function launchReminderManager(){
     if(selectedPrimaryUserVal?.lname !== 'All Users'){
         await checkUserSalaryLog();
+        reminderModalIsLaunched = true;
+    } else {
+        reminderModalIsLaunched = true;
     }
 }
 

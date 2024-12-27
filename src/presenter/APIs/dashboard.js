@@ -11,27 +11,34 @@ import { launchInvoiceTable } from "./invoiceTable.js";
 import { downloadPDFFile } from "./pdfDownloader.js";
 import { launchBudgetPlanForm } from "./budgetPlanForm.js";
 import { launchLoadingModal } from "./sweetAlertModals.js";
+import { launchGroceryPlanner } from "./grocery.js";
 
 
-$(function(){
-    $('#invoiceForm').load('../../components/modals/invoiceForm.html');
-    $('#invoiceTableModal').load('../../components/modals/invoiceTable.html');
-    $('#budgetPlanForm').load('../../components/modals/budgetPlanForm.html');
-    launchLoadingModal();
-    setTimeout(function() {
-        console.log("Delayed execution");
+$(function() {
+  // Load the modal content
+  $('#invoiceForm').load('../../components/modals/invoiceForm.html');
+  $('#invoiceTableModal').load('../../components/modals/invoiceTable.html');
+  $('#budgetPlanForm').load('../../components/modals/budgetPlanForm.html');
 
-        if (allTransactions !== null) {
-            try{
-              loadHomeDashboard();
-              $('#invoiceForm-currency').text(selectedCurrencyCode +' '+currencySymbol);
-            } catch (err){
-              window.location.reload()
-            }
-        }
-        Swal.close();
-    }, 2000);  // Delay by 2 seconds
+  // Show the loading modal
+  launchLoadingModal();
+
+  // Simulate a delay and then execute the tasks
+  setTimeout(async function() {
+      console.log("Delayed execution");
+
+      // Perform your tasks (e.g., loading transactions and other UI updates)
+      if (allTransactions !== null) {
+          try {
+              loadHomeDashboard();  // Function to load the home dashboard
+              $('#invoiceForm-currency').text(selectedCurrencyCode + ' ' + currencySymbol);
+          } catch (err) {
+              window.location.reload();  // Reload if an error occurs
+          }
+      }
+  }, 2000);  // Delay by 2 seconds
 });
+
 
 export const loadHomeDashboard = async () => {
     console.log('Loading home dashboard..');
@@ -340,4 +347,12 @@ $('#invoiceFormButton').off('click').click(async function(e) {
   launchInvoiceForm(false, null);
 });
 
-$('#budgetPlanFormButton').click(async function(){await launchBudgetPlanForm()})
+$('#budgetPlanFormButton').click(async function(){await launchBudgetPlanForm()});
+$('#planGroceryButton').click(async function(){
+  await launchLoadingModal();
+  $('#content-page').load('./grocery.html');
+  await launchGroceryPlanner();
+  setTimeout(()=>{
+    Swal.close();
+  }, 10);
+});

@@ -1,3 +1,4 @@
+import { reminderModalIsLaunched } from "./reminderManager.js";
 import { capitalEachFirstLetter } from "./textFormatters.js";
 
 export async function launchConfirmationModal(actionText, questionText) {
@@ -54,20 +55,24 @@ export async function launchReminderModal(imageUrl, title, content, confirmText,
   }
 }
 
+export let loadingSwalInstance = null;
 export async function launchLoadingModal() {
-  // Show the loading modal
-  const swalInstance = await Swal.fire({
-    title: 'Processing...',
-    text: 'Please wait while we load the data.',
-    allowOutsideClick: false,  // Prevent clicking outside to close
-    didOpen: () => {
-      Swal.showLoading();  // Show the spinner
-    },
-    willClose: () => {
-      // You can place any cleanup code here if necessary
-    }
-  });
 
-  // Return the swalInstance in case you want to manually control the modal later
-  return swalInstance;
+  // Show the loading Swal and store the instance
+  loadingSwalInstance = await Swal.fire({
+      title: 'Processing...',
+      text: 'Please wait while we load the data.',
+      allowOutsideClick: true,  // Prevent clicking outside to close
+      didOpen: () => {
+          Swal.showLoading();  // Show the spinner
+
+          setTimeout(()=>{
+            if(reminderModalIsLaunched){
+              Swal.close();
+            }
+          },2000)
+      }
+  });
+  
+  return loadingSwalInstance;
 }
