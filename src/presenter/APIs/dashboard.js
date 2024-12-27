@@ -10,12 +10,14 @@ import { launchInvoiceForm } from "./invoiceForm.js";
 import { launchInvoiceTable } from "./invoiceTable.js";
 import { downloadPDFFile } from "./pdfDownloader.js";
 import { launchBudgetPlanForm } from "./budgetPlanForm.js";
+import { launchLoadingModal } from "./sweetAlertModals.js";
 
 
 $(function(){
     $('#invoiceForm').load('../../components/modals/invoiceForm.html');
     $('#invoiceTableModal').load('../../components/modals/invoiceTable.html');
     $('#budgetPlanForm').load('../../components/modals/budgetPlanForm.html');
+    launchLoadingModal();
     setTimeout(function() {
         console.log("Delayed execution");
 
@@ -27,6 +29,7 @@ $(function(){
               window.location.reload()
             }
         }
+        Swal.close();
     }, 2000);  // Delay by 2 seconds
 });
 
@@ -143,7 +146,7 @@ async function loadTransactionTable(){
         $('#transaction-table').append(html);
     });
   } catch (err){
-    // window.location.reload();
+    window.location.reload();
   }
 
     $('#transaction-table-viewAll').click(async function(event){
