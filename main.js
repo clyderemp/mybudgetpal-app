@@ -123,4 +123,24 @@ async function handleLoggedInUser(){
     await topbarActionHandlers();
     await allTransactionsData();
     await launchReminderManager();
+    await mainButtonHandlers();
+}
+
+async function mainButtonHandlers(){
+    $('.refreshBTN').off('click').click(async function(e){
+        e.preventDefault();
+        await localStorage.removeItem('currentUserData-'+uid);
+        await localStorage.removeItem('coUserData-'+uid);
+        await localStorage.removeItem('transactionData-'+uid);
+        window.location.reload();
+    });
+
+    $('.logoutBTN').off('click').click(async function(e){
+        e.preventDefault();
+        await localStorage.removeItem('currentUserData-'+uid);
+        await localStorage.removeItem('coUserData-'+uid);
+        await localStorage.removeItem('transactionData-'+uid);
+        auth.signOut();
+        window.location.replace("../auth/");
+    });
 }

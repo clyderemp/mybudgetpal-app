@@ -143,7 +143,7 @@ async function loadTransactionTable(){
         $('#transaction-table').append(html);
     });
   } catch (err){
-    window.location.reload();
+    // window.location.reload();
   }
 
     $('#transaction-table-viewAll').click(async function(event){

@@ -59,7 +59,7 @@ export async function topbarActionHandlers(){
         await localStorage.setItem('selectedCurrencyCode-'+uid, selectedCurrency);
         window.location.reload();
     });
-
+    
 }
 
 
