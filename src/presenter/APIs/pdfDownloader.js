@@ -37,5 +37,6 @@ export async function downloadPDFFile(htmlID, fileName){
         } else {
             console.error('html2canvas failed to generate the canvas.');
         }
+        Swal.close();
     });
 }

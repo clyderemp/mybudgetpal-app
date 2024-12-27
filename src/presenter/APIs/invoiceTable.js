@@ -51,7 +51,7 @@ async function loadTable() {
     const startIdx = (currentPage - 1) * recordsPerPage;
     const endIdx = startIdx + recordsPerPage;
     const transactionsForCurrentPage = sortedTransactions?.slice(startIdx, endIdx);
-    console.log(transactionsForCurrentPage.length, sortedTransactions.length)
+    
     // Empty the table before populating new data
     $('#full-invoice-table').empty();
     let prevDate = null;  // Variable to track the previous date
@@ -65,7 +65,6 @@ async function loadTable() {
             let reportedBy = data?.reportedBy?.replaceAll('Me - ','')?.split(' ');
             reportedBy = reportedBy[0]+' '+reportedBy[reportedBy.length-1][0]+'.';
             const date = new Date(data?.date).toLocaleDateString();
-            console.log(date)
             const category = data?.category;
             const type = data?.type?.split('(')[0];
             const amount = currencySymbol + ' ' + (data?.value).toFixed(2);
@@ -131,7 +130,6 @@ function updatePaginationControls(totalPages) {
 
     // Add page number buttons
     for (let i = 1; i <= totalPages; i++) {
-        console.log(i === currentPage, i , currentPage)
         paginationContainer.append(`<button class="btn page-btn ${i === parseInt(currentPage) ? 'btn-primary' : ''}" pageNumber="${i}">${i}</button>`);
     }
 
@@ -171,8 +169,7 @@ async function buttonListeners(){
     $('.action-btn').off('click').click(async function(e){
         e.preventDefault();
         const actionType = $(this).attr('actionType');
-        const itemID = $(this).attr('id'); 
-        console.log(itemID)
+        const itemID = $(this).attr('id');
         targetId = itemID;
         const data = Object.entries(allTransactions)
                     .find(([key, transaction]) => transaction.item_id === targetId)

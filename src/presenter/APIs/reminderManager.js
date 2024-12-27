@@ -20,7 +20,6 @@ async function checkUserSalaryLog() {
     };
     // Get the current date
     const currentDate =  new Date();
-    console.log(budgetPlanData);
     // currentDate.setDate(currentDate.getDate() + ); // Add 7 days to predicted salary date
     const userSalaryBudgetData = budgetPlanData?.userSalary?.find(item => item.user === selectedPrimaryUserVal?.fname);
     // Get the day from the userSalary object (make sure it's a number)

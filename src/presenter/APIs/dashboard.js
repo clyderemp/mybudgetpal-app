@@ -156,7 +156,7 @@ async function loadTransactionTable(){
 
     $('#download-invoiceTable').click(async function(event){
         event.preventDefault();
-        console.log('here')
+        launchLoadingModal();
         await downloadPDFFile('invoiceTableTile', 'invoice');
 
     });
