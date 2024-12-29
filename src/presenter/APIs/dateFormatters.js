@@ -62,6 +62,19 @@ export async function calculateDaysPast(today, target){
     return diffInDays*-1;
 }
 
+export async function checkIfDateIsWithinLast30Days(inputDate){
+    //EXPECTS A DATE OBJECT
+    // const inputDate = new Date(dateObj);
+      
+    // Get the current date and the date 30 days ago
+    const currentDate = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(currentDate.getDate() - 30);  // Subtract 30 days from today's date
+      
+    // Check if the input date is within the last 30 days
+    return inputDate >= thirtyDaysAgo && inputDate <= currentDate;
+}
+
 //FOR MONTHS
 export const reg_month_strings = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ];
 export const short_month_strings = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" ];

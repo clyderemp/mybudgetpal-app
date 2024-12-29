@@ -65,11 +65,13 @@ export const expenseIcons = {
     "Clothings": "<i class='ri-t-shirt-line'></i>",
     "Commute": "<i class='ri-train-line'></i>",
     "Dining Out": "<i class='ri-restaurant-line'></i>",
+    "Dining Out - Food": "<i class='ri-restaurant-line'></i>",
+    "Dining Out - Drinks": "<i class='ri-restaurant-line'></i>",
     "Entertainment": "<i class='ri-movie-line'></i>",
-    "E-Purchases": "<i class='ri-shopping-bag-line'></i>",
+    "E-purchases": "<i class='ri-macbook-line'></i>",
     "Gas": "<i class='ri-gas-station-line'></i>",
     "Groceries": "<i class='ri-shopping-cart-line'></i>",
-    "Home Maintenance": "<i class='ri-tools-line'></i>",
+    "Home Maintenance": "<i class='ri-home-gear-line'></i>",
     "Investments": "<i class='ri-line-chart-line'></i>",
     "Medical Care": "<i class='ri-heart-line'></i>",
     "Others (personal Spendings)": "<i class='ri-user-line'></i>",
@@ -80,11 +82,13 @@ export const expenseIcons = {
 };
 
 export async function loadExpenseData(){
+    console.log(expensesData);
     for(const key in expensesData){
         const obj = expensesData[key];
         const month = obj.date?.split('-')[1];
         const value = parseFloat(obj?.value) || 0;
 
+        console.log(obj.reportedBy, obj.type, value)
         if(expenseBalanceTracker[month] === undefined){
             expenseBalanceTracker[month] = 0;
         }
@@ -112,7 +116,6 @@ async function analyzeTopExpenses(){
         type: type,
         value: value
     }));
-
     // Sort the array by the 'value' property in descending order (highest first)
     const topExpenses = expenseArray
         .sort((a, b) => b.value - a.value)  // Sorting in descending order by 'value'

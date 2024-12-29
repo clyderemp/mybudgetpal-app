@@ -9,7 +9,6 @@ export const fetchAllTransactions = async() => {
     // localStorage.clear();
     
     let transactions = await JSON.parse(await localStorage.getItem('transactionData-'+uid)) || [];
-    // console.log(transactions)
     if(transactions === null || transactions?.length <= 0){
         console.log('Fetching transactions from firebase...');
         const collectionRef = collection(db, 'users', uid, 'transactions');

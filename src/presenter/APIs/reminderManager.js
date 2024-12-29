@@ -3,7 +3,7 @@ import { budgetPlanData } from "../../model/budgetPlanData.js";
 import { incomeData } from "../../model/incomeData.js"
 import { predictNextSalaryDate } from "../../model/ML/salaryML.js";
 import { selectedPrimaryUserVal } from "../../view/components/navbars/topbar.js";
-import { calculateDaysPast, calculateDaysUntil } from "./dateFormatters.js";
+import { calculateDaysPast, calculateDaysUntil, checkIfDateIsWithinLast30Days } from "./dateFormatters.js";
 import { launchReminderModal } from "./sweetAlertModals.js";
 
 export let reminderModalIsLaunched = false;
@@ -48,129 +48,131 @@ async function checkUserSalaryLog() {
     const daysPriorSalaryReminderDate = new Date(predictedSalaryDate);
     daysPriorSalaryReminderDate.setDate(daysPriorSalaryReminderDate.getDate() - 3); // Add 7 days to predicted salary date
 
+
+
+    // Sort the filtered income transactions to get the most recent one
+    // Filter and sort income transactions to find the last one
+    const incomeTransactions = transactions.filter((transaction) => {
+        const user = transaction.reportedBy?.replaceAll('Me - ','');
+        return (
+            transaction.category?.toLowerCase() === 'income' &&
+            transaction.type?.toLowerCase() === 'job paycheque' &&
+            user === (selectedPrimaryUserVal.fname + ' ' + selectedPrimaryUserVal.lname)
+        );
+    });
+    const sortedIncome = incomeTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const lastIncomeWasWithin30Days = await checkIfDateIsWithinLast30Days(new Date(sortedIncome[0].date));
     /**
      * PROCEED WITH THE ReMINDER
      */
-
-    // Case 1: Check if today is within the predicted salary date and the next 7 days
-    if (currentDate.getDate() === predictedSalaryDate.getDate()) {
-        // Check if no income has been logged in this 7-day range
-        const hasLoggedIncome = transactions.some((transaction) => {
-            const transactionDate = new Date(transaction.date);
-            return (
-                transaction.category?.toLowerCase() === 'income' &&
-                transaction.type?.toLowerCase() === 'job paycheque' &&
-                transactionDate >= predictedSalaryDate &&
-                transactionDate <= salaryReminderEndDate
-            );
-        });
-
-        // If no income logged in the 7-day window, show the reminder
-        if (!hasLoggedIncome) {
-            // Filter and sort income transactions to find the last one
-            const incomeTransactions = transactions.filter((transaction) => {
-                const user = transaction.reportedBy?.replaceAll('Me - ','');
+    if(!lastIncomeWasWithin30Days){
+        // Case 1: Check if today is within the predicted salary date and the next 7 days
+        if (currentDate.getDate() === predictedSalaryDate.getDate()) {
+            // Check if no income has been logged in this 7-day range
+            const hasLoggedIncome = transactions.some((transaction) => {
+                const transactionDate = new Date(transaction.date);
                 return (
                     transaction.category?.toLowerCase() === 'income' &&
                     transaction.type?.toLowerCase() === 'job paycheque' &&
-                    user === (selectedPrimaryUserVal.fname + ' ' + selectedPrimaryUserVal.lname)
+                    transactionDate >= predictedSalaryDate &&
+                    transactionDate <= salaryReminderEndDate
                 );
             });
 
-            // Sort the filtered income transactions to get the most recent one
-            const sortedIncome = incomeTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // If no income logged in the 7-day window, show the reminder
+            if (!hasLoggedIncome) {
+                // Get the latest income date (if there is any income transaction)
+                const lastIncomeDate = sortedIncome[0] ? new Date(sortedIncome[0].date).toDateString() : 'N/A';
 
-            // Get the latest income date (if there is any income transaction)
-            const lastIncomeDate = sortedIncome[0] ? new Date(sortedIncome[0].date).toDateString() : 'N/A';
-
-            // Send the reminder message
-            const msg = `Hey ${selectedPrimaryUserVal.fname}!<br>
-                <small>Looks like your next salary is coming today!<br> Make sure you log it to keep track of your monthly income.<br>
-                Your last reported income invoice was on ${lastIncomeDate}.</small>`;
-            await launchReminderModal('../../images/AL.png', null, msg, null, null, onConfirm);
+                // Send the reminder message
+                const msg = `Hey ${selectedPrimaryUserVal.fname}!<br>
+                    <small>Looks like your next salary is coming today!<br> Make sure you log it to keep track of your monthly income.<br>
+                    Your last reported income invoice was on ${lastIncomeDate}.</small>`;
+                await launchReminderModal('../../images/AL.png', null, msg, null, null, onConfirm);
+            }
         }
-    }
 
-    // Case 2: Check if today is 7 days after the predicted salary date and no income has been logged
-    if (predictedSalaryDate < currentDate && currentDate < salaryReminderEndDate) {
-        // Check again if no income was reported after the predicted date + 7 days
-        const hasLoggedIncomeAfter7Days = transactions.some((transaction) => {
-            const transactionDate = new Date(transaction.date);
-            return (
-                transaction.category?.toLowerCase() === 'income' &&
-                transaction.type?.toLowerCase() === 'job paycheque' &&
-                transactionDate >= predictedSalaryDate &&
-                transactionDate <= salaryReminderEndDate
-            );
-        });
-
-        // If no income was reported in the 7-day range, send the reminder again
-        if (!hasLoggedIncomeAfter7Days) {
-            // Filter and sort income transactions to find the last one
-            const incomeTransactions = transactions.filter((transaction) => {
-                const user = transaction.reportedBy?.replaceAll('Me - ','');
+        // Case 2: Check if today is 7 days after the predicted salary date and no income has been logged
+        else if (predictedSalaryDate < currentDate && currentDate < salaryReminderEndDate) {
+            // Check again if no income was reported after the predicted date + 7 days
+            const hasLoggedIncomeAfter7Days = transactions.some((transaction) => {
+                const transactionDate = new Date(transaction.date);
                 return (
                     transaction.category?.toLowerCase() === 'income' &&
                     transaction.type?.toLowerCase() === 'job paycheque' &&
-                    user === (selectedPrimaryUserVal.fname + ' ' + selectedPrimaryUserVal.lname)
+                    transactionDate >= predictedSalaryDate &&
+                    transactionDate <= salaryReminderEndDate
                 );
             });
 
-            // Sort the filtered income transactions to get the most recent one
-            const sortedIncome = incomeTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // If no income was reported in the 7-day range, send the reminder again
+            if (!hasLoggedIncomeAfter7Days) {
+                // Filter and sort income transactions to find the last one
+                const incomeTransactions = transactions.filter((transaction) => {
+                    const user = transaction.reportedBy?.replaceAll('Me - ','');
+                    return (
+                        transaction.category?.toLowerCase() === 'income' &&
+                        transaction.type?.toLowerCase() === 'job paycheque' &&
+                        user === (selectedPrimaryUserVal.fname + ' ' + selectedPrimaryUserVal.lname)
+                    );
+                });
 
-            // Get the latest income date (if there is any income transaction)
-            const lastIncomeDate = sortedIncome[0] ? new Date(sortedIncome[0].date).toDateString() : 'N/A';
-            const daysPassed = await calculateDaysPast(currentDate, predictedSalaryDate);
-            // Send the reminder message
-            const msg = `Hey ${selectedPrimaryUserVal.fname}!<br>
-                <small>It has been ${daysPassed} day${daysPassed === 1 ? '':'s'} and it looks like you haven't logged your income after the expected salary date on ${predictedSalaryDate.toDateString()}.<br>
-                Your last reported income was on ${lastIncomeDate}. Would you like to log your income now?</small>`;
+                // Sort the filtered income transactions to get the most recent one
+                const sortedIncome = incomeTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Get the latest income date (if there is any income transaction)
+                const lastIncomeDate = sortedIncome[0] ? new Date(sortedIncome[0].date).toDateString() : 'N/A';
+                const daysPassed = await calculateDaysPast(currentDate, predictedSalaryDate);
+                // Send the reminder message
+                const msg = `Hey ${selectedPrimaryUserVal.fname}!<br>
+                    <small>It has been ${daysPassed} day${daysPassed === 1 ? '':'s'} and it looks like you haven't logged your income after the expected salary date on ${predictedSalaryDate.toDateString()}.<br>
+                    Your last reported income was on ${lastIncomeDate}. Would you like to log your income now?</small>`;
+                    const confirmText = 'Yes';
+                    const cancelText = 'No';
+                    await launchReminderModal('../../images/AL.png', null, msg, confirmText, cancelText, onConfirm);
+            }
+        }
+
+        // Case 3: Check if today is 3-5 days before the salary date
+        else if (daysPriorSalaryReminderDate <= currentDate && currentDate <= predictedSalaryDate) {
+            // Check again if no income was reported after the predicted date + 7 days
+            const hasLoggedIncomeAfter7Days = transactions.some((transaction) => {
+                const transactionDate = new Date(transaction.date);
+                return (
+                    transaction.category?.toLowerCase() === 'income' &&
+                    transaction.type?.toLowerCase() === 'job paycheque' &&
+                    transactionDate >= predictedSalaryDate &&
+                    transactionDate <= salaryReminderEndDate
+                );
+            });
+
+            // If no income was reported in the 7-day range, send the reminder again
+            if (!hasLoggedIncomeAfter7Days) {
+                // Filter and sort income transactions to find the last one
+                const incomeTransactions = transactions.filter((transaction) => {
+                    const user = transaction.reportedBy?.replaceAll('Me - ','');
+                    return (
+                        transaction.category?.toLowerCase() === 'income' &&
+                        transaction.type?.toLowerCase() === 'job paycheque' &&
+                        user === (selectedPrimaryUserVal.fname + ' ' + selectedPrimaryUserVal.lname)
+                    );
+                });
+
+                // Sort the filtered income transactions to get the most recent one
+                const sortedIncome = incomeTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Get the latest income date (if there is any income transaction)
+                const lastIncomeDate = sortedIncome[0] ? new Date(sortedIncome[0].date).toDateString() : 'N/A';
+
+                const daysUntilSalary = await calculateDaysUntil(currentDate, predictedSalaryDate);
+                // Send the reminder message
+                const msg = `Hey ${selectedPrimaryUserVal.fname}!<br>
+                    <small>It looks like your salary is coming ${daysUntilSalary === 1 ? 'tomorrow' : `in ${daysUntilSalary} days`} on ${predictedSalaryDate.toDateString()}.<br>
+                    Your last reported income was on ${lastIncomeDate}.<br>Would you like to log your income now?</small>`;
                 const confirmText = 'Yes';
                 const cancelText = 'No';
                 await launchReminderModal('../../images/AL.png', null, msg, confirmText, cancelText, onConfirm);
-        }
-    }
-
-    // Case 3: Check if today is 3-5 days before the salary date
-    if (daysPriorSalaryReminderDate <= currentDate && currentDate <= predictedSalaryDate) {
-        // Check again if no income was reported after the predicted date + 7 days
-        const hasLoggedIncomeAfter7Days = transactions.some((transaction) => {
-            const transactionDate = new Date(transaction.date);
-            return (
-                transaction.category?.toLowerCase() === 'income' &&
-                transaction.type?.toLowerCase() === 'job paycheque' &&
-                transactionDate >= predictedSalaryDate &&
-                transactionDate <= salaryReminderEndDate
-            );
-        });
-
-        // If no income was reported in the 7-day range, send the reminder again
-        if (!hasLoggedIncomeAfter7Days) {
-            // Filter and sort income transactions to find the last one
-            const incomeTransactions = transactions.filter((transaction) => {
-                const user = transaction.reportedBy?.replaceAll('Me - ','');
-                return (
-                    transaction.category?.toLowerCase() === 'income' &&
-                    transaction.type?.toLowerCase() === 'job paycheque' &&
-                    user === (selectedPrimaryUserVal.fname + ' ' + selectedPrimaryUserVal.lname)
-                );
-            });
-
-            // Sort the filtered income transactions to get the most recent one
-            const sortedIncome = incomeTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            // Get the latest income date (if there is any income transaction)
-            const lastIncomeDate = sortedIncome[0] ? new Date(sortedIncome[0].date).toDateString() : 'N/A';
-
-            const daysUntilSalary = await calculateDaysUntil(currentDate, predictedSalaryDate);
-            // Send the reminder message
-            const msg = `Hey ${selectedPrimaryUserVal.fname}!<br>
-                <small>It looks like your salary is coming ${daysUntilSalary === 1 ? 'tomorrow' : `in ${daysUntilSalary} days`} on ${predictedSalaryDate.toDateString()}.<br>
-                Your last reported income was on ${lastIncomeDate}.<br>Would you like to log your income now?</small>`;
-            const confirmText = 'Yes';
-            const cancelText = 'No';
-            await launchReminderModal('../../images/AL.png', null, msg, confirmText, cancelText, onConfirm);
+            }
         }
     }
 }
