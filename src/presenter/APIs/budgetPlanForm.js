@@ -261,13 +261,13 @@ async function launchBudgetTableSection() {
                         <div class="input-group-prepend">
                             <span class="input-group-text">${currencySymbol}</span>
                             <input type="number" class="form-control budgetTable-amount" id="budgetTable-amount-${index}" aria-describedby="inputGroupPrepend" required>
-                            <span class="input-group-text"> = ${percentage} % of ${data.user}'s budget</span>
                         </div>
                     </div>
                 </div>
                 <div class="invalid-feedback">
                     Please select a valid category.
                 </div>
+            <hr></hr>
             </div>
         `;
     
@@ -633,7 +633,6 @@ $('#budgetPlanForm').on('submit', async function(event){
         categoryPercent: categoryBudgetPercentVal,
         budgetPlanArray: budgetPlanArray,
     };
-    console.log(budgetFormDocData)
     await updateDocument('users', uid, {budgetPlanData: budgetFormDocData});
     await localStorage.removeItem('currentUserData-'+uid);
     window.location.reload();

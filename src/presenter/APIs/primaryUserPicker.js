@@ -15,7 +15,6 @@ export async function launchPrimaryUserPicker(){
             accountUsers.push(coUserData)
         });
     
-        console.log(accountUsers)
         await loadUserAccountSelections();
     }, 1000);
 }

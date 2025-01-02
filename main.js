@@ -8,6 +8,7 @@ import { topbarActionHandlers } from './src/view/components/navbars/topbar.js';
 import { currencyConverter } from './src/presenter/APIs/currencyConverter.js';
 import { launchPrimaryUserPicker } from './src/presenter/APIs/primaryUserPicker.js'
 import { launchReminderManager } from './src/presenter/APIs/reminderManager.js';
+import { sidebarActionHandlers } from './src/view/components/navbars/sidebar.js';
 
 let loaderDiv = $('#loading');
 const topNavBar = $('#top-navbar');
@@ -33,10 +34,8 @@ $(function(){
             }
             console.log('logged in: '+uid);
           
-
-          
           var currentPage = currentLocation.pathname.toString();
-          if(!currentPage.includes('home')){
+          if(!currentPage.includes('pages')){
             getDoc(doc(db, "users", uid)).then(docSnap => {
                 if (docSnap.exists()) {
                     window.location.replace("../home/");
@@ -51,7 +50,6 @@ $(function(){
         } else {
             console.log('logged out');
             var currentPage = currentLocation.pathname.toString();
-            console.log(currentLocation, currentPage)
             if(currentPage=='/src/view/pages/home/'){
                 window.location.replace("../auth/");
             }
@@ -121,6 +119,7 @@ async function handleLoggedInUser(){
     await currentUserData();
     await coUsersData();
     await topbarActionHandlers();
+    await sidebarActionHandlers();
     await allTransactionsData();
     await launchReminderManager();
     await mainButtonHandlers();

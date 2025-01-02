@@ -13,11 +13,11 @@ export const fetchCurrentUserData = async() => {
             currentUserDataVal = userDocSnap?.data();
         }
         await localStorage.setItem('currentUserData-'+uid, JSON.stringify(currentUserDataVal));
-        console.log('Fetched data: ', currentUserDataVal);
+        // console.log('Fetched data: ', currentUserDataVal);
         return (currentUserDataVal);
     } else {
         console.log('Fetching current user data from local...');
-        console.log('Fetched data: ', currentUserDataVal);
+        // console.log('Fetched data: ', currentUserDataVal);
         return (currentUserDataVal);
     }
 

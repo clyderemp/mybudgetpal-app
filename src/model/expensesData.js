@@ -78,17 +78,15 @@ export const expenseIcons = {
     "Parking": "<i class='ri-parking-line'></i>",
     "Recreation": "<i class='ri-sports-line'></i>",
     "Travels": "<i class='ri-plane-line'></i>",
-    "Personal Care": "<i class='ri-body-scan-line'></i>"
+    "Personal Care": "<i class='ri-user-line'></i>"
 };
 
 export async function loadExpenseData(){
-    console.log(expensesData);
     for(const key in expensesData){
         const obj = expensesData[key];
         const month = obj.date?.split('-')[1];
         const value = parseFloat(obj?.value) || 0;
 
-        console.log(obj.reportedBy, obj.type, value)
         if(expenseBalanceTracker[month] === undefined){
             expenseBalanceTracker[month] = 0;
         }

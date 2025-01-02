@@ -130,7 +130,8 @@ async function loadWeeklySpendingTracker(){
 }
 async function loadTransactionTable(){
   try{
-    allTransactions?.slice(0, 18).forEach(async (data) => {
+    let prevDate = null;
+    allTransactions?.slice(0, 15).forEach(async (data) => {
         let reportedBy = data?.reportedBy?.replaceAll('Me - ','')?.split(' ');
             reportedBy = reportedBy[0]+' '+reportedBy[reportedBy.length-1][0]+'.';
         const date = data?.date;
@@ -138,8 +139,15 @@ async function loadTransactionTable(){
         const type = data?.type?.split('(')[0];
         const amount = currencySymbol +' '+ data?.value;
         const paidTo = data?.transaction;
+        // Check if the current date is the same as the previous date
+        let showDate = true;
+        if (prevDate === data?.date) {
+            showDate = false;
+        }
+        prevDate = data?.date;
+
         const html = `<tr>
-                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${date}<a></td>
+                        <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${showDate ? date : ''}<a></td>
                         <td>
                             <div class="badge badge-pill badge-${
                                 category === 'expenses' ? 'danger' : category === 'savings' ? 'success' : 'warning'
@@ -149,8 +157,7 @@ async function loadTransactionTable(){
                         <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${amount}</a></td>
                         <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${paidTo?.length > 20 ? paidTo.slice(0,20)+'...' : paidTo}</a></td>
                         <td><a href="javascript:void(0)" class="edit-transaction" id="${data?.item_id}">${reportedBy}</a></td>
-                    </tr>`
-
+                    </tr>`;
         $('#transaction-table').append(html);
     });
   } catch (err){
