@@ -221,34 +221,37 @@
 
 
  <script type="module">
-    export function launchGroceryPlanner(groceryPlan) {
-        if (!groceryPlan) {
-            console.error("groceryPlan is undefined or null");
-            return;
-        }
+   $(function(){
+      console.log('here')
+   })
+   //  export function launchGroceryPlanner(groceryPlan) {
+   //      if (!groceryPlan) {
+   //          console.error("groceryPlan is undefined or null");
+   //          return;
+   //      }
 
-        console.log("Grocery Plan:", groceryPlan);
+   //      console.log("Grocery Plan:", groceryPlan);
 
-        const budgetCurrencyCode = groceryPlan?.currency || "USD";
-        const budgetMax = groceryPlan?.amount || 0;
+   //      const budgetCurrencyCode = groceryPlan?.currency || "USD";
+   //      const budgetMax = groceryPlan?.amount || 0;
 
-        console.log($('.budgetCurrency').length);  // Check the number of elements
+   //      console.log($('.budgetCurrency').length);  // Check the number of elements
 
-        $('#total-grocery-budget-val').html('Test');  // Change the inner HTML of the element
+   //      $('#total-grocery-budget-val').html('Test');  // Change the inner HTML of the element
 
-        // Update all .budgetCurrency elements
-        $('.budgetCurrency').each(function() {
-            $(this).text(budgetCurrencyCode);
-        });
+   //      // Update all .budgetCurrency elements
+   //      $('.budgetCurrency').each(function() {
+   //          $(this).text(budgetCurrencyCode);
+   //      });
 
-        console.log("Updated Grocery Plan:", groceryPlan);
-    }
+   //      console.log("Updated Grocery Plan:", groceryPlan);
+   //  }
 
-    $(function() {
-        console.log('here')
-        launchGroceryPlanner({
-            currency: "USD",
-            amount: 500
-        });
-    });
+   //  $(function() {
+   //      console.log('here')
+   //      launchGroceryPlanner({
+   //          currency: "USD",
+   //          amount: 500
+   //      });
+   //  });
 </script>

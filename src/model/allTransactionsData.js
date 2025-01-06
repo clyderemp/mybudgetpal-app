@@ -2,7 +2,7 @@ import { fetchAllTransactions } from "../presenter/services/fetchAllTransactions
 import { expensesData } from "./expensesData.js";
 import { incomeData } from "./incomeData.js";
 import { savingsData } from "./savingsData.js";
-export let allTransactions = {};
+export let allTransactions = null;
 export let totalMoneyTrafficVal = 0;
 export let reportPercentage = {
     expenses: 0,

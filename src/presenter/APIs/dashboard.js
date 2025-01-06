@@ -11,8 +11,6 @@ import { launchInvoiceTable } from "./invoiceTable.js";
 import { downloadPDFFile } from "./pdfDownloader.js";
 import { launchBudgetPlanForm } from "./budgetPlanForm.js";
 import { launchLoadingModal } from "./sweetAlertModals.js";
-import { launchGroceryPlanner } from "./grocery.js";
-import { budgetPlanData } from "../../model/budgetPlanData.js";
 
 
 $(function() {
@@ -31,7 +29,7 @@ $(function() {
       // Perform your tasks (e.g., loading transactions and other UI updates)
       if (allTransactions !== null) {
           try {
-              loadHomeDashboard();  // Function to load the home dashboard
+              await loadHomeDashboard();  // Function to load the home dashboard
               $('#invoiceForm-currency').text(selectedCurrencyCode + ' ' + currencySymbol);
           } catch (err) {
               window.location.reload();  // Reload if an error occurs
@@ -356,12 +354,7 @@ $('#invoiceFormButton').off('click').click(async function(e) {
 });
 
 $('#budgetPlanFormButton').click(async function(){await launchBudgetPlanForm()});
-$('#planGroceryButton').click(async function(){
-  await launchLoadingModal();
-  $('#content-page').load('./grocery.html');
-  const groceryPlan = budgetPlanData?.budgetPlanArray.find(item => item.type?.toLowerCase() === 'groceries');
-  // await launchGroceryPlanner(groceryPlan);
-  setTimeout(()=>{
-    Swal.close();
-  }, 10);
+$('#budgetManagerBTN').click(async function(){
+  
+  window.location.replace('../budgetmanager/');
 });
