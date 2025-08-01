@@ -1,0 +1,42 @@
+export default [
+    {
+        id: 1,
+        title: 'title 1',
+        description: 'description 1',
+        status: 'pending',
+        date: new Date(2025, 6, 1).toISOString(),
+        types: ['type1'],
+    },
+    {
+        id: 2,
+        title: 'title 2',
+        description: 'description 2',
+        status: 'resolving',
+        date: new Date(2025, 6, 1).toISOString(),
+        types: ['type1', 'type2'],
+    },
+    {
+        id: 3,
+        title: 'title 3',
+        description: 'description 3',
+        status: 'resolved',
+        date: new Date(2025, 6, 1).toISOString(),
+        types: ['type2'],
+    },
+    {
+        id: 4,
+        title: 'title 4',
+        description: 'description 4',
+        status: 'pending',
+        date: new Date(2025, 6, 2).toISOString(),
+        types: [],
+    },
+    {
+        id: 5,
+        title: 'title 5',
+        description: 'description 5',
+        status: 'resolving',
+        date: new Date(2025, 5, 1).toISOString(),
+        types: [],
+    },
+];
