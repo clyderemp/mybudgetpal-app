@@ -48,7 +48,7 @@ export default function Login() {
     return <Loader text="Signing in" />;
   } else {
     return (
-      <div className="relative min-h-screen w-full font-pt font-bold text-gray-900 overflow-hidden flex items-center justify-center px-4">
+      <div className="bg-white relative min-h-screen w-full font-pt font-bold text-gray-900 overflow-hidden flex items-center justify-center px-4">
         {/* Login form container */}
         <form
           onSubmit={handleLogin}
