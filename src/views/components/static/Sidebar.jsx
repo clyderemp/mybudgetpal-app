@@ -15,6 +15,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTextUtils } from "@/utils/text.utils";
 import { MODE } from "@/configs/servers.config";
+import { useDateUtils } from "@/utils/date.utils";
 
 const Sidebar = () => {
   const { logout, user, reloadData } = useAuth();
@@ -33,16 +34,15 @@ const Sidebar = () => {
   const navigationItems = [
     { name: "Dashboard Overview", icon: LayoutDashboard, path: "/" },
     {
-      name: "Specifications",
+      name: "Transaction History",
       icon: Database,
-      path: "/specifications",
+      path: "/transactions",
       hasSubmenu: true,
-      key: "specifications",
+      key: "transactions",
       submenu: [
-        { name: "MatchaCode", path: "/specifications/matchacode" },
-        { name: "CuePid", path: "/specifications/cuepid" },
-        { name: "VisMatch", path: "/specifications/vismatch" },
-        { name: "Digital Twin Dating", path: "/specifications/dtd" },
+        { name: "Expense History", path: "/transactions/expenses" },
+        { name: "Income History", path: "/transactions/income" },
+        { name: "Savings History", path: "/transactions/savings" },
       ],
     },
     {
@@ -84,7 +84,7 @@ const Sidebar = () => {
     item.submenu?.some((sub) => location.pathname === sub.path);
 
   return (
-    <div className="w-60 bg-white h-screen shadow-lg flex flex-col">
+    <div className="w-70 bg-white h-screen shadow-lg flex flex-col">
       {/* Profile */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center space-x-3">
@@ -96,7 +96,11 @@ const Sidebar = () => {
               <h3 className="font-semibold text-gray-900">{`${user.fname} ${user.lname[0]}.`}</h3>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </div>
-            <p className="text-sm text-gray-500">{user?.role}</p>
+            <p className="text-xs text-gray-500">
+              {`Member since ${useDateUtils.getFormattedDateString(
+                user?.creationDate
+              )}`}
+            </p>
           </div>
         </div>
       </div>
@@ -182,25 +186,13 @@ const Sidebar = () => {
           onMouseEnter={() => setIsHoveringEnv(true)}
           onMouseLeave={() => setIsHoveringEnv(false)}
           onClick={() => {
-            if (user?.uid) reloadData("all");
+            if (user) reloadData();
           }}
           className={`w-full px-3 py-2 rounded-full text-sm font-medium text-center transition-colors ${
-            isHoveringEnv
-              ? "bg-primary text-white"
-              : MODE === "production"
-              ? "bg-secondary text-white"
-              : MODE === "development"
-              ? "bg-primary text-white"
-              : MODE === "testing"
-              ? "bg-warning text-white"
-              : "bg-gray-100 text-gray-800"
+            isHoveringEnv ? "bg-primary text-white" : "bg-secondary text-white"
           }`}
         >
-          {isHoveringEnv
-            ? "Reload Data"
-            : `${useTextUtils.getEnvironmentModeEmoji(environment)} ${
-                environment.charAt(0).toUpperCase() + environment.slice(1)
-              } Mode`}
+          {isHoveringEnv ? "Change Currency" : `Currency: `}
         </button>
       </div>
     </div>

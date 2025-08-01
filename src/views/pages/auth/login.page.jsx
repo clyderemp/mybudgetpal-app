@@ -67,8 +67,8 @@ export default function Login() {
             container="my-4 p-2 rounded"
             content="text-lg font-semibold text-secondary"
           >
-            Welcome to <span className="font-default">Blin</span>
-            <span className="font-semibold">Date</span>
+            Welcome to <span className="font-default">my</span>
+            <span className="font-semibold">BudgetPal</span>
           </CustomText>
 
           <CustomInput

@@ -8,7 +8,7 @@ export default defineConfig({
   base: "/", // Good for most deployments (Vercel, Netlify, etc.)
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src"),
+      "@": resolve(__dirname, "src"),
     },
   },
   assetsInclude: ["**/*.glb", "**/*.gltf", "**/*.bin", "**/*.jpg", "**/*.png"], // Optional: extend as needed

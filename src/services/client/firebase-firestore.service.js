@@ -42,6 +42,21 @@ class FirestoreService {
     }
   }
 
+  async getAllDocuments(collectionName) {
+    try {
+      const colRef = collection(firestore, collectionName);
+      const snapshot = await getDocs(colRef);
+      const docs = snapshot.docs.map((doc) => ({
+        _id: doc.id,
+        ...doc.data(),
+      }));
+      return docs;
+    } catch (error) {
+      console.error("FirestoreService.getAllDocuments error:", error);
+      throw error;
+    }
+  }
+
   async addDocument(collectionName, data) {
     try {
       const colRef = collection(firestore, collectionName);
@@ -93,6 +108,17 @@ class FirestoreService {
       return results;
     } catch (error) {
       console.error("FirestoreService.queryDocuments error:", error);
+      throw error;
+    }
+  }
+
+  async replaceDocument(collectionName, docId, newData) {
+    try {
+      const docRef = doc(firestore, collectionName, docId);
+      await setDoc(docRef, newData, { merge: false }); // full replacement
+      return docId;
+    } catch (error) {
+      console.error("FirestoreService.replaceDocument error:", error);
       throw error;
     }
   }
