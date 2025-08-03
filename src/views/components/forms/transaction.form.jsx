@@ -25,9 +25,9 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   const [userOptions, setUserOptions] = useState([]);
 
   useEffect(() => {
+    const usersOptions = getAccountUsers();
+    setUserOptions(usersOptions);
     if (data?._id) {
-      const usersOptions = getAccountUsers();
-      setUserOptions(usersOptions);
       setTransactionData((prev) => ({ ...prev, ...data }));
     }
   }, [data]);
