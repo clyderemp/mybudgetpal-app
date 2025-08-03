@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
 import { useTextUtils } from "@/utils/text.utils";
@@ -47,6 +47,22 @@ const ImageUpload = ({ value, onChange, placeholder, disabled = false }) => {
   );
 };
 
+// Utility functions to format and parse money strings
+const formatMoney = (value) => {
+  if (value == null || value === "") return "";
+  const number = Number(String(value).replace(/[^0-9.-]+/g, ""));
+  if (isNaN(number)) return "";
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseMoney = (formattedValue) => {
+  if (!formattedValue) return "";
+  return formattedValue.replace(/,/g, "");
+};
+
 const CustomInput = ({
   type = "text",
   value,
@@ -57,10 +73,26 @@ const CustomInput = ({
   text = "",
   children,
   error = false,
-  options = [], // for dropdown
+  options = [], // for dropdown or currencies
   autoCapitalize = false,
   isDisabled = false,
+  showIcon = false,
+
+  // New props for money type
+  currencyOptions = ["AED", "CAD", "USD", "EUR"],
+  selectedCurrency = "AED",
+  onCurrencyChange,
 }) => {
+  const [internalValue, setInternalValue] = useState(value);
+
+  useEffect(() => {
+    if (type === "money") {
+      setInternalValue(formatMoney(value));
+    } else {
+      setInternalValue(value);
+    }
+  }, [value, type]);
+
   let Icon = null;
   if (!children) {
     if (type === "password") Icon = LockIcon;
@@ -73,7 +105,6 @@ const CustomInput = ({
 
   // Special handling for date input to convert between ISO string and yyyy-mm-dd
   if (type === "date") {
-    // Convert ISO string to yyyy-mm-dd for display, or empty string if no value
     const displayValue = value
       ? new Date(value).toISOString().slice(0, 10)
       : "";
@@ -81,7 +112,6 @@ const CustomInput = ({
     const handleDateChange = (e) => {
       const dateVal = e.target.value; // yyyy-mm-dd
       if (dateVal) {
-        // Convert to ISO string (UTC midnight)
         const isoString = new Date(dateVal).toISOString();
         onChange({ target: { value: isoString } });
       } else {
@@ -121,9 +151,9 @@ const CustomInput = ({
         disabled={isDisabled}
       >
         <option value="">Select</option>
-        {options.map((opt, idx) => (
+        {options?.map((opt, idx) => (
           <option key={idx} value={opt.value ?? opt}>
-            {opt.label ?? opt}
+            {opt.label ?? useTextUtils.capitalize(opt)}
           </option>
         ))}
       </select>
@@ -142,13 +172,76 @@ const CustomInput = ({
     );
   }
 
+  if (type === "money") {
+    const handleMoneyChange = (e) => {
+      const rawValue = e.target.value;
+      if (/^[0-9.,]*$/.test(rawValue)) {
+        setInternalValue(rawValue);
+        if (onChange) onChange({ target: { value: parseMoney(rawValue) } });
+      }
+    };
+
+    const handleMoneyBlur = () => {
+      setInternalValue(formatMoney(internalValue));
+    };
+
+    return (
+      <div
+        className={`relative w-full border rounded flex items-center ${
+          isDisabled ? "bg-gray-100" : ""
+        } ${
+          error
+            ? "border-red-500 focus-within:border-red-600 focus-within:ring-red-500"
+            : ""
+        }`}
+      >
+        {/* Currency Dropdown on the left */}
+        <select
+          value={selectedCurrency}
+          onChange={(e) => onCurrencyChange?.(e.target.value)}
+          disabled={isDisabled}
+          className="bg-transparent border-r border-gray-300 px-4 py-2 rounded-l text-sm cursor-pointer focus:outline-none focus:ring-0"
+          style={{ minWidth: "5.5rem" }}
+        >
+          {currencyOptions.map((cur) => (
+            <option key={cur} value={cur}>
+              {cur}
+            </option>
+          ))}
+        </select>
+
+        {/* Money Input */}
+        <input
+          type="text"
+          inputMode="decimal"
+          pattern="[0-9.,]*"
+          value={internalValue || ""}
+          onChange={handleMoneyChange}
+          onBlur={handleMoneyBlur}
+          placeholder={placeholder}
+          disabled={isDisabled}
+          className={`flex-grow p-2 rounded-r outline-none border-none ${
+            showIcon || children ? "pl-10" : ""
+          }`}
+        />
+
+        {/* Optional Icon inside input on right side */}
+        {showIcon && (children || null) && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative w-full border rounded p-2${
         isDisabled ? " bg-gray-100" : ""
       }`}
     >
-      {(children || Icon) && (
+      {showIcon && (children || Icon) && (
         <div className="absolute top-1/2 left-3 transform -translate-y-1/2 pointer-events-none text-gray-400">
           {children || <Icon fontSize="small" />}
         </div>
@@ -160,7 +253,7 @@ const CustomInput = ({
         placeholder={placeholder}
         disabled={isDisabled}
         className={`${shape} ${border} ${text} w-full ${
-          children || Icon ? "pl-10" : ""
+          showIcon && (children || Icon) ? "pl-10" : ""
         } ${errorBorderClass}`}
       />
     </div>

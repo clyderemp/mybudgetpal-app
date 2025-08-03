@@ -1,189 +1,277 @@
 import React, { useEffect, useState } from "react";
-import { Download, TrendingUp, UserCheck, Users } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import OverviewCard from "@/views/components/cards/overview.card";
 import AnalyticsCard from "@/views/components/cards/analytics.card";
 import { useAuth } from "@/context/auth.provider";
-import { useCalcUtils } from "@/utils/calculator.utils";
-import { useFormUtils } from "@/utils/form.utils";
 import { useAnalyticsUtils } from "@/utils/analytics.utils";
-import GeographicTable from "@/views/components/tables/geographic.table";
-
-const metrics = [
-  {
-    icon: TrendingUp,
-    label: "Website Visits",
-    value: "-10% from yesterday",
-    trend: "down",
-  },
-  {
-    icon: Users,
-    label: "New Signups",
-    value: "+15% from yesterday",
-    trend: "up",
-  },
-  {
-    icon: Download,
-    label: "App Downloads",
-    value: "-16% from yesterday",
-    trend: "down",
-  },
-  {
-    icon: UserCheck,
-    label: "Active Users",
-    value: "+10% from yesterday",
-    trend: "up",
-  },
-];
+import { useTextUtils } from "@/utils/text.utils";
+import CustomTable from "@/views/components/tables/custom.table";
 
 const AnalyticsSection = () => {
-  const { users, waitlist } = useAuth();
-  const [acquisitionTracker, setAcquisitionTracker] = useState({
-    array: [],
-    total: 0,
-  });
-  const [waitlistTracker, setWaitlistTracker] = useState({
-    array: [],
-    total: 0,
-  });
-  const [performanceRate, setPerformanceRate] = useState({
+  const {
+    user,
+    activeUser,
+    coUsers,
+    accountUsers,
+    transactions,
+    filteredTransactions,
+    exchangeRate,
+  } = useAuth();
+
+  const [weeklyAnalytics, setWeeklyAnalytics] = useState([]);
+
+  const [savingsGoalTracker, setSavingsGoalTracker] = useState({
     string: "",
     value: 0,
+    user: activeUser?.fname,
   });
-  const [genderRatio, setGenderRatio] = useState({ string: "", value: 0 });
-  const [geographicData, setGeographicData] = useState({
-    users: [],
-    waitlist: [],
+  const [spendingInsightRatio, setSpendingInsightRatio] = useState({
+    string: "",
+    value: 0,
+    user: activeUser?.fname,
+  });
+
+  const [tableData, setTableData] = useState({
+    weekly: {
+      array: [],
+      total: 0,
+    },
+    yearly: {
+      array: [],
+      total: 0,
+    },
   });
 
   useEffect(() => {
     runAnalytics();
-  }, []);
+  }, [transactions]);
 
   const runAnalytics = async () => {
-    let maleCount = 0;
-    let femaleCount = 0;
-    let matchacodeScore = 0;
-    let matchacodeMatches = 0;
+    await fetchExpenseSummmaryOverviewData();
+    await fetchSavingsGoalTrackerData();
+    await fetchSpendingInsightsData();
+    await fetchTableData();
+  };
 
-    users.forEach((user) => {
-      const gender = user?.userData?.basicProfile?.gender?.toLowerCase();
-      const matchacodeResults = user?.matchacodeData?.matches?.daily || [];
-      if (matchacodeResults?.length > 0) {
-        matchacodeResults.forEach((match) => {
-          matchacodeMatches++;
-          matchacodeScore += match.scores.finalScore;
-        });
-      }
-      if (gender === "male") maleCount++;
-      else if (gender === "female") femaleCount++;
+  const fetchExpenseSummmaryOverviewData = async () => {
+    const dailyAnalytics = await useAnalyticsUtils.getAverage(
+      transactions,
+      "daily"
+    );
+    const monthlyAnalytics = await useAnalyticsUtils.getAverage(
+      transactions,
+      "monthly"
+    );
+    const weeklyAnalytics = await useAnalyticsUtils.getAverage(
+      transactions,
+      "weekly"
+    );
+    const yearlyAnalytics = await useAnalyticsUtils.getAverage(
+      transactions,
+      "yearly"
+    );
+
+    setWeeklyAnalytics([
+      {
+        icon: dailyAnalytics?.isHigher ? TrendingUp : TrendingDown,
+        label: "Daily Average",
+        value: `${useTextUtils.getMoneyText(
+          dailyAnalytics.average,
+          exchangeRate.code
+        )} (${dailyAnalytics?.percent} % from yesterday)`,
+        trend: dailyAnalytics?.isHigher ? "down" : "up",
+      },
+      {
+        icon: weeklyAnalytics?.isHigher ? TrendingUp : TrendingDown,
+        label: "Weekly Average",
+        value: `${useTextUtils.getMoneyText(
+          weeklyAnalytics.average,
+          exchangeRate.code
+        )} (${weeklyAnalytics?.percent} % from last week)`,
+        trend: weeklyAnalytics?.isHigher ? "down" : "up",
+      },
+      {
+        icon: monthlyAnalytics?.isHigher ? TrendingUp : TrendingDown,
+        label: "Monthly Average",
+        value: `${useTextUtils.getMoneyText(
+          monthlyAnalytics.average,
+          exchangeRate.code
+        )} (${monthlyAnalytics?.percent} % from last month)`,
+        trend: monthlyAnalytics?.isHigher ? "down" : "up",
+      },
+      {
+        icon: yearlyAnalytics?.isHigher ? TrendingUp : TrendingDown,
+        label: "Yearly Average",
+        value: `${useTextUtils.getMoneyText(
+          yearlyAnalytics.average,
+          exchangeRate.code
+        )} (${yearlyAnalytics?.percent} % from last year)`,
+        trend: yearlyAnalytics?.isHigher ? "down" : "up",
+      },
+    ]);
+  };
+
+  const fetchSavingsGoalTrackerData = async () => {
+    const savingsInsights = await useAnalyticsUtils.getUserAnalytics(
+      transactions,
+      accountUsers,
+      "all"
+    );
+    const totalSavings = Object.values(savingsInsights).reduce((sum, user) => {
+      // Ensure savings is a valid number before adding
+      const savings =
+        typeof user.savings === "number" && !isNaN(user.savings)
+          ? user.savings
+          : 0;
+      return sum + savings;
+    }, 0);
+
+    const currency = user?.savings?.currency || "CAD";
+    const progress = (totalSavings / user?.savings?.goal) * 100;
+    setSavingsGoalTracker({
+      string: `${useTextUtils.getMoneyText(
+        user?.savings?.goal,
+        currency,
+        "short"
+      )}`,
+      value: progress,
+      user: activeUser?.fname,
     });
+  };
 
-    const total = maleCount + femaleCount;
-    const ratioString =
-      total > 0 ? useCalcUtils.getRatioString(maleCount, femaleCount) : "0:0";
-    useFormUtils.updateData("string", ratioString, setGenderRatio);
-    useFormUtils.updateData(
-      "value",
-      total > 0 ? (maleCount / total) * 100 : 0,
-      setGenderRatio
+  const fetchSpendingInsightsData = async () => {
+    const spendingInsights = useAnalyticsUtils.getUserAnalytics(
+      transactions,
+      accountUsers,
+      "all"
+    );
+    const activeUserId = activeUser._id;
+    const activeUserExpenses =
+      spendingInsights[activeUserId]?.expenses?.total || 0;
+
+    // Sum expenses of all other users except activeUser
+    const otherUsersExpenses =
+      Object.entries(spendingInsights)
+        .filter(([uid]) => uid !== activeUserId)
+        .reduce((sum, [, data]) => sum + (data.expenses?.total || 0), 0) || 0;
+
+    const ratio =
+      otherUsersExpenses > 0 ? activeUserExpenses / otherUsersExpenses : 0;
+    setSpendingInsightRatio({
+      string: `${useTextUtils.getMoneyText(
+        activeUserExpenses,
+        exchangeRate.code,
+        "short"
+      )} : ${useTextUtils.getMoneyText(
+        otherUsersExpenses,
+        exchangeRate.code,
+        "short"
+      )}`,
+      value: ratio,
+      user: `${activeUser.fname}`,
+    });
+  };
+
+  const fetchTableData = async () => {
+    const last7DaysSpending = await useAnalyticsUtils.getLast7DaysData(
+      "expenses",
+      transactions
     );
 
-    useFormUtils.updateData(
-      "string",
-      matchacodeMatches > 0
-        ? (matchacodeScore / matchacodeMatches).toFixed(2)
-        : 0,
-      setPerformanceRate
-    );
-    useFormUtils.updateData(
-      "value",
-      matchacodeMatches > 0
-        ? (matchacodeScore / matchacodeMatches).toFixed(2)
-        : 0,
-      setPerformanceRate
-    );
+    const totalWeeklySpending = last7DaysSpending.reduce((sum, item) => {
+      const val =
+        typeof item.value === "number" && !isNaN(item.value) ? item.value : 0;
+      return sum + val;
+    }, 0);
 
-    const userSignup = useAnalyticsUtils.getLast12MonthsData(
-      users,
-      (user) => new Date(user?.createdOn)
-    );
-    useFormUtils.updateData("array", userSignup, setAcquisitionTracker);
-    useFormUtils.updateData(
-      "total",
-      (users.length / 12).toFixed(2),
-      setAcquisitionTracker
-    );
+    const dailyAverage = totalWeeklySpending / (last7DaysSpending.length || 1);
 
-    const waitlistSignup = useAnalyticsUtils.getLast7DaysData(
-      waitlist,
-      (user) => new Date(user.date)
+    const lastYearSpending = await useAnalyticsUtils.getLast12MonthsData(
+      "expenses",
+      transactions
     );
-    useFormUtils.updateData("array", waitlistSignup, setWaitlistTracker);
-    useFormUtils.updateData("total", waitlist.length, setWaitlistTracker);
+    const totalYearSpending = lastYearSpending.reduce((sum, item) => {
+      const val =
+        typeof item.value === "number" && !isNaN(item.value) ? item.value : 0;
+      return sum + val;
+    }, 0);
 
-    const userCountryData = useAnalyticsUtils.getCountryCounts(
-      users,
-      (user) => user?.userData?.basicProfile?.location?.country
-    );
-    const waitlistCountryData = useAnalyticsUtils.getCountryCounts(
-      waitlist,
-      (user) => user?.location?.country
-    );
-    useFormUtils.updateData("users", userCountryData, setGeographicData);
-    useFormUtils.updateData("waitlist", waitlistCountryData, setGeographicData);
+    const monthlyAverage = totalYearSpending / (lastYearSpending.length || 1);
+
+    setTableData({
+      weekly: {
+        array: last7DaysSpending,
+        total: useTextUtils.getMoneyText(
+          dailyAverage,
+          exchangeRate?.code,
+          "short"
+        ),
+      },
+      yearly: {
+        array: lastYearSpending,
+        total: useTextUtils.getMoneyText(
+          monthlyAverage,
+          exchangeRate?.code,
+          "short"
+        ),
+      },
+    });
   };
 
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Top - Overview */}
-        <OverviewCard title="Daily Overview" data={metrics} />
+        <OverviewCard
+          title={"Expense Summary Overview"}
+          data={weeklyAnalytics}
+        />
 
         {/* Right Top - Split into 2 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <AnalyticsCard
-            title="MatchaCode Performance"
+            title="Savings Goal Tracker"
             subtitle={`As of ${new Date().toDateString()}`}
-            description="Average output match score"
-            value={`${performanceRate?.string}%`}
+            description={`${savingsGoalTracker?.value?.toFixed(
+              0
+            )}% towards achieving your savings goal`}
+            value={`${savingsGoalTracker?.string}`}
             graphType="radial"
-            percentage={performanceRate?.value}
+            percentage={savingsGoalTracker?.value}
           />
           <AnalyticsCard
-            title="Gender Demographics"
+            title={`Spending Insights`}
             subtitle={`As of ${new Date().toDateString()}`}
-            description="Gender Ratio (M:F)"
-            value={genderRatio.string}
+            description={`${spendingInsightRatio?.user} (You) : Others`}
+            value={spendingInsightRatio?.string}
             graphType="radial"
-            percentage={genderRatio.value}
+            percentage={spendingInsightRatio?.value}
           />
         </div>
 
         {/* Bottom Left */}
         <AnalyticsCard
-          title="Monthly User Acquisition"
+          title="Weekly Expense Tracker"
           subtitle="Last 7 days"
-          description="Average Monthly Acquisition"
-          value={acquisitionTracker?.total}
+          description="Daily Spending Average"
+          value={tableData?.weekly?.total}
           graphType="line"
-          chartData={acquisitionTracker?.array}
+          chartData={tableData?.weekly?.array}
         />
 
         {/* Bottom Right */}
         <AnalyticsCard
-          title="Waitlist Signups"
-          subtitle="Last 7 days"
-          description="Early Adopters Program Total Signups"
-          value={waitlistTracker?.total}
+          title="Monthly Expense Tracker"
+          subtitle="Last 12 months"
+          description="Monthly Spending Average"
+          value={tableData?.yearly?.total}
           graphType="bar"
-          chartData={waitlistTracker?.array}
+          chartData={tableData?.yearly?.array}
         />
       </div>
-      <GeographicTable
-        title={"Location Demographics"}
-        usersData={geographicData?.users}
-        waitlistData={geographicData?.waitlist}
-      />
+      {filteredTransactions && (
+        <CustomTable title={"Receipts"} tableData={filteredTransactions} />
+      )}
     </div>
   );
 };

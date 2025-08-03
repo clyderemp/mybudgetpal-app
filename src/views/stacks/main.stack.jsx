@@ -2,21 +2,21 @@ import React from "react";
 import { Route, Routes } from "react-router-dom";
 import MainLayout from "@/views/components/layouts/main.layout";
 import HomePage from "@/views/pages/main/home/home.page";
-import WaitlistPage from "@/views/pages/main/accounts/waitlist/waitlist.page";
-import AdminPage from "@/views/pages/main/accounts/admin/admin.page";
-import UsersPage from "@/views/pages/main/accounts/users/users.page";
-import BlogsPage from "@/views/pages/main/marketing/blogs.page";
-import Reports from "@/views/pages/main/reports/reports.page";
+import AllTransactionsPage from "@/views/pages/main/transactions/all-transactions.page";
+import ExpensesPage from "@/views/pages/main/transactions/expenses.page";
+import IncomePage from "@/views/pages/main/transactions/income.page";
+import SavingsPage from "@/views/pages/main/transactions/savings.page";
+import CreditPage from "@/views/pages/main/transactions/credit.page";
 
 const MainStack = () => (
   <Routes>
     <Route element={<MainLayout />}>
       <Route path="/" element={<HomePage />} />
-      <Route path="/accounts/admin" element={<AdminPage />} />
-      <Route path="/accounts/users" element={<UsersPage />} />
-      <Route path="/accounts/waitlist" element={<WaitlistPage />} />
-      <Route path="/marketing/blogs" element={<BlogsPage />} />
-      <Route path="/reports" element={<Reports />} />
+      <Route path="/transactions/all" element={<AllTransactionsPage />} />
+      <Route path="/transactions/expenses" element={<ExpensesPage />} />
+      <Route path="/transactions/income" element={<IncomePage />} />
+      <Route path="/transactions/savings" element={<SavingsPage />} />
+      <Route path="/transactions/credit" element={<CreditPage />} />
       {/* Add other routes here as needed */}
     </Route>
   </Routes>

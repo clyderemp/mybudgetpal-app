@@ -1,5 +1,7 @@
 // text.utils.js
 
+import { CURRENCIES } from "@/constants/currencies.constants";
+
 class TextUtils {
   /**
    * Get initials from a name string
@@ -7,11 +9,14 @@ class TextUtils {
    * @returns {string} - The initials in uppercase (e.g., "JD")
    */
   getInitials(name = "") {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+    const parts = name.trim().split(" ").filter(Boolean);
+    if (parts.length === 0) return "";
+    if (parts.length === 1) return parts[0][0].toUpperCase();
+
+    const firstInitial = parts[0][0];
+    const lastInitial = parts[parts.length - 1][0];
+
+    return (firstInitial + lastInitial).toUpperCase();
   }
 
   /**
@@ -44,27 +49,52 @@ class TextUtils {
     return !text.trim();
   }
 
-  getEnvironmentModeEmoji(mode = 'development') {
+  getEnvironmentModeEmoji(mode = "development") {
     switch ((mode || "").toLowerCase()) {
       case "production":
-        return "🚀";   // Rocket for production
+        return "🚀"; // Rocket for production
       case "development":
-        return "🛠️";   // Hammer & wrench for development
+        return "🛠️"; // Hammer & wrench for development
       case "testing":
-        return "🧪";   // Test tube for testing
+        return "🧪"; // Test tube for testing
       default:
-        return "❓";   // Question mark if unknown mode
+        return "❓"; // Question mark if unknown mode
     }
   }
 
   getFlagEmoji(countryCode = "") {
     if (!countryCode || countryCode.length !== 2) return "🌍";
-      return countryCode
-        .toUpperCase()
-        .split("")
-        .map((char) => String.fromCodePoint(127397 + char.charCodeAt()))
-        .join("");
+    return countryCode
+      .toUpperCase()
+      .split("")
+      .map((char) => String.fromCodePoint(127397 + char.charCodeAt()))
+      .join("");
+  }
+  getMoneyText(amount, currency = "USD", type = "reg") {
+    if (isNaN(amount)) return "";
+
+    const symbol = CURRENCIES.symbols[currency] || currency;
+    const num = Number(amount);
+
+    if (type === "short") {
+      if (num >= 1_000_000) {
+        return `${symbol} ${(num / 1_000_000).toFixed(1)}M`;
+      } else if (num >= 1_000) {
+        return `${symbol} ${(num / 1_000).toFixed(1)}K`;
+      } else {
+        return `${symbol} ${num.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`;
+      }
+    } else {
+      // regular format
+      return `${symbol} ${num.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
     }
+  }
 }
 
 // Export a single instance

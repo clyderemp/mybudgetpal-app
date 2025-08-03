@@ -18,7 +18,7 @@ const AnalyticsCard = ({
   value,
   description,
   percentage = 75,
-  gradientFrom = "purple-100",
+  gradientFrom = "white",
   gradientTo = "purple-300",
   accentColor = "purple-600",
   strokeColor = "#8b5cf6",
@@ -139,7 +139,7 @@ const AnalyticsCard = ({
   };
 
   return (
-    <div className={`${gradientClass} rounded-2xl p-6`}>
+    <div className={`${gradientClass} bg-white rounded-2xl p-6`}>
       <div className="mb-6">
         <h3 className={`text-lg font-semibold ${accentTextClass} mb-1`}>
           {title}

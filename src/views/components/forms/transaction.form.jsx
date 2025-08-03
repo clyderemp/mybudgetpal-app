@@ -6,16 +6,20 @@ import { useAuth } from "@/context/auth.provider";
 import { useBackendServices } from "@/services/server/backend.services";
 import Loader from "../static/Loader";
 import { useModal } from "@/context/modal.provider";
+import {
+  ACCOUNT_TYPES,
+  PAYMENT_METHODS,
+  TRANSACTION_TYPES,
+} from "@/constants/transaction.constants";
 
 const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
-  const { user } = useAuth();
+  const { user, accountUsers } = useAuth();
   const { closeModal } = useModal();
 
   const [transactionData, setTransactionData] = useState({
     category: "income",
-    creation_date: new Date().toISOString(),
+    creationDate: new Date().toISOString(),
     date: "",
-    item_id: "",
     note: "",
     paymentMethod: "",
     reportedBy: "",
@@ -27,9 +31,12 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [userOptions, setUserOptions] = useState([]);
 
   useEffect(() => {
     if (data?._id) {
+      const data = getAccountUsers();
+      setUserOptions(data);
       setTransactionData((prev) => ({ ...prev, ...data }));
     }
   }, [data]);
@@ -92,6 +99,19 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     }
   };
 
+  const getAccountUsers = () => {
+    if (!accountUsers || typeof accountUsers !== "object") return [];
+
+    return Object.entries(accountUsers).map(([id, user]) => {
+      const first = user.fname || "";
+      const last = user.lname || "";
+      return {
+        value: id,
+        label: `${first} ${last}`.trim(),
+      };
+    });
+  };
+
   if (loading) {
     return (
       <Loader
@@ -108,14 +128,22 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
       <CustomInput
         type="text"
-        value={transactionData.transaction}
-        onChange={(e) => handleUpdateForm("transaction", e.target.value)}
-        placeholder="Transaction Name"
+        value={transactionData?.merchant}
+        onChange={(e) => handleUpdateForm("merchant", e.target.value)}
+        placeholder="Merchant Name"
       />
 
       <CustomInput
-        type="text"
-        value={transactionData.type}
+        type="money"
+        value={transactionData?.value}
+        onChange={(e) => handleUpdateForm("value", parseFloat(e.target.value))}
+        placeholder="Amount"
+      />
+
+      <CustomInput
+        type="dropdown"
+        options={TRANSACTION_TYPES}
+        value={transactionData.type || TRANSACTION_TYPES[0]}
         onChange={(e) => handleUpdateForm("type", e.target.value)}
         placeholder="Transaction Type"
       />
@@ -129,44 +157,40 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
       <CustomInput
         type="date"
-        value={transactionData.date}
+        value={transactionData.date || new Date()}
         onChange={(e) => handleUpdateForm("date", e.target.value)}
         placeholder="Transaction Date"
       />
 
       <CustomInput
-        type="text"
-        value={transactionData.item_id}
-        onChange={(e) => handleUpdateForm("item_id", e.target.value)}
-        placeholder="Item ID"
-      />
-
-      <CustomInput
-        type="text"
-        value={transactionData.paymentMethod}
+        type="dropdown"
+        options={PAYMENT_METHODS}
+        value={transactionData.paymentMethod || PAYMENT_METHODS[0]}
         onChange={(e) => handleUpdateForm("paymentMethod", e.target.value)}
         placeholder="Payment Method"
       />
 
       <CustomInput
-        type="text"
-        value={transactionData.reportedBy}
+        type="dropdown"
+        options={ACCOUNT_TYPES}
+        value={transactionData?.account || ACCOUNT_TYPES[0]}
+        onChange={(e) => handleUpdateForm("account", e.target.value)}
+        placeholder="Account Type"
+      />
+
+      <CustomInput
+        type="dropdown"
+        options={userOptions}
+        value={transactionData.reportedBy || userOptions[0]}
         onChange={(e) => handleUpdateForm("reportedBy", e.target.value)}
         placeholder="Reported By"
       />
 
       <CustomInput
         type="text"
-        value={transactionData.note}
+        value={transactionData?.note}
         onChange={(e) => handleUpdateForm("note", e.target.value)}
-        placeholder="Note"
-      />
-
-      <CustomInput
-        type="number"
-        value={transactionData.value}
-        onChange={(e) => handleUpdateForm("value", parseFloat(e.target.value))}
-        placeholder="Value"
+        placeholder="Additional Note"
       />
 
       <div className="flex space-x-2">

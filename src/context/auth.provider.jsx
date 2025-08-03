@@ -3,11 +3,12 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useFirebaseConfig } from "@/configs/firebase.config";
 import { useFirebaseAuth } from "@/services/client/firebase-auth.service";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
-import { useBackendServices } from "@/services/server/backend.services";
 import { useCacheUtils } from "@/utils/cache.utils";
-import { useFilterUtils } from "@/utils/filter.utils";
 import { useActionUtils } from "@/utils/action.utils";
-import { useGeneratorUtils } from "@/utils/generator.utils";
+import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
+import { useFormUtils } from "@/utils/form.utils";
+import { useAnalyticsUtils } from "@/utils/analytics.utils";
+import { useSorterUtils } from "@/utils/sorter.utils";
 
 const { auth } = useFirebaseConfig;
 
@@ -26,8 +27,14 @@ export const useAuth = () => {
 export default function AuthProvider({ children }) {
   const [uid, setUID] = useState(null);
   const [user, setUser] = useState(null);
+  const [activeUser, setActiveUser] = useState(null);
+  const [accountUsers, setAccountUsers] = useState(null);
   const [transactions, setTransactions] = useState(null);
+  const [filteredTransactions, setFilteredTransactions] = useState(null);
   const [coUsers, setCoUsers] = useState(null);
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const [allExchangeRates, setAllExchangeRates] = useState(null);
+  const [runRateConversion, setRunRateConversion] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const { login, logout } = useFirebaseAuth;
@@ -46,46 +53,165 @@ export default function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (runRateConversion) loadUserData();
+  }, [runRateConversion]);
+
   const loadUserData = async (uid) => {
     try {
       const storedUserData = await useCacheUtils.get("userData");
+      const storedActiveUser = await useCacheUtils.get("activeUser");
       const storedReceiptsData = await useCacheUtils.get("receiptsData");
       const storedCoUsersData = await useCacheUtils.get("coUsersData");
+      const storedExchangeRate = await useCacheUtils.get("exchangeRateData");
+      const storedExchangeRates = await useCacheUtils.get("exchangeRates");
+      if (storedExchangeRates) setAllExchangeRates(storedExchangeRates);
+
       setLoading(true);
+      let user = null;
+
+      if (storedActiveUser) {
+        setActiveUser(storedActiveUser);
+      }
 
       if (!storedUserData) {
         console.log("Fetching fresh user data");
         const userData = await useFirestoreServices.getDocument("users", uid);
         await useCacheUtils.save("userData", userData);
+
+        const exchangeRateData = userData?.exchangeRate;
+        const savingsBalance = {
+          value: userData?.savings?.balance,
+          currency: userData?.savings?.currency || "CAD",
+        };
+        const savingsGoal = {
+          value: userData?.savings?.goal,
+          currency: userData?.savings?.currency || "CAD",
+        };
+
+        const convertedSavingsBalance =
+          await useExchangeRateServices.convertRate(
+            savingsBalance,
+            exchangeRateData
+          );
+        const convertedSavingsGoal = await useExchangeRateServices.convertRate(
+          savingsGoal,
+          exchangeRateData
+        );
+        userData.savings = {
+          balance: convertedSavingsBalance,
+          goal: convertedSavingsGoal,
+          currency: exchangeRateData?.code,
+        };
+        user = userData;
+        useFormUtils.updateData(user?._id, user, setAccountUsers);
+        setExchangeRate(exchangeRateData);
+        await useCacheUtils.save("exchangeRateData", exchangeRateData);
         setUser(userData);
+        if (!storedActiveUser) setActiveUser(userData);
       } else {
         console.log("Fetching cached user data");
-        setUser(storedUserData);
-      }
+        const savingsBalance = {
+          value: storedUserData?.savings?.balance,
+          currency: storedUserData?.savings?.currency || "CAD",
+        };
+        const savingsGoal = {
+          value: storedUserData?.savings?.goal,
+          currency: storedUserData?.savings?.currency || "CAD",
+        };
 
-      if (!storedReceiptsData) {
-        console.log("Fetching fresh receipts data");
-        const receiptsData = await useFirestoreServices.getAllDocuments(
-          `users/${uid}/receipts`
+        const convertedSavingsBalance =
+          await useExchangeRateServices.convertRate(
+            savingsBalance,
+            storedExchangeRate
+          );
+        const convertedSavingsGoal = await useExchangeRateServices.convertRate(
+          savingsGoal,
+          storedExchangeRate
         );
-        await useCacheUtils.save("receiptsData", receiptsData);
+        storedUserData.savings = {
+          balance: convertedSavingsBalance,
+          goal: convertedSavingsGoal,
+          currency: storedExchangeRate?.code,
+        };
 
-        setTransactions(receiptsData);
-      } else {
-        console.log("Fetching cached receipts data");
-        setTransactions(storedReceiptsData);
+        user = storedUserData;
+        useFormUtils.updateData(
+          storedUserData?._id,
+          storedUserData,
+          setAccountUsers
+        );
+        setUser(storedUserData);
+        if (!storedActiveUser) setActiveUser(storedUserData);
+
+        if (!storedExchangeRate) {
+          console.log("Fetching fresh exchange rate data");
+          const exchangeRateData = storedUserData?.exchangeRate;
+          setExchangeRate(exchangeRateData);
+          await useCacheUtils.save("exchangeRateData", exchangeRateData);
+        } else {
+          console.log("Fetching cached exchange rate data");
+          setExchangeRate(storedExchangeRate);
+        }
       }
+      const coUsersInfo = [];
 
       if (!storedCoUsersData) {
         console.log("Fetching fresh co-users data");
         const coUsersData = await useFirestoreServices.getAllDocuments(
-          `users/${uid}/co_users`
+          `users/${uid}/coUsers`
         );
+        coUsersData.forEach((coUser) => {
+          useFormUtils.updateData(coUser?._id, coUser, setAccountUsers);
+          coUsersInfo.push({
+            id: coUser?._id,
+            name: `${coUser.fname} ${coUser.lname}`,
+          });
+        });
 
+        await useCacheUtils.save("coUsersData", coUsersData);
         setCoUsers(coUsersData);
       } else {
+        storedCoUsersData.forEach((coUser) => {
+          useFormUtils.updateData(coUser?._id, coUser, setAccountUsers);
+        });
         console.log("Fetching cached co-users data");
         setCoUsers(storedCoUsersData);
+      }
+
+      if (!storedReceiptsData) {
+        console.log("Fetching fresh receipts data");
+        let receiptsData = await useFirestoreServices.getAllDocuments(
+          `users/${uid}/receipts`
+        );
+        receiptsData = await useSorterUtils.sortByKey(
+          receiptsData,
+          "date",
+          "descending"
+        );
+        const convertedRates =
+          await useExchangeRateServices.convertRateForReceipts(
+            receiptsData,
+            exchangeRate ? exchangeRate : user?.exchangeRate
+          );
+
+        setFilteredTransactions(
+          await useAnalyticsUtils?.getFilteredData(convertedRates)
+        );
+        await useCacheUtils.save("receiptsData", convertedRates);
+        setTransactions(convertedRates);
+      } else {
+        console.log("Fetching cached receipts data");
+        const convertedRates =
+          await useExchangeRateServices.convertRateForReceipts(
+            storedReceiptsData,
+            storedExchangeRate ? storedExchangeRate : exchangeRate
+          );
+
+        setFilteredTransactions(
+          await useAnalyticsUtils?.getFilteredData(convertedRates)
+        );
+        setTransactions(convertedRates);
       }
     } catch (err) {
       setUser(null);
@@ -93,6 +219,7 @@ export default function AuthProvider({ children }) {
       setCoUsers(null);
       console.error(err);
     } finally {
+      setRunRateConversion(false);
       setLoading(false);
     }
   };
@@ -100,68 +227,47 @@ export default function AuthProvider({ children }) {
   const handleReloadData = async () => {
     console.log("Cache cleared. Fetching fresh data");
     await useCacheUtils.remove("userData");
+    await useCacheUtils.remove("exchangeRateData");
     await useCacheUtils.remove("receiptsData");
     await useCacheUtils.remove("coUsersData");
     await loadUserData(uid);
   };
 
   const handleLogout = async () => {
-    await useActionUtils.onLogout(uid);
+    // await useActionUtils.onLogout(uid);
     logout?.();
+  };
+
+  const handleActiveUserSwitch = async (uid) => {
+    setLoading(true);
+    const selectedUser = accountUsers[uid];
+    await useCacheUtils.save("activeUser", selectedUser);
+    setActiveUser(selectedUser);
+    loadUserData();
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        activeUser,
+        switchActiveUser: handleActiveUserSwitch,
+        accountUsers,
         transactions,
+        filteredTransactions,
+        coUsers,
+        exchangeRate,
+        setExchangeRate,
+        allExchangeRates,
+        setAllExchangeRates,
         login,
         logout: handleLogout,
         loading,
-        reloadData: handleReloadData, // expose this function so components can reload manually
+        reloadData: handleReloadData,
+        runRateConversion: setRunRateConversion,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
-
-//EXTRA
-
-// for (let i = 0; i < transactionData.length; i++) {
-//   const item = transactionData[i];
-//   const newID = useGeneratorUtils.generateUid("receipt");
-//   const newData = {
-//     _id: newID,
-//     id: newID,
-//     merchant: item.transaction,
-//     note: item?.note,
-//     paymentMethod: item?.paymentMethod,
-//     reportedBy: item?.reportedBy,
-//     value: item?.value,
-//     type: item?.category,
-//     category: item?.type,
-//     currency: item?.currency ? item?.currency : "CAD",
-//     exchangeRate: item?.exchange_rate ? item?.exchange_rate : 1,
-//     creationDate: item?.creation_date?.toDate
-//       ? item.creation_date.toDate().toISOString()
-//       : new Date(item.date).toISOString(),
-//     account:
-//       item?.paymentMethod === "debit" && item?.category === "expenses"
-//         ? "expenses"
-//         : item?.paymentMethod === "debit" && item?.category === "income"
-//         ? "salary"
-//         : item?.paymentMethod === "debit" && item?.category === "income"
-//         ? "savings"
-//         : null,
-//     date:
-//       item.date instanceof Date
-//         ? item.date.toISOString()
-//         : new Date(item.date).toISOString(),
-//   };
-//   // await useFirestoreServices.addDocument(
-//   //   `users/${uid}/receipts`,
-//   //   newData
-//   // );
-//   console.log(newData);
-// }

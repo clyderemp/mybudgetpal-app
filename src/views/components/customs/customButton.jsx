@@ -6,7 +6,7 @@ const CustomButton = ({
   color = "primary",
   outline = false,
   type = "button",
-  useHoverBehaviour = false,
+  useHoverBehaviour = true,
   isDisabled = false,
   className = ``,
 }) => {
@@ -30,7 +30,7 @@ const CustomButton = ({
       className={`
         w-full ${shape} ${text} border-2 transition duration-300 font-default rounded-lg px-4 ${className} 
         ${colorStyles[color] || colorStyles.primary}
-        ${useHoverBehaviour ? "hover:opacity-60 hover:font-bold1x" : ""}
+        ${useHoverBehaviour ? "hover:opacity-60 hover" : ""}
         ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}
       `}
     >

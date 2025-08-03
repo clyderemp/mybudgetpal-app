@@ -12,7 +12,7 @@ const CustomHeaderBanner = ({
 }) => {
   return (
     <div
-      className={`bg-gradient-to-r ${gradient} rounded-2xl p-8 text-white mb-8 relative overflow-hidden flex items-center justify-between`}
+      className={`bg-gradient-to-r ${gradient} rounded-2xl p-8 text-white mb-8 relative overflow-hidden flex flex-wrap md:flex-nowrap items-start justify-between gap-6`}
     >
       {/* Decorative Background Elements */}
       <div className="absolute top-4 right-8 opacity-20">
@@ -23,17 +23,17 @@ const CustomHeaderBanner = ({
       </div>
 
       {/* Left Content */}
-      <div className="relative z-10 max-w-2xl">
-        <div className="text-sm font-medium opacity-90 mb-2">{date}</div>
-
-        <h1 className="text-4xl font-bold mb-4">{title}</h1>
-
-        <p className="text-lg opacity-90 mb-6">{message}</p>
+      <div className="relative z-10 flex flex-col justify-between flex-1 min-w-[250px]">
+        <div>
+          <div className="text-sm font-medium opacity-90 mb-2">{date}</div>
+          <h1 className="text-4xl font-bold mb-4">{title}</h1>
+          <p className="text-lg opacity-90 mb-6">{message}</p>
+        </div>
 
         {onButtonClick && buttonText && (
           <button
             onClick={onButtonClick}
-            className="bg-black bg-opacity-20 hover:bg-opacity-30 transition-all duration-200 px-6 py-3 rounded-lg flex items-center space-x-2 font-medium"
+            className="mt-4 bg-black bg-opacity-20 hover:bg-opacity-30 transition-all duration-200 px-6 py-3 rounded-lg flex items-center space-x-2 font-medium w-fit"
           >
             <span>{buttonText}</span>
             <ArrowRight className="w-4 h-4" />
@@ -41,9 +41,9 @@ const CustomHeaderBanner = ({
         )}
       </div>
 
-      {/* Right Square Image Container */}
+      {/* Right Image */}
       {showImage && (
-        <div className="w-60 h-40 rounded-xl overflow-hidden relative z-10">
+        <div className="w-full md:w-60 h-40 rounded-xl overflow-hidden relative z-10 shrink-0 my-10">
           <img
             src={bannerImage}
             alt="Banner visual"

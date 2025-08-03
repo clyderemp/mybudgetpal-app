@@ -7,23 +7,64 @@ import {
   Database,
   Users,
   LayoutDashboard,
-  MessageSquare,
+  ShoppingBasket,
   Settings,
   LogOut,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTextUtils } from "@/utils/text.utils";
 import { MODE } from "@/configs/servers.config";
 import { useDateUtils } from "@/utils/date.utils";
+import { CURRENCIES } from "@/constants/currencies.constants";
+import { useModal } from "@/context/modal.provider";
+import CurrencySelectorModal from "../modals/currencySelector.modal";
+import { useToast } from "@/context/toast.provider";
+import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
+import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
+import { useCacheUtils } from "@/utils/cache.utils";
 
 const Sidebar = () => {
-  const { logout, user, reloadData } = useAuth();
-  const accountName = `${user?.fname} ${user?.lname}` || "Admin";
+  const {
+    logout,
+    user,
+    activeUser,
+    switchActiveUser,
+    accountUsers,
+    exchangeRate,
+    setExchangeRate,
+    allExchangeRates,
+    setAllExchangeRates,
+    runRateConversion,
+  } = useAuth();
+
+  const { openModal, closeModal } = useModal();
+  const { showToast } = useToast();
   const [isHoveringEnv, setIsHoveringEnv] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const accountName = `${activeUser?.fname} ${activeUser?.lname}` || "Admin";
   const environment = useTextUtils.capitalize(MODE);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   const [expandedItems, setExpandedItems] = useState({
     "data-management":
@@ -40,34 +81,34 @@ const Sidebar = () => {
       hasSubmenu: true,
       key: "transactions",
       submenu: [
+        { name: "Overall History", path: "/transactions/all" },
         { name: "Expense History", path: "/transactions/expenses" },
         { name: "Income History", path: "/transactions/income" },
         { name: "Savings History", path: "/transactions/savings" },
+        { name: "Credit History", path: "/transactions/credit" },
       ],
     },
     {
-      name: "Accounts",
+      name: "Account Manager",
       icon: Users,
       path: "/accounts",
       hasSubmenu: true,
       key: "accounts",
       submenu: [
-        { name: "Admin Accounts", path: "/accounts/admin" },
-        { name: "User Accounts", path: "/accounts/users" },
-        { name: "Waitlist Users", path: "/accounts/waitlist" },
+        { name: "Co-User Accounts", path: "/accounts/users" },
+        { name: "Financial Accounts", path: "/accounts/financial" },
       ],
     },
-    { name: "Chats", icon: MessageSquare, path: "/chats" },
     {
-      name: "Marketing",
-      icon: LineChart,
-      path: "/marketing",
+      name: "Shopping Tools",
+      icon: ShoppingBasket,
+      path: "/shopping",
       hasSubmenu: true,
-      key: "marketing",
+      key: "shopping",
       submenu: [
-        { name: "Blogs & Articles", path: "/marketing/blogs" },
-        { name: "Content Calendar", path: "/marketing/users" },
-        { name: "Analytics", path: "/marketing/analytics" },
+        { name: "Grocery List", path: "/shopping/grocery" },
+        { name: "Store Finder", path: "/shopping/stores" },
+        { name: "Coupon Finder", path: "/shopping/coupons" },
       ],
     },
     { name: "Reports", icon: BarChart3, path: "/reports" },
@@ -83,26 +124,85 @@ const Sidebar = () => {
   const isParentActive = (item) =>
     item.submenu?.some((sub) => location.pathname === sub.path);
 
+  const handleOpenCurrencyModal = () => {
+    openModal(
+      <CurrencySelectorModal
+        exchangeRates={allExchangeRates} // [{ code, symbol, rate }]
+        selectedCurrency={exchangeRate}
+        onSelect={async (data) => {
+          const flag = CURRENCIES.flags[data?.code];
+          const newRates = await useExchangeRateServices.getExchangeRates(
+            data?.code
+          );
+          setAllExchangeRates(newRates);
+          const newExchangeRate = { ...data, flag };
+          setExchangeRate(newExchangeRate);
+          closeModal();
+          await useFirestoreServices.updateDocument("users", user?._id, {
+            exchangeRate: newExchangeRate,
+          });
+          await useCacheUtils.save("exchangeRateData", newExchangeRate);
+          showToast(
+            `Currency set to ${flag} (${data?.symbol}) ${data?.code}.`,
+            "success"
+          );
+          runRateConversion(true);
+        }}
+      />
+    );
+  };
+
   return (
     <div className="w-70 bg-white h-screen shadow-lg flex flex-col">
-      {/* Profile */}
-      <div className="p-4 border-b border-gray-100">
-        <div className="flex items-center space-x-3">
+      {/* Profile with User Switcher */}
+      <div className="p-4 border-b border-gray-100 relative" ref={dropdownRef}>
+        <button
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex items-center space-x-3 w-full focus:outline-none"
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={dropdownOpen}
+        >
           <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-white font-semibold">
             {useTextUtils.getInitials(accountName)}
           </div>
-          <div className="flex-1">
+          <div className="flex-1 text-left">
             <div className="flex items-center space-x-1">
-              <h3 className="font-semibold text-gray-900">{`${user.fname} ${user.lname[0]}.`}</h3>
+              <h3 className="font-semibold text-gray-900">
+                {`${activeUser.fname} ${activeUser.lname[0]}.`}
+              </h3>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </div>
             <p className="text-xs text-gray-500">
               {`Member since ${useDateUtils.getFormattedDateString(
-                user?.creationDate
+                activeUser.createdOn
               )}`}
             </p>
           </div>
-        </div>
+        </button>
+
+        {dropdownOpen && (
+          <ul
+            role="listbox"
+            className="absolute left-4 right-4 mt-2 bg-white border border-gray-200 rounded shadow max-h-60 overflow-auto z-50"
+          >
+            {/* Co-users */}
+            {Object.entries(accountUsers).map(([uid, u]) => (
+              <li
+                key={uid}
+                className={`cursor-pointer px-4 py-2 hover:bg-gray-100 ${
+                  activeUser._id === uid ? "bg-gray-100 font-semibold" : ""
+                }`}
+                onClick={() => {
+                  if (activeUser._id !== uid) switchActiveUser(uid);
+                  setDropdownOpen(false);
+                }}
+              >
+                {`${u.fname} ${u.lname}`}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Navigation */}
@@ -186,13 +286,17 @@ const Sidebar = () => {
           onMouseEnter={() => setIsHoveringEnv(true)}
           onMouseLeave={() => setIsHoveringEnv(false)}
           onClick={() => {
-            if (user) reloadData();
+            if (exchangeRate) handleOpenCurrencyModal();
           }}
           className={`w-full px-3 py-2 rounded-full text-sm font-medium text-center transition-colors ${
             isHoveringEnv ? "bg-primary text-white" : "bg-secondary text-white"
           }`}
         >
-          {isHoveringEnv ? "Change Currency" : `Currency: `}
+          {isHoveringEnv
+            ? "Change Currency"
+            : `Currency: ${exchangeRate?.flag} ${exchangeRate?.code} (${
+                CURRENCIES.symbols[exchangeRate?.code]
+              })`}
         </button>
       </div>
     </div>

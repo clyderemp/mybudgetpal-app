@@ -5,20 +5,23 @@ import AuthProvider from "@/context/auth.provider";
 import AuthInitializer from "@/context/auth.initializer";
 import StackNavigator from "@/views/stacks/navigator.stack";
 import { ModalProvider } from "@/context/modal.provider";
+import { LoaderProvider } from "@/context/loader.provider";
 
 function App() {
   return (
     <React.StrictMode>
       <AuthProvider>
-        <ModalProvider>
-          <ToastProvider>
+        <LoaderProvider>
+          <ModalProvider>
+            <ToastProvider>
               <AuthInitializer>
                 <Router>
-                  <StackNavigator/>
+                  <StackNavigator />
                 </Router>
               </AuthInitializer>
-          </ToastProvider>
-        </ModalProvider>
+            </ToastProvider>
+          </ModalProvider>
+        </LoaderProvider>
       </AuthProvider>
     </React.StrictMode>
   );
