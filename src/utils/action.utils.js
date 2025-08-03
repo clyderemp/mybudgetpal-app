@@ -1,5 +1,6 @@
 import { useBackendServices } from "@/services/server/backend.services";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
+import { arrayUnion } from "firebase/firestore";
 
 class ActionUtils {
   constructor() {
@@ -50,18 +51,11 @@ class ActionUtils {
     };
 
     try {
-      await useBackendServices.update("admin", uid, {
-        actions: [entry],
+      await useFirestoreServices.updateDocument(`users`, uid, {
+        actions: arrayUnion(entry),
       });
     } catch (err) {
-      const firestoreData = await useFirestoreServices.getDocument(
-        "admin",
-        uid
-      );
-      await useBackendServices.create("admin", {
-        ...firestoreData,
-        actions: [entry],
-      });
+      console.error(err);
     }
   }
 

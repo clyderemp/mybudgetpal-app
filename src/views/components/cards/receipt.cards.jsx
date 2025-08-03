@@ -32,20 +32,15 @@ const ReceiptCards = ({
         data={receipt}
         onSuccess={async () => {
           if (receipt?._id) {
-            await useActionUtils.logAction(user?.uid, "edit_receipt");
-            handleSuccess();
+            await useActionUtils.logAction(user?._id, "edit_receipt");
+            showToast("Changes saved successfully.", "success");
           } else {
-            await useActionUtils.logAction(user?.uid, "new_receipt");
-            handleSuccess();
+            await useActionUtils.logAction(user?._id, "new_receipt");
+            showToast("Report added successfully.", "success");
           }
         }}
       />
     );
-  };
-
-  const handleSuccess = () => {
-    showToast("Receipt saved successfully.", "success");
-    reloadData?.("receipts");
   };
 
   const scrollByAmount = (amount) => {

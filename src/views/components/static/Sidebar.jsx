@@ -23,6 +23,7 @@ import { useToast } from "@/context/toast.provider";
 import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
 import { useCacheUtils } from "@/utils/cache.utils";
+import { useActionUtils } from "@/utils/action.utils";
 
 const Sidebar = () => {
   const {
@@ -272,7 +273,10 @@ const Sidebar = () => {
         </div>
 
         <div
-          onClick={() => logout()}
+          onClick={async () => {
+            await useActionUtils.onLogout(user?._id);
+            logout();
+          }}
           className="flex items-center px-3 py-2 rounded-lg cursor-pointer text-gray-700 hover:bg-gray-50"
         >
           <LogOut className="w-5 h-5 mr-3 text-gray-400" />

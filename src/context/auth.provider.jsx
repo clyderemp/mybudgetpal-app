@@ -224,13 +224,71 @@ export default function AuthProvider({ children }) {
     }
   };
 
-  const handleReloadData = async () => {
-    console.log("Cache cleared. Fetching fresh data");
-    await useCacheUtils.remove("userData");
-    await useCacheUtils.remove("exchangeRateData");
-    await useCacheUtils.remove("receiptsData");
-    await useCacheUtils.remove("coUsersData");
+  const handleReloadData = async (type = "all") => {
+    switch (type) {
+      case "all":
+        await useCacheUtils.remove("userData");
+        await useCacheUtils.remove("exchangeRateData");
+        await useCacheUtils.remove("coUsersData");
+        await useCacheUtils.remove("receiptsData");
+        break;
+      case "user":
+        await useCacheUtils.remove("userData");
+        break;
+      case "exchangeRate":
+        await useCacheUtils.remove("exchangeRateData");
+        break;
+      case "coUsers":
+        await useCacheUtils.remove("exchangeRateData");
+        break;
+      default:
+        break;
+    }
     await loadUserData(uid);
+  };
+
+  const handleUpdateReceipts = async (type, data) => {
+    if (!data?._id) return;
+
+    let updatedTransactions = [...transactions];
+    const index = updatedTransactions.findIndex((tx) => tx._id === data._id);
+
+    if (type === "add") {
+      if (index === -1) {
+        updatedTransactions.push(data);
+      }
+    } else if (type === "update") {
+      if (index !== -1) {
+        updatedTransactions[index] = {
+          ...updatedTransactions[index],
+          ...data,
+        };
+      }
+    } else if (type === "delete") {
+      if (index !== -1) {
+        updatedTransactions.splice(index, 1);
+      }
+    } else {
+      console.warn("Unknown type passed to handleUpdateReceipts");
+      return;
+    }
+
+    // Continue with sorting, rate conversion, and updating state/cache
+    updatedTransactions = await useSorterUtils.sortByKey(
+      updatedTransactions,
+      "date",
+      "descending"
+    );
+
+    const convertedRates = await useExchangeRateServices.convertRateForReceipts(
+      updatedTransactions,
+      exchangeRate || user?.exchangeRate
+    );
+
+    const filtered = await useAnalyticsUtils?.getFilteredData(convertedRates);
+    setFilteredTransactions(filtered);
+    await useCacheUtils.save("receiptsData", convertedRates);
+    setTransactions(convertedRates);
   };
 
   const handleLogout = async () => {
@@ -265,6 +323,7 @@ export default function AuthProvider({ children }) {
         loading,
         reloadData: handleReloadData,
         runRateConversion: setRunRateConversion,
+        updateReceipts: handleUpdateReceipts,
       }}
     >
       {children}

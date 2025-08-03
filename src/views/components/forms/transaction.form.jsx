@@ -3,31 +3,22 @@ import CustomInput from "../customs/customInput";
 import CustomButton from "../customs/customButton";
 import { useFormUtils } from "@/utils/form.utils";
 import { useAuth } from "@/context/auth.provider";
-import { useBackendServices } from "@/services/server/backend.services";
 import Loader from "../static/Loader";
 import { useModal } from "@/context/modal.provider";
 import {
   ACCOUNT_TYPES,
   PAYMENT_METHODS,
   TRANSACTION_TYPES,
+  TRANSACTION_CATEGORIES,
 } from "@/constants/transaction.constants";
+import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
+import { useGeneratorUtils } from "@/utils/generator.utils";
 
 const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
-  const { user, accountUsers } = useAuth();
+  const { user, accountUsers, updateReceipts } = useAuth();
   const { closeModal } = useModal();
 
-  const [transactionData, setTransactionData] = useState({
-    category: "income",
-    creationDate: new Date().toISOString(),
-    date: "",
-    note: "",
-    paymentMethod: "",
-    reportedBy: "",
-    transaction: "",
-    type: "",
-    value: 0,
-    ...data,
-  });
+  const [transactionData, setTransactionData] = useState(data);
 
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,8 +26,8 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   useEffect(() => {
     if (data?._id) {
-      const data = getAccountUsers();
-      setUserOptions(data);
+      const usersOptions = getAccountUsers();
+      setUserOptions(usersOptions);
       setTransactionData((prev) => ({ ...prev, ...data }));
     }
   }, [data]);
@@ -59,21 +50,25 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
       let response;
       if (data?._id) {
-        response = await useBackendServices.update(
-          "transactions",
-          data._id,
+        response = await useFirestoreServices.updateDocument(
+          `users/${user?._id}/receipts`,
+          data?._id,
           transactionData
         );
+        await updateReceipts("update", transactionData);
       } else {
         const finalData = {
           ...transactionData,
-          creation_date: new Date().toISOString(),
-          adminID: user?.uid,
+          _id: useGeneratorUtils.generateUid("receipt"),
+          creationDate: new Date().toISOString(),
         };
-        response = await useBackendServices.create("transactions", finalData);
+        response = await useFirestoreServices.addDocument(
+          `users/${user?._id}/receipts`,
+          finalData
+        );
+        await updateReceipts("add", transactionData);
       }
 
-      console.log("Transaction saved:", response);
       if (response) {
         closeModal();
         onSuccess?.();
@@ -89,12 +84,16 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     if (!data?._id) return;
     try {
       setLoading(true);
-      await useBackendServices.delete("transactions", data._id);
+      await useFirestoreServices.deleteDocument(
+        `users/${user?._id}/receipts`,
+        data._id
+      );
       closeModal();
       onSuccess?.();
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
+      await updateReceipts("delete", transactionData);
       setLoading(false);
     }
   };
@@ -114,9 +113,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   if (loading) {
     return (
-      <Loader
-        text={data?._id ? "Saving changes..." : "Uploading transaction..."}
-      />
+      <Loader text={data?._id ? "Saving changes" : "Uploading transaction"} />
     );
   }
 
@@ -136,28 +133,31 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
       <CustomInput
         type="money"
         value={transactionData?.value}
+        selectedCurrency={transactionData?.currency}
         onChange={(e) => handleUpdateForm("value", parseFloat(e.target.value))}
+        onCurrencyChange={(currency) => handleUpdateForm("currency", currency)}
         placeholder="Amount"
       />
 
       <CustomInput
         type="dropdown"
         options={TRANSACTION_TYPES}
-        value={transactionData.type || TRANSACTION_TYPES[0]}
+        value={transactionData?.type || TRANSACTION_TYPES[0]}
         onChange={(e) => handleUpdateForm("type", e.target.value)}
         placeholder="Transaction Type"
       />
 
       <CustomInput
-        type="text"
-        value={transactionData.category}
+        type="dropdown"
+        options={TRANSACTION_CATEGORIES[transactionData?.type]}
+        value={transactionData?.category}
         onChange={(e) => handleUpdateForm("category", e.target.value)}
-        placeholder="Category (income/expense)"
+        placeholder="Category"
       />
 
       <CustomInput
         type="date"
-        value={transactionData.date || new Date()}
+        value={transactionData?.date || new Date()}
         onChange={(e) => handleUpdateForm("date", e.target.value)}
         placeholder="Transaction Date"
       />
@@ -165,7 +165,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
       <CustomInput
         type="dropdown"
         options={PAYMENT_METHODS}
-        value={transactionData.paymentMethod || PAYMENT_METHODS[0]}
+        value={transactionData?.paymentMethod || PAYMENT_METHODS[0]}
         onChange={(e) => handleUpdateForm("paymentMethod", e.target.value)}
         placeholder="Payment Method"
       />
@@ -181,13 +181,13 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
       <CustomInput
         type="dropdown"
         options={userOptions}
-        value={transactionData.reportedBy || userOptions[0]}
+        value={transactionData?.reportedBy || userOptions[0]}
         onChange={(e) => handleUpdateForm("reportedBy", e.target.value)}
         placeholder="Reported By"
       />
 
       <CustomInput
-        type="text"
+        type="textarea"
         value={transactionData?.note}
         onChange={(e) => handleUpdateForm("note", e.target.value)}
         placeholder="Additional Note"

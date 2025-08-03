@@ -29,7 +29,7 @@ export default function Login() {
 
       if (response?.success) {
         try {
-          // await useActionUtils.onLogin(response?.uid);
+          await useActionUtils.onLogin(response?.uid);
         } catch {}
         navigate("/");
       } else {
@@ -73,6 +73,7 @@ export default function Login() {
         </CustomText>
 
         <CustomInput
+          showIcon
           type="text"
           value={credentials.email}
           onChange={(e) => {
@@ -85,6 +86,7 @@ export default function Login() {
           error={errors.email}
         />
         <CustomInput
+          showIcon
           type="password"
           value={credentials.password}
           onChange={(e) => {

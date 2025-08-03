@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
 import { useTextUtils } from "@/utils/text.utils";
+import { CURRENCIES } from "@/constants/currencies.constants";
 
 const ImageUpload = ({ value, onChange, placeholder, disabled = false }) => {
   const inputRef = useRef();
@@ -79,11 +80,12 @@ const CustomInput = ({
   showIcon = false,
 
   // New props for money type
-  currencyOptions = ["AED", "CAD", "USD", "EUR"],
+  currencyOptions = CURRENCIES.codes,
   selectedCurrency = "AED",
   onCurrencyChange,
 }) => {
   const [internalValue, setInternalValue] = useState(value);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (type === "money") {
@@ -150,7 +152,7 @@ const CustomInput = ({
         className={`${shape} ${border} ${text} w-full border rounded p-2 ${errorBorderClass}`}
         disabled={isDisabled}
       >
-        <option value="">Select</option>
+        <option value="">{`Select ${placeholder?.toLowerCase()}`}</option>
         {options?.map((opt, idx) => (
           <option key={idx} value={opt.value ?? opt}>
             {opt.label ?? useTextUtils.capitalize(opt)}
@@ -242,12 +244,13 @@ const CustomInput = ({
       }`}
     >
       {showIcon && (children || Icon) && (
-        <div className="absolute top-1/2 left-3 transform -translate-y-1/2 pointer-events-none text-gray-400">
+        <div className="absolute top-1/2 left-3 transform -translate-y-1/2 pointer-events-none text-gray-400 px-2">
           {children || <Icon fontSize="small" />}
         </div>
       )}
+
       <input
-        type={type}
+        type={type === "password" ? (showPassword ? "text" : "password") : type}
         value={autoCapitalize ? useTextUtils.capitalize(value) : value}
         onChange={onChange}
         placeholder={placeholder}
@@ -256,6 +259,16 @@ const CustomInput = ({
           showIcon && (children || Icon) ? "pl-10" : ""
         } ${errorBorderClass}`}
       />
+
+      {/* Password toggle icon */}
+      {type === "password" && (
+        <div
+          onClick={() => setShowPassword((prev) => !prev)}
+          className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-400 cursor-pointer px-2"
+        >
+          {showPassword ? "🙉" : "🙈"}
+        </div>
+      )}
     </div>
   );
 };

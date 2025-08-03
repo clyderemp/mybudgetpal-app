@@ -80,6 +80,7 @@ class FirestoreService {
     try {
       const docRef = doc(firestore, collectionName, docId);
       await updateDoc(docRef, data);
+      return true;
     } catch (error) {
       console.error("FirestoreService.updateDocument error:", error);
       throw error;
@@ -90,6 +91,7 @@ class FirestoreService {
     try {
       const docRef = doc(firestore, collectionName, docId);
       await deleteDoc(docRef);
+      return true;
     } catch (error) {
       console.error("FirestoreService.deleteDocument error:", error);
       throw error;
