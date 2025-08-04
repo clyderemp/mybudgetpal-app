@@ -35,7 +35,7 @@ export default function AuthProvider({ children }) {
   const [exchangeRate, setExchangeRate] = useState(null);
   const [allExchangeRates, setAllExchangeRates] = useState(null);
   const [runRateConversion, setRunRateConversion] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const { login, logout } = useFirebaseAuth;
@@ -45,10 +45,11 @@ export default function AuthProvider({ children }) {
       if (firebaseUser?.uid) {
         setUID(firebaseUser?.uid);
         await loadUserData(firebaseUser.uid);
+        setLoading(false);
       } else {
         setUser(null);
-        setLoading(false);
         await useActionUtils.onLogin(firebaseUser?.uid);
+        setLoading(false);
       }
     });
     return () => unsubscribe();
@@ -60,6 +61,7 @@ export default function AuthProvider({ children }) {
 
   const loadUserData = async (uid) => {
     try {
+      setLoading(true);
       const storedUserData = await useCacheUtils.get("userData");
       const storedActiveUser = await useCacheUtils.get("activeUser");
       const storedReceiptsData = await useCacheUtils.get("receiptsData");
@@ -68,7 +70,6 @@ export default function AuthProvider({ children }) {
       const storedExchangeRates = await useCacheUtils.get("exchangeRates");
       if (storedExchangeRates) setAllExchangeRates(storedExchangeRates);
 
-      setLoading(true);
       let user = null;
 
       if (storedActiveUser) {
@@ -182,6 +183,7 @@ export default function AuthProvider({ children }) {
 
       if (!storedReceiptsData) {
         console.log("Fetching fresh receipts data");
+        console.log(uid);
         let receiptsData = await useFirestoreServices.getAllDocuments(
           `users/${uid}/receipts`
         );
@@ -195,7 +197,6 @@ export default function AuthProvider({ children }) {
             receiptsData,
             exchangeRate ? exchangeRate : user?.exchangeRate
           );
-
         setFilteredTransactions(
           await useAnalyticsUtils?.getFilteredData(convertedRates)
         );
@@ -214,15 +215,16 @@ export default function AuthProvider({ children }) {
         );
         setTransactions(convertedRates);
       }
+      console.log("Fetching done");
     } catch (err) {
       setUser(null);
       setTransactions(null);
       setCoUsers(null);
       console.error(err);
     } finally {
+      setLoading(false);
       setDataLoaded(true);
       setRunRateConversion(false);
-      setLoading(false);
     }
   };
 
@@ -303,6 +305,7 @@ export default function AuthProvider({ children }) {
     await useCacheUtils.save("activeUser", selectedUser);
     setActiveUser(selectedUser);
     loadUserData();
+    setLoading(false);
   };
 
   return (

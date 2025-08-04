@@ -36,7 +36,7 @@ const Sidebar = () => {
     setExchangeRate,
     allExchangeRates,
     setAllExchangeRates,
-    runRateConversion,
+    reloadData,
   } = useAuth();
 
   const { openModal, closeModal } = useModal();
@@ -147,7 +147,7 @@ const Sidebar = () => {
             `Currency set to ${flag} (${data?.symbol}) ${data?.code}.`,
             "success"
           );
-          runRateConversion(true);
+          await reloadData();
         }}
       />
     );
