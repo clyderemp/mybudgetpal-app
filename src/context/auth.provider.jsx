@@ -253,13 +253,10 @@ export default function AuthProvider({ children }) {
     if (!data?._id) return;
 
     let updatedTransactions = [...transactions];
-    const index = updatedTransactions?.findIndex((tx) => tx._id === data._id);
-    console.log(index);
     if (type === "add") {
-      if (index === -1) {
-        updatedTransactions.push(data);
-      }
+      updatedTransactions.push(data);
     } else if (type === "update") {
+      const index = updatedTransactions?.findIndex((tx) => tx._id === data._id);
       if (index !== -1) {
         updatedTransactions[index] = {
           ...updatedTransactions[index],
@@ -267,6 +264,7 @@ export default function AuthProvider({ children }) {
         };
       }
     } else if (type === "delete") {
+      const index = updatedTransactions?.findIndex((tx) => tx._id === data._id);
       if (index !== -1) {
         updatedTransactions.splice(index, 1);
       }
