@@ -155,6 +155,15 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
         placeholder="Category"
       />
 
+      {transactionData?.category === "Others" && (
+        <CustomInput
+          type="text"
+          value={transactionData?.customCategory}
+          onChange={(e) => handleUpdateForm("customCategory", e.target.value)}
+          placeholder="Category"
+        />
+      )}
+
       <CustomInput
         type="date"
         value={transactionData?.date || new Date()}

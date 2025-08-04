@@ -19,7 +19,7 @@ export const TRANSACTION_TYPES = [
 
 export const TRANSACTION_CATEGORIES = {
   expenses: [
-    //FIXED EXPENSES
+    // FIXED EXPENSES
     "Car Payments",
     "Credit Payments",
     "Insurance",
@@ -32,15 +32,14 @@ export const TRANSACTION_CATEGORIES = {
     "Taxes",
     "Tuition",
     "Utilities",
-    //VARIABLE EXPENSES
+
+    // VARIABLE EXPENSES
     "Appliances",
     "Car Maintenance",
     "Charge Fees",
     "Clothings",
     "Commute",
     "Dining Out",
-    "Dining Out - Food",
-    "Dining Out - Drinks",
     "Entertainment",
     "E-Purchases",
     "Gas",
@@ -48,10 +47,10 @@ export const TRANSACTION_CATEGORIES = {
     "Home Maintenance",
     "Investments",
     "Medical Care",
-    "Others (Personal Spendings)",
+    "Others",
     "Parking",
+    "Parking Tickets",
     "Recreation",
-    "Taxes",
     "Travels",
     "Personal Care",
     "Gym Related",
