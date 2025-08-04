@@ -27,8 +27,8 @@ const MainLayout = () => {
       const rates = await useExchangeRateServices.getExchangeRates(
         currencyCode
       );
-      setAllExchangeRates(rates);
       await useCacheUtils.save("exchangeRates", rates);
+      setAllExchangeRates(rates);
     } else {
       setAllExchangeRates(storedExchangeRates);
     }

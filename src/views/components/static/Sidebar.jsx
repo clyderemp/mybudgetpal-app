@@ -132,7 +132,7 @@ const Sidebar = () => {
         selectedCurrency={exchangeRate}
         onSelect={async (data) => {
           const flag = CURRENCIES.flags[data?.code];
-          const newRates = await useExchangeRateServices.getExchangeRates(
+          const newRates = await useExchangeRateServices?.getExchangeRates(
             data?.code
           );
           setAllExchangeRates(newRates);

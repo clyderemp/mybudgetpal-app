@@ -15,7 +15,7 @@ import { useFirestoreServices } from "@/services/client/firebase-firestore.servi
 import { useGeneratorUtils } from "@/utils/generator.utils";
 
 const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
-  const { user, accountUsers, updateReceipts } = useAuth();
+  const { user, accountUsers, updateReceipts, exchangeRate } = useAuth();
   const { closeModal } = useModal();
 
   const [transactionData, setTransactionData] = useState(data);
@@ -27,6 +27,8 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   useEffect(() => {
     const usersOptions = getAccountUsers();
     setUserOptions(usersOptions);
+    handleUpdateForm("currency", exchangeRate?.code);
+    handleUpdateForm("date", new Date()?.toISOString());
     if (data?._id) {
       setTransactionData((prev) => ({ ...prev, ...data }));
     }
@@ -47,7 +49,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-
+      console.log(transactionData);
       let response;
       if (data?._id) {
         response = await useFirestoreServices.updateDocument(
@@ -57,9 +59,11 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
         );
         await updateReceipts("update", transactionData);
       } else {
+        const receiptID = useGeneratorUtils.generateUid("receipt");
         const finalData = {
           ...transactionData,
-          _id: useGeneratorUtils.generateUid("receipt"),
+          _id: receiptID,
+          id: receiptID,
           creationDate: new Date().toISOString(),
         };
         response = await useFirestoreServices.addDocument(
@@ -166,7 +170,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
       <CustomInput
         type="date"
-        value={transactionData?.date || new Date()}
+        value={transactionData?.date}
         onChange={(e) => handleUpdateForm("date", e.target.value)}
         placeholder="Transaction Date"
       />

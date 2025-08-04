@@ -1,13 +1,16 @@
 import { CURRENCIES } from "@/constants/currencies.constants";
 import { useCacheUtils } from "@/utils/cache.utils";
 
-const getExchangeRates = async (baseCurrency) => {
-  const apiUrl = `https://api.exchangerate-api.com/v4/latest/${baseCurrency}`;
+const { VITE_EXCHANGE_RATE_API_KEY } = import.meta.env;
 
+const getExchangeRates = async (baseCurrency) => {
   try {
+    if (!baseCurrency) throw new Error("Base currency required");
+
+    const apiUrl = `https://v6.exchangerate-api.com/v6/${VITE_EXCHANGE_RATE_API_KEY}/latest/${baseCurrency}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
-    const exchangeRates = data.rates;
+    const exchangeRates = data?.conversion_rates;
 
     if (!exchangeRates) {
       console.error("Failed to fetch exchange rates.");
@@ -40,8 +43,8 @@ const convertRate = async (src, target) => {
     if (src.currency === "AED" && target?.code === "CAD") {
       conversionRate = 1 / src?.exchangeRate;
     } else {
-      const exchangeRates = await getExchangeRates(src.currency);
-      const rateEntry = exchangeRates.find(
+      const exchangeRates = await getExchangeRates(src?.currency);
+      const rateEntry = exchangeRates?.find(
         (entry) => entry.code === target?.code
       );
       conversionRate = rateEntry?.rate ?? null;
@@ -54,19 +57,22 @@ const convertRate = async (src, target) => {
 
 const convertRateForReceipts = async (allReceipts = [], exchangeRate) => {
   if (exchangeRate && allReceipts.length > 0) {
-    console.log(
-      `Running Rate Conversion to ${exchangeRate?.code} with the rate of ${exchangeRate.rate}.`
-    );
+    // console.log(
+    //   `Running Rate Conversion to ${exchangeRate?.code} with the rate of ${exchangeRate.rate}.`
+    // );
     for (const receipt of allReceipts) {
       const {
         value: receiptValue,
         currency: receiptCurrency,
         exchangeRate: receiptRate,
       } = receipt;
-
       const { code: targetCurrency, symbol: targetSymbol } = exchangeRate;
-      receipt.symbol = targetSymbol;
-      if (receiptCurrency === "AED" && targetCurrency === "CAD") {
+
+      if (receiptCurrency === targetCurrency) {
+        receipt.value = receiptValue;
+        receipt.currency = receiptCurrency;
+        receipt.symbol = targetSymbol;
+      } else if (receiptCurrency === "AED" && targetCurrency === "CAD") {
         receipt.value = receiptValue / receiptRate;
         receipt.currency = "CAD";
         receipt.symbol = targetSymbol;
@@ -74,7 +80,8 @@ const convertRateForReceipts = async (allReceipts = [], exchangeRate) => {
         receipt.value = receiptValue * receiptRate;
         receipt.currency = "AED";
         receipt.symbol = targetSymbol;
-      } else {
+      } else if (receiptCurrency !== targetCurrency) {
+        if (receipt?._id === "RECEIPT-MDXGNMLJ-MJUHZWP1") console.log(receipt);
         receipt.value = await convertRate(receipt, exchangeRate);
         receipt.currency = targetCurrency;
         receipt.symbol = targetSymbol;

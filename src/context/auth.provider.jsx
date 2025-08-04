@@ -36,6 +36,7 @@ export default function AuthProvider({ children }) {
   const [allExchangeRates, setAllExchangeRates] = useState(null);
   const [runRateConversion, setRunRateConversion] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const { login, logout } = useFirebaseAuth;
 
@@ -53,9 +54,9 @@ export default function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (runRateConversion) loadUserData();
-  }, [runRateConversion]);
+  // useEffect(() => {
+  //   // if (runRateConversion && !dataLoaded) loadUserData();
+  // }, [runRateConversion]);
 
   const loadUserData = async (uid) => {
     try {
@@ -219,6 +220,7 @@ export default function AuthProvider({ children }) {
       setCoUsers(null);
       console.error(err);
     } finally {
+      setDataLoaded(true);
       setRunRateConversion(false);
       setLoading(false);
     }
