@@ -177,9 +177,28 @@ const CustomInput = ({
   if (type === "money") {
     const handleMoneyChange = (e) => {
       const rawValue = e.target.value;
+
+      // Only allow digits and commas/dots
       if (/^[0-9.,]*$/.test(rawValue)) {
-        setInternalValue(rawValue);
-        if (onChange) onChange({ target: { value: parseMoney(rawValue) } });
+        let cleanValue = rawValue.replace(/[^0-9]/g, ""); // Remove non-numeric characters
+
+        // Ensure the value is at least 2 digits for cents
+        if (cleanValue.length === 1) {
+          cleanValue = `0${cleanValue}`; // Fill as cents initially
+        }
+
+        // Split into dollars and cents parts (max 2 decimals)
+        let dollars = cleanValue.slice(0, cleanValue.length - 2);
+        let cents = cleanValue.slice(cleanValue.length - 2);
+
+        if (!dollars) dollars = "0"; // If no dollars, set to 0
+
+        // Construct the formatted value
+        const formattedValue = `${dollars}.${cents}`;
+
+        setInternalValue(formattedValue);
+        if (onChange)
+          onChange({ target: { value: parseMoney(formattedValue) } });
       }
     };
 
