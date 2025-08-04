@@ -37,7 +37,6 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
       // Convert to ISO string without the time part
       const isoDateWithoutTime = today.toISOString().split("T")[0]; // Only get the date part (YYYY-MM-DD)
       handleUpdateForm("currency", exchangeRate?.code);
-
       handleUpdateForm("date", isoDateWithoutTime);
     }
   }, [data]);
@@ -78,7 +77,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
           `users/${user?._id}/receipts`,
           finalData
         );
-        await updateReceipts("add", transactionData);
+        await updateReceipts("add", finalData);
       }
 
       if (response) {
@@ -105,7 +104,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     } catch (err) {
       console.error("Delete failed:", err);
     } finally {
-      await updateReceipts("delete", transactionData);
+      await updateReceipts("delete", data);
       setLoading(false);
     }
   };
@@ -179,7 +178,9 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
       <CustomInput
         type="date"
         value={transactionData?.date}
-        onChange={(e) => handleUpdateForm("date", e.target.value)}
+        onChange={(e) =>
+          handleUpdateForm("date", new Date(e.target.value).toISOString())
+        }
         placeholder="Transaction Date"
       />
 

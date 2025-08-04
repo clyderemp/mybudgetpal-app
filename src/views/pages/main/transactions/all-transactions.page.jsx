@@ -12,8 +12,8 @@ const AllTransactionsPage = () => {
   const [recentTransactions, setRecentTransactions] = useState([]);
 
   useEffect(() => {
-    if (transactions) fetchRecentTransactions();
-  }, [transactions]);
+    if (filteredTransactions) fetchRecentTransactions();
+  }, [filteredTransactions]);
 
   const fetchRecentTransactions = async () => {
     const now = new Date();

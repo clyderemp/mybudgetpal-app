@@ -253,8 +253,8 @@ export default function AuthProvider({ children }) {
     if (!data?._id) return;
 
     let updatedTransactions = [...transactions];
-    const index = updatedTransactions.findIndex((tx) => tx._id === data._id);
-
+    const index = updatedTransactions?.findIndex((tx) => tx._id === data._id);
+    console.log(index);
     if (type === "add") {
       if (index === -1) {
         updatedTransactions.push(data);
@@ -291,6 +291,7 @@ export default function AuthProvider({ children }) {
     setFilteredTransactions(filtered);
     await useCacheUtils.save("receiptsData", convertedRates);
     setTransactions(convertedRates);
+    await loadUserData(uid);
   };
 
   const handleLogout = async () => {
