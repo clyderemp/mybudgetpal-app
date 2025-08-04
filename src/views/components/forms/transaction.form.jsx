@@ -27,10 +27,18 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   useEffect(() => {
     const usersOptions = getAccountUsers();
     setUserOptions(usersOptions);
-    handleUpdateForm("currency", exchangeRate?.code);
-    handleUpdateForm("date", new Date()?.toISOString());
     if (data?._id) {
       setTransactionData((prev) => ({ ...prev, ...data }));
+    } else {
+      const today = new Date();
+      // Set the time to midnight (00:00:00)
+      today.setHours(0, 0, 0, 0);
+
+      // Convert to ISO string without the time part
+      const isoDateWithoutTime = today.toISOString().split("T")[0]; // Only get the date part (YYYY-MM-DD)
+      handleUpdateForm("currency", exchangeRate?.code);
+
+      handleUpdateForm("date", isoDateWithoutTime);
     }
   }, [data]);
 
