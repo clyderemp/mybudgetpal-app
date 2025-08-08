@@ -1,30 +1,40 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
+
+// Firebase + Services
 import { useFirebaseConfig } from "@/configs/firebase.config";
 import { useFirebaseAuth } from "@/services/client/firebase-auth.service";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
+import { useUniRateCurrencyServices } from "@/services/server/unirate.services";
+
+// Utilities
 import { useCacheUtils } from "@/utils/cache.utils";
 import { useActionUtils } from "@/utils/action.utils";
-import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
 import { useFormUtils } from "@/utils/form.utils";
 import { useAnalyticsUtils } from "@/utils/analytics.utils";
 import { useSorterUtils } from "@/utils/sorter.utils";
+import { useEncryptionUtils } from "@/utils/encryption.utils";
 
+// Toast
+import { useToast } from "./toast.provider";
+
+// Firebase Auth init
 const { auth } = useFirebaseConfig;
 
-// Create the context
+// Auth Context
 export const AuthContext = createContext();
-
-// Hook to consume context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };
 
 export default function AuthProvider({ children }) {
+  // Services
+  const { showToast } = useToast();
+  const { login, logout } = useFirebaseAuth;
+
+  // State
   const [uid, setUID] = useState(null);
   const [user, setUser] = useState(null);
   const [activeUser, setActiveUser] = useState(null);
@@ -32,279 +42,291 @@ export default function AuthProvider({ children }) {
   const [transactions, setTransactions] = useState(null);
   const [filteredTransactions, setFilteredTransactions] = useState(null);
   const [coUsers, setCoUsers] = useState(null);
+  const [financialAccounts, setFinancialAccounts] = useState(null);
   const [exchangeRate, setExchangeRate] = useState(null);
   const [allExchangeRates, setAllExchangeRates] = useState(null);
   const [runRateConversion, setRunRateConversion] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
 
-  const { login, logout } = useFirebaseAuth;
-
+  // 🔁 Firebase Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser?.uid) {
-        setUID(firebaseUser?.uid);
+        setUID(firebaseUser.uid);
         await loadUserData(firebaseUser.uid);
         setLoading(false);
       } else {
         setUser(null);
-        await useActionUtils.onLogin(firebaseUser?.uid);
+        await useActionUtils.onLogin();
         setLoading(false);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // useEffect(() => {
-  //   // if (runRateConversion && !dataLoaded) loadUserData();
-  // }, [runRateConversion]);
-
+  // 📦 Load Full User Session Data
   const loadUserData = async (uid) => {
     try {
       setLoading(true);
-      const storedUserData = await useCacheUtils.get("userData");
-      const storedActiveUser = await useCacheUtils.get("activeUser");
-      const storedReceiptsData = await useCacheUtils.get("receiptsData");
-      const storedCoUsersData = await useCacheUtils.get("coUsersData");
-      const storedExchangeRate = await useCacheUtils.get("exchangeRateData");
-      const storedExchangeRates = await useCacheUtils.get("exchangeRates");
-      if (storedExchangeRates) setAllExchangeRates(storedExchangeRates);
 
-      let user = null;
+      // 1. Load all cache at once
+      const [
+        storedUserData,
+        storedActiveUser,
+        storedReceiptsData,
+        storedCoUsersData,
+        storedExchangeRate,
+        storedExchangeRates,
+        storedFinancialAccounts,
+      ] = await Promise.all([
+        useCacheUtils.get("userData"),
+        useCacheUtils.get("activeUser"),
+        useCacheUtils.get("receiptsData"),
+        useCacheUtils.get("coUsersData"),
+        useCacheUtils.get("exchangeRateData"),
+        useCacheUtils.get("exchangeRates"),
+        useCacheUtils.get("financialAccounts"),
+      ]);
 
-      if (storedActiveUser) {
-        setActiveUser(storedActiveUser);
-      }
+      // 2. Active user
+      if (storedActiveUser) setActiveUser(storedActiveUser);
+
+      // 3. User Data (from cache or Firestore)
+      let currentUser;
 
       if (!storedUserData) {
-        console.log("Fetching fresh user data");
         const userData = await useFirestoreServices.getDocument("users", uid);
-        await useCacheUtils.save("userData", userData);
 
-        const exchangeRateData = userData?.exchangeRate;
-        const savingsBalance = {
-          value: userData?.savings?.balance,
-          currency: userData?.savings?.currency || "CAD",
-        };
-        const savingsGoal = {
-          value: userData?.savings?.goal,
-          currency: userData?.savings?.currency || "CAD",
-        };
-
-        const convertedSavingsBalance =
-          await useExchangeRateServices.convertRate(
-            savingsBalance,
-            exchangeRateData
+        // Decrypt accounts
+        if (userData?.financialAccounts) {
+          const decrypted = await useEncryptionUtils.decryptData(
+            userData._id,
+            userData.financialAccounts
           );
-        const convertedSavingsGoal = await useExchangeRateServices.convertRate(
-          savingsGoal,
-          exchangeRateData
-        );
-        userData.savings = {
-          balance: convertedSavingsBalance,
-          goal: convertedSavingsGoal,
-          currency: exchangeRateData?.code,
-        };
-        user = userData;
-        useFormUtils.updateData(user?._id, user, setAccountUsers);
-        setExchangeRate(exchangeRateData);
-        await useCacheUtils.save("exchangeRateData", exchangeRateData);
+          setFinancialAccounts(decrypted);
+          await useCacheUtils.save("financialAccounts", decrypted);
+        } else {
+          setFinancialAccounts([]);
+        }
+
+        currentUser = userData;
+        useFormUtils.updateData(userData._id, userData, setAccountUsers);
+        await useCacheUtils.save("userData", userData);
         setUser(userData);
         if (!storedActiveUser) setActiveUser(userData);
       } else {
-        console.log("Fetching cached user data");
-        const savingsBalance = {
-          value: storedUserData?.savings?.balance,
-          currency: storedUserData?.savings?.currency || "CAD",
-        };
-        const savingsGoal = {
-          value: storedUserData?.savings?.goal,
-          currency: storedUserData?.savings?.currency || "CAD",
-        };
-
-        const convertedSavingsBalance =
-          await useExchangeRateServices.convertRate(
-            savingsBalance,
-            storedExchangeRate
-          );
-        const convertedSavingsGoal = await useExchangeRateServices.convertRate(
-          savingsGoal,
-          storedExchangeRate
-        );
-        storedUserData.savings = {
-          balance: convertedSavingsBalance,
-          goal: convertedSavingsGoal,
-          currency: storedExchangeRate?.code,
-        };
-
-        user = storedUserData;
-        useFormUtils.updateData(
-          storedUserData?._id,
-          storedUserData,
-          setAccountUsers
-        );
-        setUser(storedUserData);
-        if (!storedActiveUser) setActiveUser(storedUserData);
-
-        if (!storedExchangeRate) {
-          console.log("Fetching fresh exchange rate data");
-          const exchangeRateData = storedUserData?.exchangeRate;
-          setExchangeRate(exchangeRateData);
-          await useCacheUtils.save("exchangeRateData", exchangeRateData);
-        } else {
-          console.log("Fetching cached exchange rate data");
-          setExchangeRate(storedExchangeRate);
-        }
+        currentUser = storedUserData;
+        setUser(currentUser);
+        if (!storedActiveUser) setActiveUser(currentUser);
+        if (storedFinancialAccounts)
+          setFinancialAccounts(storedFinancialAccounts);
+        useFormUtils.updateData(currentUser._id, currentUser, setAccountUsers);
       }
-      const coUsersInfo = [];
 
+      // 4. Exchange Rate (after user known)
+      const exchangeRateData = storedExchangeRate || currentUser.exchangeRate;
+      if (!exchangeRateData?.code) throw new Error("Missing exchange rate");
+
+      setExchangeRate(exchangeRateData);
+      await useCacheUtils.save("exchangeRateData", exchangeRateData);
+
+      const rates =
+        storedExchangeRates?.length > 0
+          ? storedExchangeRates
+          : await useUniRateCurrencyServices.getExchangeRates(
+              exchangeRateData.code
+            );
+
+      setAllExchangeRates(rates);
+      if (!storedExchangeRates) {
+        await useCacheUtils.save("exchangeRates", rates);
+      }
+
+      // 5. Convert savings using latest rate
+      const savingsBalance = {
+        value: Number(currentUser?.savings?.balance),
+        currency: currentUser?.savings?.currency || "CAD",
+      };
+      const savingsGoal = {
+        value: Number(currentUser?.savings?.goal),
+        currency: currentUser?.savings?.currency || "CAD",
+      };
+
+      currentUser.savings = {
+        balance: await useUniRateCurrencyServices.convertRate(
+          savingsBalance,
+          exchangeRateData
+        ),
+        goal: await useUniRateCurrencyServices.convertRate(
+          savingsGoal,
+          exchangeRateData
+        ),
+        currency: exchangeRateData.code,
+      };
+
+      // 6. Co-Users
       if (!storedCoUsersData) {
-        console.log("Fetching fresh co-users data");
         const coUsersData = await useFirestoreServices.getAllDocuments(
           `users/${uid}/coUsers`
         );
-        coUsersData.forEach((coUser) => {
-          useFormUtils.updateData(coUser?._id, coUser, setAccountUsers);
-          coUsersInfo.push({
-            id: coUser?._id,
-            name: `${coUser.fname} ${coUser.lname}`,
-          });
-        });
-
-        await useCacheUtils.save("coUsersData", coUsersData);
+        coUsersData?.forEach((user) =>
+          useFormUtils.updateData(user._id, user, setAccountUsers)
+        );
         setCoUsers(coUsersData);
+        await useCacheUtils.save("coUsersData", coUsersData);
       } else {
-        storedCoUsersData.forEach((coUser) => {
-          useFormUtils.updateData(coUser?._id, coUser, setAccountUsers);
-        });
-        console.log("Fetching cached co-users data");
+        storedCoUsersData.forEach((user) =>
+          useFormUtils.updateData(user._id, user, setAccountUsers)
+        );
         setCoUsers(storedCoUsersData);
       }
 
+      // 7. Receipts / Transactions
       if (!storedReceiptsData) {
-        console.log("Fetching fresh receipts data");
-        console.log(uid);
-        let receiptsData = await useFirestoreServices.getAllDocuments(
+        let receipts = await useFirestoreServices.getAllDocuments(
           `users/${uid}/receipts`
         );
-        receiptsData = await useSorterUtils.sortByKey(
-          receiptsData,
+        receipts = await useSorterUtils.sortByKey(
+          receipts,
           "date",
           "descending"
         );
-        const convertedRates =
-          await useExchangeRateServices.convertRateForReceipts(
-            receiptsData,
-            exchangeRate ? exchangeRate : user?.exchangeRate
-          );
-        setFilteredTransactions(
-          await useAnalyticsUtils?.getFilteredData(convertedRates)
-        );
-        await useCacheUtils.save("receiptsData", convertedRates);
-        setTransactions(convertedRates);
-      } else {
-        console.log("Fetching cached receipts data");
-        const convertedRates =
-          await useExchangeRateServices.convertRateForReceipts(
-            storedReceiptsData,
-            storedExchangeRate ? storedExchangeRate : exchangeRate
+
+        const converted =
+          await useUniRateCurrencyServices.convertRateForReceipts(
+            receipts,
+            exchangeRateData
           );
 
+        setTransactions(converted);
         setFilteredTransactions(
-          await useAnalyticsUtils?.getFilteredData(convertedRates)
+          await useAnalyticsUtils.getFilteredData(converted)
         );
-        setTransactions(convertedRates);
+        await useCacheUtils.save("receiptsData", converted);
+      } else {
+        const converted =
+          await useUniRateCurrencyServices.convertRateForReceipts(
+            storedReceiptsData,
+            exchangeRateData
+          );
+        setTransactions(converted);
+        setFilteredTransactions(
+          await useAnalyticsUtils.getFilteredData(converted)
+        );
       }
-      console.log("Fetching done");
     } catch (err) {
+      console.error("AuthProvider Error:", err);
       setUser(null);
       setTransactions(null);
       setCoUsers(null);
-      console.error(err);
     } finally {
+      showToast(`Data successfully loaded`, "success");
       setLoading(false);
       setDataLoaded(true);
       setRunRateConversion(false);
     }
   };
 
+  // 🔁 Data Reload Handler
   const handleReloadData = async (type = "all") => {
-    switch (type) {
-      case "all":
-        await useCacheUtils.remove("userData");
-        await useCacheUtils.remove("exchangeRateData");
-        await useCacheUtils.remove("coUsersData");
-        await useCacheUtils.remove("receiptsData");
-        break;
-      case "user":
-        await useCacheUtils.remove("userData");
-        break;
-      case "exchangeRate":
-        await useCacheUtils.remove("exchangeRateData");
-        break;
-      case "coUsers":
-        await useCacheUtils.remove("exchangeRateData");
-        break;
-      default:
-        break;
+    const keys = {
+      all: [
+        "userData",
+        "exchangeRates",
+        "exchangeRateData",
+        "coUsersData",
+        "receiptsData",
+      ],
+      user: ["userData"],
+      exchangeRate: ["exchangeRateData"],
+      coUsers: ["coUsersData"],
+    };
+
+    for (const key of keys[type] || []) {
+      await useCacheUtils.remove(key);
     }
+
     await loadUserData(uid);
   };
 
+  // 💳 Handle Add/Update/Delete Financial Account
+  const handleUpdateFinancialAccounts = async (type, data) => {
+    try {
+      if (!data?.id) throw new Error("Card ID Required");
+
+      let updated = [...(financialAccounts || [])];
+      const index = updated.findIndex((item) => item.id === data.id);
+
+      if (type === "add") updated.push(data);
+      else if (type === "update" && index !== -1)
+        updated[index] = { ...updated[index], ...data };
+      else if (type === "delete" && index !== -1) updated.splice(index, 1);
+      else throw new Error("Invalid operation or missing index");
+
+      const encrypted = await useEncryptionUtils.encryptData(
+        uid,
+        updated,
+        true
+      );
+      await useFirestoreServices.updateDocument("users", uid, {
+        financialAccounts: encrypted,
+      });
+
+      const sorted = await useSorterUtils.sortByKey(
+        updated,
+        "date",
+        "descending"
+      );
+      await useCacheUtils.save("financialAccounts", sorted);
+      setFinancialAccounts(sorted);
+      await loadUserData(uid);
+
+      showToast("Changes to Financial Accounts Saved", "success");
+    } catch (err) {
+      console.error("Update Card Error:", err);
+      showToast(err?.message || "Failed to update financial account", "error");
+    }
+  };
+
+  // 🧾 Handle Add/Update/Delete Receipts
   const handleUpdateReceipts = async (type, data) => {
     if (!data?._id) return;
 
-    let updatedTransactions = [...transactions];
-    if (type === "add") {
-      updatedTransactions.push(data);
-    } else if (type === "update") {
-      const index = updatedTransactions?.findIndex((tx) => tx._id === data._id);
-      if (index !== -1) {
-        updatedTransactions[index] = {
-          ...updatedTransactions[index],
-          ...data,
-        };
-      }
-    } else if (type === "delete") {
-      const index = updatedTransactions?.findIndex((tx) => tx._id === data._id);
-      if (index !== -1) {
-        updatedTransactions.splice(index, 1);
-      }
-    } else {
-      console.warn("Unknown type passed to handleUpdateReceipts");
-      return;
-    }
+    let updated = [...(transactions || [])];
+    const index = updated.findIndex((tx) => tx._id === data._id);
 
-    // Continue with sorting, rate conversion, and updating state/cache
-    updatedTransactions = await useSorterUtils.sortByKey(
-      updatedTransactions,
+    if (type === "add") updated.push(data);
+    else if (type === "update" && index !== -1)
+      updated[index] = { ...updated[index], ...data };
+    else if (type === "delete" && index !== -1) updated.splice(index, 1);
+    else return;
+
+    const sorted = await useSorterUtils.sortByKey(
+      updated,
       "date",
       "descending"
     );
-
-    const convertedRates = await useExchangeRateServices.convertRateForReceipts(
-      updatedTransactions,
+    const converted = await useUniRateCurrencyServices.convertRateForReceipts(
+      sorted,
       exchangeRate || user?.exchangeRate
     );
+    const filtered = await useAnalyticsUtils.getFilteredData(converted);
 
-    const filtered = await useAnalyticsUtils?.getFilteredData(convertedRates);
+    setTransactions(converted);
     setFilteredTransactions(filtered);
-    await useCacheUtils.save("receiptsData", convertedRates);
-    setTransactions(convertedRates);
+    await useCacheUtils.save("receiptsData", converted);
     await loadUserData(uid);
   };
 
-  const handleLogout = async () => {
-    // await useActionUtils.onLogout(uid);
-    logout?.();
-  };
-
-  const handleActiveUserSwitch = async (uid) => {
+  // 👤 Handle Active User Switch
+  const handleActiveUserSwitch = async (userId) => {
+    if (!userId || !accountUsers?.[userId]) return;
     setLoading(true);
-    const selectedUser = accountUsers[uid];
-    await useCacheUtils.save("activeUser", selectedUser);
-    setActiveUser(selectedUser);
-    loadUserData();
+    const user = accountUsers[userId];
+    await useCacheUtils.save("activeUser", user);
+    setActiveUser(user);
+    await loadUserData(uid);
     setLoading(false);
   };
 
@@ -315,6 +337,7 @@ export default function AuthProvider({ children }) {
         activeUser,
         switchActiveUser: handleActiveUserSwitch,
         accountUsers,
+        financialAccounts,
         transactions,
         filteredTransactions,
         coUsers,
@@ -323,11 +346,12 @@ export default function AuthProvider({ children }) {
         allExchangeRates,
         setAllExchangeRates,
         login,
-        logout: handleLogout,
+        logout: logout,
         loading,
         reloadData: handleReloadData,
         runRateConversion: setRunRateConversion,
         updateReceipts: handleUpdateReceipts,
+        updateFinancialAccounts: handleUpdateFinancialAccounts,
       }}
     >
       {children}

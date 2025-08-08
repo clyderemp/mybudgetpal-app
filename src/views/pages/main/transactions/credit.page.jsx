@@ -5,11 +5,12 @@ import ReceiptCards from "@/views/components/cards/receipt.cards";
 import CustomTable from "@/views/components/tables/custom.table";
 
 const CreditPage = () => {
-  const { activeUser, filteredTransactions } = useAuth();
+  const { filteredTransactions } = useAuth();
   const transactions = filteredTransactions.all;
   const date = new Date().toDateString();
 
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [tableEdit, setTableEdit] = useState(null);
 
   useEffect(() => {
     if (transactions) fetchRecentTransactions();
@@ -28,6 +29,10 @@ const CreditPage = () => {
       }
     }
     setRecentTransactions(recent);
+  };
+
+  const handleAction = (type, data) => {
+    setTableEdit({ open: true, data: type === "add" ? {} : data });
   };
 
   return (
@@ -49,10 +54,15 @@ const CreditPage = () => {
           <ReceiptCards
             title={`Recent Transactions (Last 14 days) - Found ${recentTransactions.length} results`}
             data={recentTransactions}
+            triggerForm={tableEdit}
             showAddButton
           />
           {filteredTransactions && (
-            <CustomTable title={"Receipts"} tableData={filteredTransactions} />
+            <CustomTable
+              title={"Receipts"}
+              tableData={filteredTransactions}
+              onModify={handleAction}
+            />
           )}
         </div>
       </div>

@@ -5,11 +5,11 @@ import ReceiptCards from "@/views/components/cards/receipt.cards";
 import CustomTable from "@/views/components/tables/custom.table";
 
 const IncomePage = () => {
-  const { activeUser, filteredTransactions } = useAuth();
+  const { filteredTransactions } = useAuth();
   const transactions = filteredTransactions.income;
   const date = new Date().toDateString();
-
   const [recentTransactions, setRecentTransactions] = useState([]);
+  const [tableEdit, setTableEdit] = useState(null);
 
   useEffect(() => {
     if (transactions) fetchRecentTransactions();
@@ -28,6 +28,10 @@ const IncomePage = () => {
       }
     }
     setRecentTransactions(recent);
+  };
+
+  const handleAction = (type, data) => {
+    setTableEdit({ open: true, data: type === "add" ? {} : data });
   };
 
   return (
@@ -49,6 +53,7 @@ const IncomePage = () => {
           <ReceiptCards
             title={`Recent Transactions (Last 14 days) - Found ${recentTransactions.length} results`}
             data={recentTransactions}
+            triggerForm={tableEdit}
             showAddButton
           />
           {filteredTransactions && (
@@ -56,6 +61,7 @@ const IncomePage = () => {
               title={"Income History"}
               tableData={{ income: filteredTransactions?.income }}
               defaultTable="income"
+              onModify={handleAction}
             />
           )}
         </div>

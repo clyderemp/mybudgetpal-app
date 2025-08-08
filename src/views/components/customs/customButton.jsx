@@ -3,7 +3,7 @@ const CustomButton = ({
   onClick,
   shape = "",
   text = "",
-  color = "primary",
+  color = "secondary",
   outline = false,
   type = "button",
   useHoverBehaviour = true,

@@ -60,19 +60,19 @@ const CustomTable = ({
       <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
         <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
 
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           <input
             type="text"
             placeholder="Search..."
             value={search}
             onChange={handleSearchChange}
-            className="border text-sm rounded-md px-2 py-1"
+            className="border text-sm rounded-md px-2 py-1 flex-grow min-w-[150px]"
           />
 
           <select
             value={dataset}
             onChange={handleChange}
-            className="border text-sm rounded-md px-2 py-1"
+            className="border text-sm rounded-md px-2 py-1 min-w-[120px]"
           >
             {Object.keys(tableData)?.map((key) => (
               <option key={key} value={key}>
@@ -84,7 +84,7 @@ const CustomTable = ({
           <select
             value={itemsPerPage}
             onChange={handleItemsPerPageChange}
-            className="border text-sm rounded-md px-2 py-1"
+            className="border text-sm rounded-md px-2 py-1 min-w-[120px]"
           >
             {[5, 10, 20, 50].map((num) => (
               <option key={num} value={num}>
@@ -95,7 +95,7 @@ const CustomTable = ({
 
           {onModify && (
             <button
-              onClick={() => onModify("add")}
+              onClick={() => onModify("add", null)}
               className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm"
             >
               Add
@@ -125,7 +125,10 @@ const CustomTable = ({
               return (
                 <div
                   key={index}
-                  className="grid grid-cols-12 gap-4 items-center py-2 text-sm text-gray-900 min-w-[700px]"
+                  className="grid grid-cols-12 gap-4 items-center p-2 text-sm text-gray-900 min-w-[700px] hover:bg-secondary cursor-pointer"
+                  onClick={() => {
+                    onModify?.("edit", item);
+                  }}
                 >
                   <div className="col-span-1">
                     <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white font-semibold text-xs">

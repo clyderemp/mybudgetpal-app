@@ -15,14 +15,24 @@ import { useFirestoreServices } from "@/services/client/firebase-firestore.servi
 import { useGeneratorUtils } from "@/utils/generator.utils";
 
 const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
-  const { user, accountUsers, updateReceipts, exchangeRate } = useAuth();
+  const {
+    user,
+    accountUsers,
+    updateReceipts,
+    exchangeRate,
+    financialAccounts,
+  } = useAuth();
   const { closeModal } = useModal();
-
   const [transactionData, setTransactionData] = useState(data);
 
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
   const [userOptions, setUserOptions] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS);
+
+  useEffect(() => {
+    mapFinancialAccountsToOptions();
+  }, []);
 
   useEffect(() => {
     const usersOptions = getAccountUsers();
@@ -48,6 +58,30 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     };
     validate();
   }, [transactionData]);
+
+  const mapFinancialAccountsToOptions = () => {
+    // Map financial accounts to option objects
+    const newOptions = financialAccounts
+      .map(({ id, owner, bank, provider }) => {
+        const user = accountUsers?.[owner];
+        const userName = user ? `${user.fname}`.trim() : "Unknown User";
+
+        return {
+          label: `${userName}'s ${bank?.replaceAll(
+            "card",
+            ""
+          )} Card - ${provider}`,
+          value: id,
+        };
+      })
+      // Filter out options already in paymentMethods to avoid duplicates
+      .filter(({ value }) => !paymentMethods.some((pm) => pm.value === value));
+
+    // Append new unique options to paymentMethods state
+    if (newOptions.length > 0) {
+      setPaymentMethods([...paymentMethods, ...newOptions]);
+    }
+  };
 
   const handleUpdateForm = async (key, value) => {
     await useFormUtils.updateData(key, value, setTransactionData);
@@ -186,7 +220,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
       <CustomInput
         type="dropdown"
-        options={PAYMENT_METHODS}
+        options={paymentMethods}
         value={transactionData?.paymentMethod || PAYMENT_METHODS[0]}
         onChange={(e) => handleUpdateForm("paymentMethod", e.target.value)}
         placeholder="Payment Method"

@@ -10,19 +10,19 @@ import { LoaderProvider } from "@/context/loader.provider";
 function App() {
   return (
     <React.StrictMode>
-      <AuthProvider>
-        <LoaderProvider>
-          <ModalProvider>
-            <ToastProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <LoaderProvider>
+            <ModalProvider>
               <AuthInitializer>
                 <Router>
                   <StackNavigator />
                 </Router>
               </AuthInitializer>
-            </ToastProvider>
-          </ModalProvider>
-        </LoaderProvider>
-      </AuthProvider>
+            </ModalProvider>
+          </LoaderProvider>
+        </AuthProvider>
+      </ToastProvider>
     </React.StrictMode>
   );
 }

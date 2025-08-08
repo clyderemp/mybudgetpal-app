@@ -1,7 +1,6 @@
 import { useAuth } from "@/context/auth.provider";
 import {
   BarChart3,
-  LineChart,
   ChevronDown,
   ChevronRight,
   Database,
@@ -20,10 +19,11 @@ import { CURRENCIES } from "@/constants/currencies.constants";
 import { useModal } from "@/context/modal.provider";
 import CurrencySelectorModal from "../modals/currencySelector.modal";
 import { useToast } from "@/context/toast.provider";
-import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
+import { useUniRateCurrencyServices } from "@/services/server/unirate.services";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
 import { useCacheUtils } from "@/utils/cache.utils";
 import { useActionUtils } from "@/utils/action.utils";
+import clsx from "clsx";
 
 const Sidebar = () => {
   const {
@@ -44,13 +44,12 @@ const Sidebar = () => {
   const [isHoveringEnv, setIsHoveringEnv] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-
   const accountName = `${activeUser?.fname} ${activeUser?.lname}` || "Admin";
-  const environment = useTextUtils.capitalize(MODE);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Close dropdown if clicked outside
+  const [expandedKey, setExpandedKey] = useState(null);
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -59,19 +58,11 @@ const Sidebar = () => {
     }
     if (dropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [dropdownOpen]);
-
-  const [expandedItems, setExpandedItems] = useState({
-    "data-management":
-      location.pathname.includes("/data-management") ||
-      location.pathname.includes("/app-users"),
-  });
 
   const navigationItems = [
     { name: "Dashboard Overview", icon: LayoutDashboard, path: "/" },
@@ -96,8 +87,8 @@ const Sidebar = () => {
       hasSubmenu: true,
       key: "accounts",
       submenu: [
-        { name: "Co-User Accounts", path: "/accounts/users" },
-        { name: "Financial Accounts", path: "/accounts/financial" },
+        { name: "User Accounts", path: "/accounts/users" },
+        { name: "Card Accounts", path: "/accounts/cards" },
       ],
     },
     {
@@ -117,8 +108,9 @@ const Sidebar = () => {
 
   const handleNavigation = (path) => navigate(path);
 
-  const toggleSubmenu = (key) =>
-    setExpandedItems((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleSubmenu = (key) => {
+    setExpandedKey((prev) => (prev === key ? null : key));
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -128,11 +120,11 @@ const Sidebar = () => {
   const handleOpenCurrencyModal = () => {
     openModal(
       <CurrencySelectorModal
-        exchangeRates={allExchangeRates} // [{ code, symbol, rate }]
+        exchangeRates={allExchangeRates}
         selectedCurrency={exchangeRate}
         onSelect={async (data) => {
           const flag = CURRENCIES.flags[data?.code];
-          const newRates = await useExchangeRateServices?.getExchangeRates(
+          const newRates = await useUniRateCurrencyServices?.getExchangeRates(
             data?.code
           );
           setAllExchangeRates(newRates);
@@ -154,15 +146,12 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-70 bg-white h-screen shadow-lg flex flex-col">
-      {/* Profile with User Switcher */}
+    <div className="w-70 bg-white h-screen shadow-lg flex flex-col overflow-y-auto">
+      {/* Profile */}
       <div className="p-4 border-b border-gray-100 relative" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className="flex items-center space-x-3 w-full focus:outline-none"
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={dropdownOpen}
         >
           <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-white font-semibold">
             {useTextUtils.getInitials(accountName)}
@@ -183,11 +172,7 @@ const Sidebar = () => {
         </button>
 
         {dropdownOpen && (
-          <ul
-            role="listbox"
-            className="absolute left-4 right-4 mt-2 bg-white border border-gray-200 rounded shadow max-h-60 overflow-auto z-50"
-          >
-            {/* Co-users */}
+          <ul className="absolute left-4 right-4 mt-2 bg-white border border-gray-200 rounded shadow max-h-60 overflow-auto z-50">
             {Object.entries(accountUsers).map(([uid, u]) => (
               <li
                 key={uid}
@@ -217,46 +202,58 @@ const Sidebar = () => {
                     ? toggleSubmenu(item.key)
                     : handleNavigation(item.path)
                 }
-                className={`flex items-center px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                className={clsx(
+                  "flex items-center px-3 py-2 rounded-lg cursor-pointer transition-colors",
                   isActive(item.path) || isParentActive(item)
                     ? "bg-purple-50 text-secondary"
                     : "text-gray-700 hover:bg-gray-50"
-                }`}
+                )}
               >
                 <item.icon
-                  className={`w-5 h-5 mr-3 ${
+                  className={clsx(
+                    "w-5 h-5 mr-3",
                     isActive(item.path) || isParentActive(item)
                       ? "text-secondary"
                       : "text-gray-400"
-                  }`}
+                  )}
                 />
                 <span className="flex-1 text-sm font-medium">{item.name}</span>
                 {item.hasSubmenu &&
-                  (expandedItems[item.key] ? (
+                  (expandedKey === item.key ? (
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   ) : (
                     <ChevronRight className="w-4 h-4 text-gray-400" />
                   ))}
               </div>
 
-              {/* Submenu */}
-              {expandedItems[item.key] && item.submenu && (
-                <div className="ml-8 mt-1 space-y-1">
-                  {item.submenu.map((subItem, subIndex) => (
-                    <div
-                      key={subIndex}
-                      onClick={() => handleNavigation(subItem.path)}
-                      className={`px-3 py-1 text-sm cursor-pointer rounded transition-colors ${
-                        isActive(subItem.path)
-                          ? "text-secondary bg-blue-50 border-r-2 border-secondary"
-                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                      }`}
-                    >
-                      {subItem.name}
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Submenu with animation */}
+              <div
+                className={clsx(
+                  "overflow-hidden transition-all duration-300 ease-in-out",
+                  expandedKey === item.key
+                    ? "max-h-[500px] opacity-100"
+                    : "max-h-0 opacity-0"
+                )}
+              >
+                {item.submenu && (
+                  <div className="ml-8 mt-1 space-y-1">
+                    {item.submenu.map((subItem, subIndex) => (
+                      <div
+                        key={subIndex}
+                        onClick={() => handleNavigation(subItem.path)}
+                        className={clsx(
+                          "px-3 py-1 text-sm cursor-pointer rounded transition-colors",
+                          isActive(subItem.path)
+                            ? "text-secondary bg-blue-50 border-r-2 border-secondary"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        )}
+                      >
+                        {subItem.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </nav>
@@ -284,17 +281,16 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Environment Badge */}
+      {/* Environment/Currency Switch */}
       <div className="p-4">
         <button
           onMouseEnter={() => setIsHoveringEnv(true)}
           onMouseLeave={() => setIsHoveringEnv(false)}
-          onClick={() => {
-            if (exchangeRate) handleOpenCurrencyModal();
-          }}
-          className={`w-full px-3 py-2 rounded-full text-sm font-medium text-center transition-colors ${
+          onClick={() => exchangeRate && handleOpenCurrencyModal()}
+          className={clsx(
+            "w-full px-3 py-2 rounded-full text-sm font-medium text-center transition-colors",
             isHoveringEnv ? "bg-primary text-white" : "bg-secondary text-white"
-          }`}
+          )}
         >
           {isHoveringEnv
             ? "Change Currency"

@@ -12,19 +12,27 @@ import { useAuth } from "@/context/auth.provider";
 import { useDateUtils } from "@/utils/date.utils";
 import { useActionUtils } from "@/utils/action.utils";
 import TransactionForm from "../forms/transaction.form";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useTextUtils } from "@/utils/text.utils";
 import ALImage from "@/assets/images/budgetpAL-accountant.png";
+import ViewReceiptCard from "./viewReceipt.card";
 
 const ReceiptCards = ({
   title = "Receipts",
   data = [],
+  triggerForm = null,
   showAddButton = false,
 }) => {
   const { user, exchangeRate, reloadData } = useAuth();
   const { openModal } = useModal();
   const { showToast } = useToast();
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (triggerForm?.open) {
+      handleOpenReceiptForm(triggerForm?.data);
+    }
+  }, [triggerForm]);
 
   const handleOpenReceiptForm = (receipt = {}) => {
     openModal(
@@ -56,6 +64,10 @@ const ReceiptCards = ({
       left: scrollRef.current.scrollWidth,
       behavior: "smooth",
     });
+  };
+
+  const handleViewReceipt = (data) => {
+    openModal(<ViewReceiptCard receipt={data} />);
   };
 
   return (
@@ -118,7 +130,8 @@ const ReceiptCards = ({
           {data?.map((item, index) => (
             <div
               key={item._id || index}
-              className="min-w-[250px] bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex-shrink-0"
+              onClick={() => handleViewReceipt(item)}
+              className="min-w-[250px] bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex-shrink-0 cursor-pointer"
             >
               {/* Receipt Image / Actions */}
               <div className="relative h-40 bg-gray-50 flex items-center justify-center overflow-hidden">

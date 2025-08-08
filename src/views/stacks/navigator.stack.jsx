@@ -8,12 +8,11 @@ import { useLoader } from "@/context/loader.provider";
 const StackNavigator = () => {
   const { user, loading } = useAuth();
   const { showLoader } = useLoader();
-
   if (loading) {
-    showLoader({ text: "please wait", type: "loading" });
+    showLoader({ text: "Loading your data", type: "loading" });
+  } else {
+    return user ? <MainStack /> : <AuthStack />;
   }
-
-  return user ? <MainStack /> : <AuthStack />;
 };
 
 export default StackNavigator;
