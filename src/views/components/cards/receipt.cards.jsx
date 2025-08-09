@@ -130,7 +130,6 @@ const ReceiptCards = ({
           {data?.map((item, index) => (
             <div
               key={item._id || index}
-              onClick={() => handleViewReceipt(item)}
               className="min-w-[250px] bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex-shrink-0 cursor-pointer"
             >
               {/* Receipt Image / Actions */}
@@ -147,12 +146,16 @@ const ReceiptCards = ({
 
                 {item.image ? (
                   <img
+                    onClick={() => handleViewReceipt(item)}
                     src={item?.image}
                     alt="Receipt"
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="flex flex-col items-center text-gray-400">
+                  <div
+                    onClick={() => handleViewReceipt(item)}
+                    className="flex flex-col items-center text-gray-400"
+                  >
                     <FileText className="w-12 h-12 mb-1" />
                     <span className="text-sm">No Image</span>
                   </div>
@@ -160,7 +163,7 @@ const ReceiptCards = ({
               </div>
 
               {/* Content */}
-              <div className="p-4">
+              <div className="p-4" onClick={() => handleViewReceipt(item)}>
                 <h3 className="font-semibold text-gray-900 mb-1 truncate">
                   {item.merchant || "Unknown Merchant"}
                 </h3>
