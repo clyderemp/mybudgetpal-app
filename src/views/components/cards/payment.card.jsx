@@ -1,58 +1,6 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, Plus, Pencil, Trash2 } from "lucide-react";
-import {
-  PAYMENT_PROVIDERS,
-  BANKS,
-} from "@/constants/paymentProviders.constants";
-import { useAuth } from "@/context/auth.provider";
-import { ACCOUNT_TYPES } from "@/constants/transaction.constants";
-
-const formatCardNumber = (num = "") => {
-  return (
-    num
-      .replace(/\D/g, "")
-      .match(/.{1,4}/g)
-      ?.join(" ") || "0000 0000 0000 0000"
-  );
-};
-
-const maskCardNumber = (num = "") => {
-  const clean = num.replace(/\D/g, "");
-  const last4 = clean.slice(-4);
-  return `xxxx xxxx xxxx ${last4}`;
-};
-
-const getProviderLogo = (provider) => {
-  const match = PAYMENT_PROVIDERS.find(
-    (p) => p.provider.toLowerCase() === provider?.toLowerCase()
-  );
-  return match?.logoUrl || null;
-};
-
-const getBankLogo = (bankName) => {
-  const bank = BANKS.UAE.find((b) =>
-    b.name.toLowerCase().includes(bankName?.toLowerCase())
-  );
-  return bank?.logoUrl || null;
-};
-
-const getCardColor = (bankName) => {
-  const bank = BANKS.UAE.find((b) =>
-    b.name.toLowerCase().includes(bankName?.toLowerCase())
-  );
-  return bank?.color || "bg-primary";
-};
-
-const getAccountType = (type) => {
-  const accountType = ACCOUNT_TYPES.find((b) => b.value === type);
-  return accountType?.label || "Unspecified Account";
-};
-
-const getAccountHolderDetails = (ownerID) => {
-  const { accountUsers } = useAuth();
-  const accountHolder = accountUsers?.[ownerID];
-  return `${accountHolder?.fname || ""} ${accountHolder?.lname || ""}`.trim();
-};
+import { usePaymentCardUtils } from "@/utils/paymentCard.utils";
 
 const PaymentCard = ({ data, onEdit, onDelete }) => {
   const [showFullNumber, setShowFullNumber] = useState(false);
@@ -76,14 +24,16 @@ const PaymentCard = ({ data, onEdit, onDelete }) => {
   } = data;
 
   const formattedNumber = showFullNumber
-    ? formatCardNumber(number)
-    : maskCardNumber(number);
+    ? usePaymentCardUtils.formatCardNumber(number)
+    : usePaymentCardUtils.maskCardNumber(number);
 
-  const providerLogo = provider ? getProviderLogo(provider) : null;
-  const bankLogo = getBankLogo(bank);
-  const cardColor = getCardColor(bank);
-  const accountHolder = getAccountHolderDetails(owner);
-  const accountType = getAccountType(type);
+  const providerLogo = provider
+    ? usePaymentCardUtils.getProviderLogo(provider)
+    : null;
+  const bankLogo = usePaymentCardUtils.getBankLogo(bank);
+  const cardColor = usePaymentCardUtils.getCardColor(bank);
+  const accountHolder = usePaymentCardUtils.getAccountHolderDetails(owner);
+  const accountType = usePaymentCardUtils.getAccountType(type);
 
   return (
     <div

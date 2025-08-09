@@ -21,6 +21,7 @@ export const TRANSACTION_TYPES = [
 
 export const TRANSACTION_CATEGORIES = {
   expenses: [
+    "Custom",
     // FIXED EXPENSES
     "Car Payments",
     "Credit Payments",
@@ -49,7 +50,6 @@ export const TRANSACTION_CATEGORIES = {
     "Home Maintenance",
     "Investments",
     "Medical Care",
-    "Others",
     "Parking",
     "Parking Tickets",
     "Recreation",

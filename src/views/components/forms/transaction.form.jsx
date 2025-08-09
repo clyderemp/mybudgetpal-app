@@ -17,6 +17,7 @@ import { useGeneratorUtils } from "@/utils/generator.utils";
 const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   const {
     user,
+    transactions,
     accountUsers,
     updateReceipts,
     exchangeRate,
@@ -35,9 +36,11 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   const [loading, setLoading] = useState(false);
   const [userOptions, setUserOptions] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS);
+  const [customCategories, setCustomCategories] = useState([]);
 
   useEffect(() => {
     mapFinancialAccountsToOptions();
+    mapCustomCategories();
   }, []);
 
   useEffect(() => {
@@ -57,7 +60,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   useEffect(() => {
     const validate = async () => {
-      const { note, ...rest } = transactionData;
+      const { note, items, ...rest } = transactionData;
       const valid = await useFormUtils.isFormComplete(rest);
       setIsFormValid(valid);
     };
@@ -83,6 +86,20 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     if (newOptions.length > 0) {
       setPaymentMethods([...paymentMethods, ...newOptions]);
     }
+  };
+
+  const mapCustomCategories = () => {
+    if (!transactions || transactions.length === 0) return [];
+
+    // Extract all customCategory values for transactions where category is 'Others'
+    const extractedCustomCategories = Array.from(
+      new Set(
+        transactions
+          .filter((tx) => tx.category === "Custom" && tx.customCategory?.trim())
+          .map((tx) => tx.customCategory.trim())
+      )
+    );
+    setCustomCategories(extractedCustomCategories);
   };
 
   const handleUpdateForm = async (key, value) => {
@@ -242,15 +259,20 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
         placeholder="Transaction Type"
       />
 
-      <CustomInput
-        type="dropdown"
-        options={TRANSACTION_CATEGORIES[transactionData?.type]}
-        value={transactionData?.category}
-        onChange={(e) => handleUpdateForm("category", e.target.value)}
-        placeholder="Category"
-      />
+      {transactionData?.type && (
+        <CustomInput
+          type="dropdown"
+          options={[
+            ...TRANSACTION_CATEGORIES[transactionData?.type],
+            ...customCategories,
+          ]}
+          value={transactionData?.category}
+          onChange={(e) => handleUpdateForm("category", e.target.value)}
+          placeholder="Category"
+        />
+      )}
 
-      {transactionData?.category === "Others" && (
+      {transactionData?.category === "Custom" && (
         <CustomInput
           type="text"
           value={transactionData?.customCategory}

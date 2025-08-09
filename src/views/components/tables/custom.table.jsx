@@ -3,6 +3,7 @@ import { useTextUtils } from "@/utils/text.utils";
 import { useDateUtils } from "@/utils/date.utils";
 import { useAuth } from "@/context/auth.provider";
 import { useCacheUtils } from "@/utils/cache.utils";
+import { usePaymentCardUtils } from "@/utils/paymentCard.utils";
 
 const CustomTable = ({
   title,
@@ -18,6 +19,7 @@ const CustomTable = ({
 
   const textUtils = useTextUtils;
   const dateUtils = useDateUtils;
+  const cardUtils = usePaymentCardUtils;
 
   const data = tableData?.[dataset] || [];
 
@@ -27,7 +29,9 @@ const CustomTable = ({
 
   const fetchCache = async () => {
     const storedValuePerPage = await useCacheUtils.get("valuePerPage");
+    const storedPageNum = await useCacheUtils.get("pageNum");
     setItemsPerPage(storedValuePerPage || 5);
+    setCurrentPage(storedPageNum || 1);
   };
 
   const handleChange = (e) => {
@@ -39,7 +43,6 @@ const CustomTable = ({
     const value = Number(e.target.value);
     await useCacheUtils.save("valuePerPage", value);
     setItemsPerPage(value);
-    setCurrentPage(1);
   };
 
   const handleSearchChange = (e) => {
@@ -57,8 +60,9 @@ const CustomTable = ({
   const startIdx = (currentPage - 1) * itemsPerPage;
   const currentData = filteredData.slice(startIdx, startIdx + itemsPerPage);
 
-  const handlePageChange = (newPage) => {
+  const handlePageChange = async (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
+      await useCacheUtils.save("pageNum", newPage);
       setCurrentPage(newPage);
     }
   };
@@ -125,15 +129,20 @@ const CustomTable = ({
           <div className="space-y-4 overflow-x-auto">
             <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 pb-2 border-b border-gray-100 min-w-[700px]">
               <div className="col-span-1">User</div>
-              <div className="col-span-3">Date</div>
+              <div className="col-span-2">Date</div>
               <div className="col-span-3">Merchant</div>
-              <div className="col-span-3">Category</div>
+              <div className="col-span-2">Category</div>
+              <div className="col-span-2">Paid via</div>
               <div className="col-span-2 text-right">Amount</div>
             </div>
 
             {currentData.map((item, index) => {
-              const initials = textUtils.getInitials(getUser(item?.reportedBy));
-
+              const initials = textUtils?.getInitials(
+                getUser(item?.reportedBy)
+              );
+              const paymentCard = cardUtils?.getCardDetails(
+                item?.paymentMethod
+              );
               return (
                 <div
                   key={index}
@@ -147,11 +156,27 @@ const CustomTable = ({
                       {initials}
                     </div>
                   </div>
-                  <div className="col-span-3">
-                    {dateUtils.getDaysAgo(item.date)}
+                  <div className="col-span-2">
+                    {dateUtils.getDaysAgo(item?.date)}
                   </div>
-                  <div className="col-span-3">{item.merchant}</div>
-                  <div className="col-span-3">{item.category}</div>
+                  <div className="col-span-3">{item?.merchant}</div>
+                  <div className="col-span-2">
+                    {item?.category === "Custom"
+                      ? item?.customCategory
+                      : item?.category}
+                  </div>
+                  <div className="col-span-2">
+                    {paymentCard?.bankLogo ? (
+                      <img
+                        src={paymentCard.bankLogo}
+                        alt={item?.paymentMethod || "Bank Logo"}
+                        className="h-6 object-contain"
+                      />
+                    ) : (
+                      textUtils.capitalize(item?.paymentMethod)
+                    )}
+                  </div>
+
                   <div className="col-span-2 text-right font-semibold">
                     {`${item.symbol} ${Number(item.value).toFixed(2)}`}
                   </div>
