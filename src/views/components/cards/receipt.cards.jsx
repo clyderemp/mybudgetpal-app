@@ -173,7 +173,11 @@ const ReceiptCards = ({
                 <div className="text-xs text-gray-400">
                   Category:{" "}
                   <span className="text-gray-600">
-                    {item.category || "Uncategorized"}
+                    {`${
+                      item.category === "Custom"
+                        ? item?.customCategory
+                        : item.category
+                    }` || "Uncategorized"}
                   </span>
                 </div>
               </div>

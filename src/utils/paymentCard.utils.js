@@ -58,7 +58,14 @@ const getCardDetails = (cardID) => {
   if (selectedCard) {
     const accountHolder = getAccountHolderDetails(selectedCard.owner);
     const bankLogo = getBankLogo(selectedCard?.bank);
-    return { ...selectedCard, owner: accountHolder.fname, bankLogo };
+    return {
+      ...selectedCard,
+      owner: accountHolder,
+      bankLogo,
+      string: `${accountHolder?.split(" ")[0]}'s ${
+        selectedCard?.accountType ?? selectedCard?.bank
+      }`,
+    };
   } else return selectedCard;
 };
 

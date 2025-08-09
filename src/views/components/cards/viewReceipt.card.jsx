@@ -1,10 +1,12 @@
 import React from "react";
 import { useDateUtils } from "@/utils/date.utils";
+import { usePaymentCardUtils } from "@/utils/paymentCard.utils";
 
 const ViewReceiptCard = ({ receipt }) => {
+  const paymentCard = usePaymentCardUtils.getCardDetails(
+    receipt?.paymentMethod
+  );
   if (!receipt) return null;
-
-  console.log(receipt);
 
   const formatCurrency = (value, currency) =>
     new Intl.NumberFormat(undefined, {
@@ -32,7 +34,21 @@ const ViewReceiptCard = ({ receipt }) => {
 
       {/* Payment Method */}
       <p className="text-sm mb-2">
-        <strong>Payment Method:</strong> {receipt.paymentMethod}
+        <strong>Payment Method:</strong>
+        {paymentCard?.bankLogo ? (
+          <>
+            <div className="flex items-center space-x-2">
+              <img
+                src={paymentCard.bankLogo}
+                alt={receipt?.paymentMethod || "Bank Logo"}
+                className="h-6 object-contain"
+              />
+              <p>{paymentCard?.string}</p>
+            </div>
+          </>
+        ) : (
+          textUtils.capitalize(receipt?.paymentMethod)
+        )}
       </p>
 
       {/* Note (if available) */}

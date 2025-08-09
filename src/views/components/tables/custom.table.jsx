@@ -4,23 +4,22 @@ import { useDateUtils } from "@/utils/date.utils";
 import { useAuth } from "@/context/auth.provider";
 import { useCacheUtils } from "@/utils/cache.utils";
 import { usePaymentCardUtils } from "@/utils/paymentCard.utils";
+import CustomInput from "../customs/customInput";
 
-const CustomTable = ({
-  title,
-  tableData = {},
-  defaultTable = "all",
-  onModify,
-}) => {
+const CustomTable = ({ title, tableData = {}, defaultTable, onModify }) => {
   const { accountUsers } = useAuth();
-  const [dataset, setDataset] = useState(defaultTable);
+  const [dataset, setDataset] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [filteredUser, setFilteredUser] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [search, setSearch] = useState("");
+  console.log(tableData);
 
   const textUtils = useTextUtils;
   const dateUtils = useDateUtils;
   const cardUtils = usePaymentCardUtils;
 
+  // Get the data array for the selected transaction type (dataset)
   const data = tableData?.[dataset] || [];
 
   useEffect(() => {
@@ -34,27 +33,45 @@ const CustomTable = ({
     setCurrentPage(storedPageNum || 1);
   };
 
+  // Handle user filter change
+  const handleUserFilterChange = (e) => {
+    setFilteredUser(e.target.value);
+    setCurrentPage(1); // Reset page
+  };
+
+  // Handle dataset (transaction type) change
   const handleChange = (e) => {
     setDataset(e.target.value);
     setCurrentPage(1);
   };
 
+  // Handle items per page change
   const handleItemsPerPageChange = async (e) => {
     const value = Number(e.target.value);
     await useCacheUtils.save("valuePerPage", value);
     setItemsPerPage(value);
   };
 
+  // Handle search input change
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setCurrentPage(1);
   };
 
-  const filteredData = data.filter(
-    (item) =>
-      item?.merchant?.toLowerCase().includes(search.toLowerCase()) ||
-      item?.category?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter data based on:
+  // 1. User filter (if not "all", filter by reportedBy)
+  // 2. Search filter (merchant or category match)
+  const filteredData = data.filter((item) => {
+    const matchesUser =
+      filteredUser === "all" || item.reportedBy === filteredUser;
+
+    const searchLower = search.toLowerCase();
+    const matchesSearch =
+      item?.merchant?.toLowerCase().includes(searchLower) ||
+      item?.category?.toLowerCase().includes(searchLower);
+
+    return matchesUser && matchesSearch;
+  });
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
@@ -67,6 +84,7 @@ const CustomTable = ({
     }
   };
 
+  // Helper to get user's full name
   const getUser = (uid) => {
     return `${accountUsers[uid]?.fname} ${accountUsers[uid]?.lname}`;
   };
@@ -75,8 +93,7 @@ const CustomTable = ({
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
         <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-
-        <div className="flex flex-wrap gap-3 items-center">
+        <div className="flex gap-3 items-center overflow-x-auto whitespace-nowrap">
           <input
             type="text"
             placeholder="Search..."
@@ -85,29 +102,46 @@ const CustomTable = ({
             className="border text-sm rounded-md px-2 py-1 flex-grow min-w-[150px]"
           />
 
-          <select
+          <CustomInput
+            type="dropdown"
+            value={filteredUser}
+            onChange={handleUserFilterChange}
+            placeholder="User"
+            options={[
+              { label: "All Users", value: "all" },
+              ...Object.keys(accountUsers).map((key) => ({
+                label: accountUsers[key].fname,
+                value: key,
+              })),
+            ]}
+          />
+
+          <CustomInput
+            type="dropdown"
             value={dataset}
             onChange={handleChange}
-            className="border text-sm rounded-md px-2 py-1 min-w-[120px]"
-          >
-            {Object.keys(tableData)?.map((key) => (
-              <option key={key} value={key}>
-                {textUtils.capitalize(key)}
-              </option>
-            ))}
-          </select>
+            placeholder="Transaction type"
+            options={[
+              ...Object.keys(tableData).map((key) => ({
+                label: `${useTextUtils.capitalize(key)} Receipts`,
+                value: key,
+              })),
+            ]}
+          />
 
-          <select
+          <CustomInput
+            type="dropdown"
             value={itemsPerPage}
             onChange={handleItemsPerPageChange}
-            className="border text-sm rounded-md px-2 py-1 min-w-[120px]"
-          >
-            {[5, 10, 20, 50].map((num) => (
-              <option key={num} value={num}>
-                {num} / page
-              </option>
-            ))}
-          </select>
+            placeholder="Items per page"
+            options={[
+              { label: "5 per page", value: 5 },
+              { label: "10 per page", value: 10 },
+              { label: "25 per page", value: 25 },
+              { label: "50 per page", value: 50 },
+              { label: "100 per page", value: 100 },
+            ]}
+          />
 
           {onModify && (
             <button
@@ -143,13 +177,12 @@ const CustomTable = ({
               const paymentCard = cardUtils?.getCardDetails(
                 item?.paymentMethod
               );
+
               return (
                 <div
                   key={index}
                   className="grid grid-cols-12 gap-4 items-center p-2 text-sm text-gray-900 min-w-[700px] hover:bg-secondary cursor-pointer"
-                  onClick={() => {
-                    onModify?.("edit", item);
-                  }}
+                  onClick={() => onModify?.("edit", item)}
                 >
                   <div className="col-span-1">
                     <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white font-semibold text-xs">
@@ -176,7 +209,6 @@ const CustomTable = ({
                       textUtils.capitalize(item?.paymentMethod)
                     )}
                   </div>
-
                   <div className="col-span-2 text-right font-semibold">
                     {`${item.symbol} ${Number(item.value).toFixed(2)}`}
                   </div>
