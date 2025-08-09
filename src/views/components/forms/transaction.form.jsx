@@ -357,19 +357,19 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
             />
             <CustomInput
               type="number"
-              value={newItem.price}
-              onChange={(e) =>
-                setNewItem({ ...newItem, price: e.target.value })
-              }
-              placeholder="Item Price"
-            />
-            <CustomInput
-              type="number"
               value={newItem.quantity}
               onChange={(e) =>
                 setNewItem({ ...newItem, quantity: e.target.value })
               }
               placeholder="Quantity"
+            />
+            <CustomInput
+              type="number"
+              value={newItem.price}
+              onChange={(e) =>
+                setNewItem({ ...newItem, price: e.target.value })
+              }
+              placeholder="Item Price"
             />
             <CustomButton label="Add Item" onClick={handleAddItem} />
           </div>
