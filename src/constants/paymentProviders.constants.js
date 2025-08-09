@@ -48,5 +48,17 @@ export const BANKS = {
         "https://companieslogo.com/img/orig/ADCB.AE-6c60c638.png?t=1720244490",
       color: "from-[#E30613] to-[#9D0A0F]", // ADCB red gradient
     },
+    {
+      name: "Tamara",
+      logoUrl:
+        "https://cdn-lmhnd.nitrocdn.com/PxsLpNNbBwdYkUZLVjCUhJXJMWGUSoJk/assets/images/optimized/rev-b4ef560/opticone.ae/wp-content/uploads/2024/10/62bb1cb42f682a7472585f2e_Tamara_Logo-EN.png",
+      color: "from-[#FFEEE8] to-[#FF7A00]", // Tamara peach-orange gradient
+    },
+    {
+      name: "Tabby",
+      logoUrl:
+        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQiNwLg5q5AETDBbqhSaI7gdCYcWvicii6UCw&s",
+      color: "from-[#CFFAFE] to-[#06B6D4]", // Tabby teal gradient
+    },
   ],
 };

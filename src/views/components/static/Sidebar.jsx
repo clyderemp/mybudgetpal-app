@@ -19,7 +19,7 @@ import { CURRENCIES } from "@/constants/currencies.constants";
 import { useModal } from "@/context/modal.provider";
 import CurrencySelectorModal from "../modals/currencySelector.modal";
 import { useToast } from "@/context/toast.provider";
-import { useUniRateCurrencyServices } from "@/services/server/unirate.services";
+import { useFrankfurterCurrencyServices } from "@/services/server/frankfurter.api.services";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
 import { useCacheUtils } from "@/utils/cache.utils";
 import { useActionUtils } from "@/utils/action.utils";
@@ -124,9 +124,8 @@ const Sidebar = () => {
         selectedCurrency={exchangeRate}
         onSelect={async (data) => {
           const flag = CURRENCIES.flags[data?.code];
-          const newRates = await useUniRateCurrencyServices?.getExchangeRates(
-            data?.code
-          );
+          const newRates =
+            await useFrankfurterCurrencyServices?.getExchangeRates(data?.code);
           setAllExchangeRates(newRates);
           const newExchangeRate = { ...data, flag };
           setExchangeRate(newExchangeRate);
