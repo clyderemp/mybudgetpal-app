@@ -6,14 +6,18 @@ import { useCacheUtils } from "@/utils/cache.utils";
 import { usePaymentCardUtils } from "@/utils/paymentCard.utils";
 import CustomInput from "../customs/customInput";
 
-const CustomTable = ({ title, tableData = {}, defaultTable, onModify }) => {
+const CustomTable = ({
+  title,
+  tableData = {},
+  defaultTable = "all",
+  onModify,
+}) => {
   const { accountUsers } = useAuth();
-  const [dataset, setDataset] = useState("all");
+  const [dataset, setDataset] = useState(defaultTable);
   const [currentPage, setCurrentPage] = useState(1);
   const [filteredUser, setFilteredUser] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [search, setSearch] = useState("");
-  console.log(tableData);
 
   const textUtils = useTextUtils;
   const dateUtils = useDateUtils;
@@ -29,13 +33,17 @@ const CustomTable = ({ title, tableData = {}, defaultTable, onModify }) => {
   const fetchCache = async () => {
     const storedValuePerPage = await useCacheUtils.get("valuePerPage");
     const storedPageNum = await useCacheUtils.get("pageNum");
+    const storedUserFilter = await useCacheUtils.get("userFilter");
     setItemsPerPage(storedValuePerPage || 5);
     setCurrentPage(storedPageNum || 1);
+    setFilteredUser(storedUserFilter || "all");
   };
 
   // Handle user filter change
-  const handleUserFilterChange = (e) => {
-    setFilteredUser(e.target.value);
+  const handleUserFilterChange = async (e) => {
+    const value = e.target.value;
+    await useCacheUtils.save("userFilter", value);
+    setFilteredUser(value);
     setCurrentPage(1); // Reset page
   };
 

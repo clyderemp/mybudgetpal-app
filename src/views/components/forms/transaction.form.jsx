@@ -322,55 +322,59 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
       />
 
       {/* Items Bought Section */}
-      <div className="border rounded-md p-4 space-y-3">
-        <h3 className="font-medium text-base">Items Bought</h3>
+      {transactionData?.type === "expenses" && (
+        <div className="border rounded-md p-4 space-y-3">
+          <h3 className="font-medium text-base">Items Bought</h3>
 
-        {transactionData.items?.length > 0 && (
-          <ul className="space-y-2">
-            {transactionData.items.map((item, index) => (
-              <li
-                key={index}
-                className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-md border"
-              >
-                <span>
-                  {item.name} x {item.quantity} = {item.total.toFixed(2)}{" "}
-                  {transactionData.currency}
-                </span>
-                <button
-                  onClick={() => handleRemoveItem(index)}
-                  className="text-red-600 hover:text-red-800 text-sm"
+          {transactionData.items?.length > 0 && (
+            <ul className="space-y-2">
+              {transactionData.items.map((item, index) => (
+                <li
+                  key={index}
+                  className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-md border"
                 >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <span>
+                    {item.name} x {item.quantity} = {item.total.toFixed(2)}{" "}
+                    {transactionData.currency}
+                  </span>
+                  <button
+                    onClick={() => handleRemoveItem(index)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        <div className="flex flex-col sm:flex-row gap-2 items-end">
-          <CustomInput
-            type="text"
-            value={newItem.name}
-            onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-            placeholder="Item Name"
-          />
-          <CustomInput
-            type="number"
-            value={newItem.price}
-            onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-            placeholder="Item Price"
-          />
-          <CustomInput
-            type="number"
-            value={newItem.quantity}
-            onChange={(e) =>
-              setNewItem({ ...newItem, quantity: e.target.value })
-            }
-            placeholder="Quantity"
-          />
-          <CustomButton label="Add Item" onClick={handleAddItem} />
+          <div className="flex flex-col sm:flex-row gap-2 items-end">
+            <CustomInput
+              type="text"
+              value={newItem.name}
+              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              placeholder="Item Name"
+            />
+            <CustomInput
+              type="number"
+              value={newItem.price}
+              onChange={(e) =>
+                setNewItem({ ...newItem, price: e.target.value })
+              }
+              placeholder="Item Price"
+            />
+            <CustomInput
+              type="number"
+              value={newItem.quantity}
+              onChange={(e) =>
+                setNewItem({ ...newItem, quantity: e.target.value })
+              }
+              placeholder="Quantity"
+            />
+            <CustomButton label="Add Item" onClick={handleAddItem} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex space-x-2 pt-2">
