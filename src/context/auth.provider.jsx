@@ -96,6 +96,7 @@ export default function AuthProvider({ children }) {
       let currentUser;
 
       if (!storedUserData) {
+        showToast("Loaded Fresh Data", "success");
         const userData = await useFirestoreServices.getDocument("users", uid);
 
         // Decrypt accounts
@@ -116,6 +117,7 @@ export default function AuthProvider({ children }) {
         setUser(userData);
         if (!storedActiveUser) setActiveUser(userData);
       } else {
+        showToast("Loaded Cached Data", "success");
         currentUser = storedUserData;
         setUser(currentUser);
         if (!storedActiveUser) setActiveUser(currentUser);
@@ -237,6 +239,7 @@ export default function AuthProvider({ children }) {
         "exchangeRateData",
         "coUsersData",
         "receiptsData",
+        "financialAccounts",
       ],
       user: ["userData"],
       exchangeRate: ["exchangeRateData"],

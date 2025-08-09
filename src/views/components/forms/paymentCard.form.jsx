@@ -37,15 +37,6 @@ const PaymentCardForm = ({ data, onSubmit }) => {
 
       {formData?.cardType && (
         <>
-          {/* Account Type Dropdown */}
-          <CustomInput
-            type="dropdown"
-            value={formData.accountType}
-            onChange={handleChange("accountType")}
-            placeholder="Account Type"
-            options={ACCOUNT_TYPES}
-          />
-
           {/* Account Holder Dropdown */}
           <CustomInput
             type="dropdown"
@@ -57,37 +48,47 @@ const PaymentCardForm = ({ data, onSubmit }) => {
               label: `${user.fname} ${user.lname}`,
             }))}
           />
-          <div className="flex space-x-4 items-center">
-            {/* Card Number */}
-            <CustomInput
-              type="text"
-              value={formData.number}
-              onChange={handleChange("number")}
-              placeholder="Card Number"
-              className="flex-1" // optional: make it take remaining width
-            />
+          {/* Account Type Dropdown */}
+          {formData?.cardType !== "installment" && (
+            <>
+              <CustomInput
+                type="dropdown"
+                value={formData.accountType}
+                onChange={handleChange("accountType")}
+                placeholder="Account Type"
+                options={ACCOUNT_TYPES}
+              />
+              <div className="flex space-x-4 items-center">
+                {/* Card Number */}
+                <CustomInput
+                  type="text"
+                  value={formData.number}
+                  onChange={handleChange("number")}
+                  placeholder="Card Number"
+                  className="flex-1" // optional: make it take remaining width
+                />
 
-            {/* Expiry Date */}
-            <CustomExpiryDateInput
-              value={formData.exp}
-              onChange={(newExp) =>
-                handleChange("exp")({ target: { value: newExp } })
-              }
-            />
-          </div>
-
-          {/* Provider Dropdown */}
-          <CustomInput
-            type="dropdown"
-            value={formData.provider}
-            onChange={handleChange("provider")}
-            placeholder="Provider"
-            options={PAYMENT_PROVIDERS.map((p) => ({
-              value: p.provider,
-              label: p.provider,
-            }))}
-          />
-
+                {/* Expiry Date */}
+                <CustomExpiryDateInput
+                  value={formData.exp}
+                  onChange={(newExp) =>
+                    handleChange("exp")({ target: { value: newExp } })
+                  }
+                />
+              </div>
+              {/* Provider Dropdown */}
+              <CustomInput
+                type="dropdown"
+                value={formData.provider}
+                onChange={handleChange("provider")}
+                placeholder="Provider"
+                options={PAYMENT_PROVIDERS.map((p) => ({
+                  value: p.provider,
+                  label: p.provider,
+                }))}
+              />
+            </>
+          )}
           {/* Bank Dropdown */}
           <CustomInput
             type="dropdown"

@@ -5,6 +5,7 @@ import {
   BANKS,
 } from "@/constants/paymentProviders.constants";
 import { useAuth } from "@/context/auth.provider";
+import { ACCOUNT_TYPES } from "@/constants/transaction.constants";
 
 const formatCardNumber = (num = "") => {
   return (
@@ -42,6 +43,11 @@ const getCardColor = (bankName) => {
   return bank?.color || "bg-primary";
 };
 
+const getAccountType = (type) => {
+  const accountType = ACCOUNT_TYPES.find((b) => b.value === type);
+  return accountType?.label || "Unspecified Account";
+};
+
 const getAccountHolderDetails = (ownerID) => {
   const { accountUsers } = useAuth();
   const accountHolder = accountUsers?.[ownerID];
@@ -66,6 +72,7 @@ const PaymentCard = ({ data, onEdit, onDelete }) => {
     exp = "--/--",
     provider = null,
     bank = "",
+    accountType: type,
   } = data;
 
   const formattedNumber = showFullNumber
@@ -76,10 +83,11 @@ const PaymentCard = ({ data, onEdit, onDelete }) => {
   const bankLogo = getBankLogo(bank);
   const cardColor = getCardColor(bank);
   const accountHolder = getAccountHolderDetails(owner);
+  const accountType = getAccountType(type);
 
   return (
     <div
-      className={`group relative min-w-[280px] h-[200px] bg-gradient-to-r ${cardColor} rounded-xl p-6 text-white shadow-lg cursor-pointer hover:shadow-2xl transition-shadow flex flex-col justify-between`}
+      className={`group relative min-w-[320px] h-[200px] bg-gradient-to-r ${cardColor} rounded-xl p-6 text-white shadow-lg cursor-pointer hover:shadow-2xl transition-shadow flex flex-col justify-between`}
     >
       {/* Hoverable edit/delete buttons */}
       <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -101,11 +109,21 @@ const PaymentCard = ({ data, onEdit, onDelete }) => {
 
       {/* Top: Bank left, Provider right */}
       <div className="flex justify-between items-center">
-        {bankLogo ? (
-          <img src={bankLogo} alt={bank} className="h-6 object-contain" />
-        ) : (
-          <div className="h-6" />
-        )}
+        {/* Left: Bank logo + Account type */}
+        <div className="flex items-center gap-2">
+          {bankLogo ? (
+            <img src={bankLogo} alt={bank} className="h-6 object-contain" />
+          ) : (
+            <div className="h-6" />
+          )}
+          {accountType && (
+            <span className="text-xs text-white font-medium">
+              {accountType}
+            </span>
+          )}
+        </div>
+
+        {/* Right: Provider logo */}
         {providerLogo && (
           <img
             src={providerLogo}

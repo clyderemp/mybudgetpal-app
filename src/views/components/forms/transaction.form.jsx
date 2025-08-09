@@ -66,15 +66,15 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   const mapFinancialAccountsToOptions = () => {
     const newOptions = financialAccounts
-      .map(({ id, owner, bank, provider }) => {
+      .map(({ id, owner, bank, provider, accountType: type }) => {
         const user = accountUsers?.[owner];
         const userName = user ? `${user.fname}`.trim() : "Unknown User";
+        const accountType = ACCOUNT_TYPES.find((b) => b.value === type);
 
         return {
-          label: `${userName}'s ${bank?.replaceAll(
-            "card",
-            ""
-          )} Card - ${provider}`,
+          label: `${userName}'s ${bank?.replaceAll("card", "")} ${
+            provider ?? ""
+          } Card ${accountType?.label ? `- ${accountType?.label}` : ""}`,
           value: id,
         };
       })

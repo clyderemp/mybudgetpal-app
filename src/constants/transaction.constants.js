@@ -2,12 +2,14 @@ export const ACCOUNT_TYPES = [
   { label: "Joint Account", value: "joint" },
   { label: "Personal Account", value: "personal" },
   { label: "Savings Account", value: "savings" },
+  { label: "Credit Card Account", value: "credit" },
 ];
 
 export const PAYMENT_METHODS = [
   { label: "Debit Card", value: "debit" },
   { label: "Credit Card", value: "credit" },
   { label: "Cash Payment", value: "cash" },
+  { label: "Installment 3rd-Party", value: "installment" },
 ];
 
 export const TRANSACTION_TYPES = [
