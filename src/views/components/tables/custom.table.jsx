@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTextUtils } from "@/utils/text.utils";
 import { useDateUtils } from "@/utils/date.utils";
 import { useAuth } from "@/context/auth.provider";
+import { useCacheUtils } from "@/utils/cache.utils";
 
 const CustomTable = ({
   title,
@@ -20,13 +21,24 @@ const CustomTable = ({
 
   const data = tableData?.[dataset] || [];
 
+  useEffect(() => {
+    fetchCache();
+  }, []);
+
+  const fetchCache = async () => {
+    const storedValuePerPage = await useCacheUtils.get("valuePerPage");
+    setItemsPerPage(storedValuePerPage || 5);
+  };
+
   const handleChange = (e) => {
     setDataset(e.target.value);
     setCurrentPage(1);
   };
 
-  const handleItemsPerPageChange = (e) => {
-    setItemsPerPage(Number(e.target.value));
+  const handleItemsPerPageChange = async (e) => {
+    const value = Number(e.target.value);
+    await useCacheUtils.save("valuePerPage", value);
+    setItemsPerPage(value);
     setCurrentPage(1);
   };
 

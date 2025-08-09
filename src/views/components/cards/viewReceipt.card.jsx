@@ -4,12 +4,7 @@ import { useDateUtils } from "@/utils/date.utils";
 const ViewReceiptCard = ({ receipt }) => {
   if (!receipt) return null;
 
-  const formatDate = (dateStr) =>
-    new Date(dateStr).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  console.log(receipt);
 
   const formatCurrency = (value, currency) =>
     new Intl.NumberFormat(undefined, {
@@ -55,15 +50,15 @@ const ViewReceiptCard = ({ receipt }) => {
       {receipt.items && receipt.items.length > 0 && (
         <div className="border-t border-dashed border-gray-400 pt-2">
           <h3 className="text-sm font-semibold mb-2">Items</h3>
-          {receipt.items.map(({ name, qty, price }, idx) => (
+          {receipt.items.map(({ name, quantity, price, total }, idx) => (
             <div
               key={idx}
               className="flex justify-between text-sm mb-1 last:mb-0"
             >
               <span>
-                {qty} x {name}
+                {quantity} x {name}
               </span>
-              <span>{formatCurrency(qty * price, receipt.currency)}</span>
+              <span>{formatCurrency(total, receipt.currency)}</span>
             </div>
           ))}
         </div>

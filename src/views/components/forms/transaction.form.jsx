@@ -23,7 +23,13 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     financialAccounts,
   } = useAuth();
   const { closeModal } = useModal();
-  const [transactionData, setTransactionData] = useState(data);
+
+  const [transactionData, setTransactionData] = useState({
+    ...data,
+    items: data?.items || [],
+  });
+
+  const [newItem, setNewItem] = useState({ name: "", price: "", quantity: "" });
 
   const [isFormValid, setIsFormValid] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,15 +43,13 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   useEffect(() => {
     const usersOptions = getAccountUsers();
     setUserOptions(usersOptions);
+
     if (data?._id) {
       setTransactionData((prev) => ({ ...prev, ...data }));
     } else {
       const today = new Date();
-      // Set the time to midnight (00:00:00)
       today.setHours(0, 0, 0, 0);
-
-      // Convert to ISO string without the time part
-      const isoDateWithoutTime = today.toISOString().split("T")[0]; // Only get the date part (YYYY-MM-DD)
+      const isoDateWithoutTime = today.toISOString().split("T")[0];
       handleUpdateForm("currency", exchangeRate?.code);
       handleUpdateForm("date", isoDateWithoutTime);
     }
@@ -53,14 +57,14 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   useEffect(() => {
     const validate = async () => {
-      const valid = await useFormUtils.isFormComplete(transactionData);
+      const { note, ...rest } = transactionData;
+      const valid = await useFormUtils.isFormComplete(rest);
       setIsFormValid(valid);
     };
     validate();
   }, [transactionData]);
 
   const mapFinancialAccountsToOptions = () => {
-    // Map financial accounts to option objects
     const newOptions = financialAccounts
       .map(({ id, owner, bank, provider }) => {
         const user = accountUsers?.[owner];
@@ -74,10 +78,8 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
           value: id,
         };
       })
-      // Filter out options already in paymentMethods to avoid duplicates
       .filter(({ value }) => !paymentMethods.some((pm) => pm.value === value));
 
-    // Append new unique options to paymentMethods state
     if (newOptions.length > 0) {
       setPaymentMethods([...paymentMethods, ...newOptions]);
     }
@@ -87,10 +89,58 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
     await useFormUtils.updateData(key, value, setTransactionData);
   };
 
+  const handleAddItem = () => {
+    const { name, price, quantity } = newItem;
+
+    if (!name.trim() || isNaN(price) || isNaN(quantity)) return;
+
+    const parsedPrice = parseFloat(price);
+    const parsedQty = parseInt(quantity);
+    const itemTotal = parsedPrice * parsedQty;
+
+    const updatedItems = [
+      ...(transactionData.items || []),
+      {
+        name: name.trim(),
+        price: parsedPrice,
+        quantity: parsedQty,
+        total: itemTotal,
+      },
+    ];
+
+    const newTotalValue = updatedItems.reduce(
+      (sum, item) => sum + item.total,
+      0
+    );
+
+    setTransactionData((prev) => ({
+      ...prev,
+      items: updatedItems,
+      value: newTotalValue,
+    }));
+
+    setNewItem({ name: "", price: "", quantity: "" });
+  };
+
+  const handleRemoveItem = (index) => {
+    const updatedItems = [...(transactionData.items || [])];
+    updatedItems.splice(index, 1);
+
+    const newTotalValue = updatedItems.reduce(
+      (sum, item) => sum + item.total,
+      0
+    );
+
+    setTransactionData((prev) => ({
+      ...prev,
+      items: updatedItems,
+      value: newTotalValue,
+    }));
+  };
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      console.log(transactionData);
       let response;
       if (data?._id) {
         response = await useFirestoreServices.updateDocument(
@@ -205,7 +255,7 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
           type="text"
           value={transactionData?.customCategory}
           onChange={(e) => handleUpdateForm("customCategory", e.target.value)}
-          placeholder="Category"
+          placeholder="Custom Category"
         />
       )}
 
@@ -249,7 +299,59 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
         placeholder="Additional Note"
       />
 
-      <div className="flex space-x-2">
+      {/* Items Bought Section */}
+      <div className="border rounded-md p-4 space-y-3">
+        <h3 className="font-medium text-base">Items Bought</h3>
+
+        {transactionData.items?.length > 0 && (
+          <ul className="space-y-2">
+            {transactionData.items.map((item, index) => (
+              <li
+                key={index}
+                className="flex justify-between items-center bg-gray-50 px-3 py-2 rounded-md border"
+              >
+                <span>
+                  {item.name} x {item.quantity} = {item.total.toFixed(2)}{" "}
+                  {transactionData.currency}
+                </span>
+                <button
+                  onClick={() => handleRemoveItem(index)}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2 items-end">
+          <CustomInput
+            type="text"
+            value={newItem.name}
+            onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+            placeholder="Item Name"
+          />
+          <CustomInput
+            type="number"
+            value={newItem.price}
+            onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+            placeholder="Item Price"
+          />
+          <CustomInput
+            type="number"
+            value={newItem.quantity}
+            onChange={(e) =>
+              setNewItem({ ...newItem, quantity: e.target.value })
+            }
+            placeholder="Quantity"
+          />
+          <CustomButton label="Add Item" onClick={handleAddItem} />
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex space-x-2 pt-2">
         <CustomButton
           label={data?._id ? "Save Changes" : "Create Transaction"}
           isDisabled={!isFormValid}
