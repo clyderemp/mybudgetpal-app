@@ -1,17 +1,41 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Sidebar from "@/views/components/static/Sidebar";
 import { useAuth } from "@/context/auth.provider";
 import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
 import { useCacheUtils } from "@/utils/cache.utils";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { RotateCcw, Menu } from "lucide-react";
 import ChatIcon from "@/assets/images/budgetpAL-agent.png";
+import { useScrollerUtils } from "@/utils/scroller.utils";
 
 const MainLayout = () => {
+  const mainRef = useRef(null);
+  const location = useLocation();
+  const { saveScrollPosition, restoreScrollPosition } = useScrollerUtils;
+
+  // Restore scroll on mount
+  useEffect(() => {
+    if (mainRef.current) {
+      restoreScrollPosition(mainRef.current, location.pathname);
+    }
+  }, [location.pathname]);
+
+  // Save scroll position on scroll
+  useEffect(() => {
+    const container = mainRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      saveScrollPosition(container, location.pathname);
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [location.pathname]);
+
   const { exchangeRate, allExchangeRates, setAllExchangeRates, reloadData } =
     useAuth();
   const currencyCode = exchangeRate?.code;
-
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -22,7 +46,6 @@ const MainLayout = () => {
 
   const fetchExchangeRates = async () => {
     const storedExchangeRates = await useCacheUtils.get("exchangeRates");
-
     if (!storedExchangeRates) {
       const rates = await useExchangeRateServices.getExchangeRates(
         currencyCode
@@ -34,10 +57,7 @@ const MainLayout = () => {
     }
   };
 
-  const handleRefresh = () => {
-    reloadData?.();
-  };
-
+  const handleRefresh = () => reloadData?.();
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   return (
@@ -51,7 +71,7 @@ const MainLayout = () => {
         <Sidebar />
       </div>
 
-      {/* Overlay on small screens when sidebar is open */}
+      {/* Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-40 z-30 md:hidden"
@@ -60,7 +80,10 @@ const MainLayout = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto relative min-h-screen">
+      <main
+        ref={mainRef}
+        className="flex-1 overflow-auto relative min-h-screen"
+      >
         {/* Mobile Menu Toggle */}
         <div className="p-4 md:hidden flex items-center justify-between">
           <button
@@ -75,7 +98,6 @@ const MainLayout = () => {
 
         {/* Floating Buttons */}
         <div className="fixed bottom-4 right-4 z-50 flex flex-wrap gap-2 sm:gap-3">
-          {/* Refresh Button */}
           <button
             onClick={handleRefresh}
             className="group bg-white text-gray-800 hover:bg-secondary hover:text-white border border-gray-300 shadow-lg rounded-full w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-all duration-300"
@@ -83,7 +105,6 @@ const MainLayout = () => {
             <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6 transform transition-transform duration-300 group-hover:-rotate-180" />
           </button>
 
-          {/* Chat Button */}
           <button
             className="bg-white hover:bg-secondary border border-gray-300 shadow-lg rounded-full w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center transition-all duration-300 overflow-hidden"
             onClick={() => console.log("Chat clicked")}

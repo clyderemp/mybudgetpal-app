@@ -36,7 +36,10 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   const [loading, setLoading] = useState(false);
   const [userOptions, setUserOptions] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState(PAYMENT_METHODS);
-  const [customCategories, setCustomCategories] = useState([]);
+  const [customCategories, setCustomCategories] = useState({});
+  const [merchantSuggestions, setMerchantSuggestions] = useState([]);
+  const [allMerchants, setAllMerchants] = useState([]);
+  const [merchantUsageMap, setMerchantUsageMap] = useState({});
 
   useEffect(() => {
     mapFinancialAccountsToOptions();
@@ -60,12 +63,57 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
   useEffect(() => {
     const validate = async () => {
-      const { note, items, ...rest } = transactionData;
+      const { note, account, items, ...rest } = transactionData;
       const valid = await useFormUtils.isFormComplete(rest);
       setIsFormValid(valid);
     };
     validate();
   }, [transactionData]);
+
+  useEffect(() => {
+    if (transactions?.length) {
+      const usage = {};
+      const uniqueMerchants = [];
+
+      transactions.forEach((t) => {
+        const merchant = t.merchant?.trim();
+        if (merchant) {
+          const key = merchant.toLowerCase();
+          usage[key] = (usage[key] || 0) + 1;
+
+          if (!uniqueMerchants.find((m) => m.toLowerCase() === key)) {
+            uniqueMerchants.push(merchant);
+          }
+        }
+      });
+
+      setAllMerchants(uniqueMerchants);
+      setMerchantUsageMap(usage);
+    }
+  }, [transactions]);
+
+  const handleMerchantChange = (e) => {
+    const input = e.target.value;
+    handleUpdateForm("merchant", input);
+
+    const filtered = allMerchants
+      .filter((merchant) =>
+        merchant.toLowerCase().includes(input.toLowerCase())
+      )
+      .filter(
+        (value, index, self) =>
+          self.findIndex(
+            (v) => v.toLowerCase().trim() === value.toLowerCase().trim()
+          ) === index
+      );
+
+    setMerchantSuggestions(filtered.slice(0, 5));
+  };
+
+  const handleSelectSuggestion = (merchant) => {
+    handleUpdateForm("merchant", merchant);
+    setMerchantSuggestions([]);
+  };
 
   const mapFinancialAccountsToOptions = () => {
     const newOptions = financialAccounts
@@ -99,7 +147,10 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
           .map((tx) => tx.customCategory.trim())
       )
     );
-    setCustomCategories(extractedCustomCategories);
+    setCustomCategories((prev) => ({
+      ...prev,
+      expense: extractedCustomCategories,
+    }));
   };
 
   const handleUpdateForm = async (key, value) => {
@@ -230,17 +281,38 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="h-full max-h-screen overflow-y-auto px-4 py-6 space-y-4">
       <h2 className="text-lg font-semibold">
         {data?._id ? "Edit Transaction" : "Create New Transaction"}
       </h2>
-
-      <CustomInput
-        type="text"
-        value={transactionData?.merchant}
-        onChange={(e) => handleUpdateForm("merchant", e.target.value)}
-        placeholder="Merchant Name"
-      />
+      <div className="relative">
+        <CustomInput
+          type="text"
+          value={transactionData?.merchant}
+          onChange={handleMerchantChange}
+          placeholder="Merchant Name"
+          autoComplete="off"
+        />
+        {merchantSuggestions.length > 0 && (
+          <ul className="absolute z-10 bg-white border border-gray-300 w-full mt-1 rounded-md shadow-lg max-h-40 overflow-auto text-sm">
+            {merchantSuggestions.map((merchant, index) => {
+              const count = merchantUsageMap[merchant.toLowerCase()] || 0;
+              return (
+                <li
+                  key={index}
+                  onClick={() => handleSelectSuggestion(merchant)}
+                  className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex justify-between"
+                >
+                  <span>{merchant}</span>
+                  <span className="text-gray-400 text-xs italic">{`Found in ${count} receipt${
+                    count === 1 ? "" : "s"
+                  }`}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
       <CustomInput
         type="money"
@@ -263,8 +335,10 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
         <CustomInput
           type="dropdown"
           options={[
-            ...TRANSACTION_CATEGORIES[transactionData?.type],
-            ...customCategories,
+            ...[
+              ...TRANSACTION_CATEGORIES[transactionData?.type],
+              ...(customCategories?.[transactionData?.type] ?? []),
+            ].sort(),
           ]}
           value={transactionData?.category}
           onChange={(e) => handleUpdateForm("category", e.target.value)}
@@ -292,19 +366,32 @@ const TransactionForm = ({ data = {}, onSuccess = () => {} }) => {
 
       <CustomInput
         type="dropdown"
-        options={paymentMethods}
+        options={paymentMethods?.sort((a, b) => a.label.localeCompare(b.label))}
         value={transactionData?.paymentMethod || PAYMENT_METHODS[0]}
-        onChange={(e) => handleUpdateForm("paymentMethod", e.target.value)}
+        onChange={(e) => {
+          const value = e.target.value;
+          const accountType = paymentMethods
+            ?.find((options) => {
+              return options.value === value;
+            })
+            .label?.split(" - ")[1]
+            ?.split(" ")[0]
+            ?.toLowerCase();
+          if (accountType) handleUpdateForm("account", accountType);
+          handleUpdateForm("paymentMethod", value);
+        }}
         placeholder="Payment Method"
       />
 
-      <CustomInput
-        type="dropdown"
-        options={ACCOUNT_TYPES}
-        value={transactionData?.account || ACCOUNT_TYPES[0]}
-        onChange={(e) => handleUpdateForm("account", e.target.value)}
-        placeholder="Account Type"
-      />
+      {transactionData?.paymentMethod !== "cash" && (
+        <CustomInput
+          type="dropdown"
+          options={ACCOUNT_TYPES}
+          value={transactionData?.account || ACCOUNT_TYPES[0]}
+          onChange={(e) => handleUpdateForm("account", e.target.value)}
+          placeholder="Account Type"
+        />
+      )}
 
       <CustomInput
         type="dropdown"

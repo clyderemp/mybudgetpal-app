@@ -5,7 +5,7 @@ import ReceiptCards from "@/views/components/cards/receipt.cards";
 import CustomTable from "@/views/components/tables/custom.table";
 
 const AllTransactionsPage = () => {
-  const { activeUser, filteredTransactions } = useAuth();
+  const { filteredTransactions } = useAuth();
   const transactions = filteredTransactions.all;
   const date = new Date().toDateString();
   const [recentTransactions, setRecentTransactions] = useState([]);

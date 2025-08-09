@@ -3,6 +3,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import LockIcon from "@mui/icons-material/Lock";
 import { useTextUtils } from "@/utils/text.utils";
 import { CURRENCIES } from "@/constants/currencies.constants";
+import { X } from "lucide-react";
 
 const ImageUpload = ({ value, onChange, placeholder, disabled = false }) => {
   const inputRef = useRef();
@@ -268,16 +269,31 @@ const CustomInput = ({
         </div>
       )}
 
-      <input
-        type={type === "password" ? (showPassword ? "text" : "password") : type}
-        value={autoCapitalize ? useTextUtils.capitalize(value) : value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={isDisabled}
-        className={`${shape} ${border} ${text} w-full ${
-          showIcon && (children || Icon) ? "pl-10" : ""
-        } ${errorBorderClass}`}
-      />
+      <div className="relative w-full">
+        <input
+          type={
+            type === "password" ? (showPassword ? "text" : "password") : type
+          }
+          value={autoCapitalize ? useTextUtils.capitalize(value) : value}
+          onChange={onChange}
+          placeholder={placeholder}
+          disabled={isDisabled}
+          className={`${shape} ${border} ${text} w-full pr-10 ${
+            showIcon && (children || Icon) ? "pl-10" : ""
+          } ${errorBorderClass}`}
+        />
+
+        {/* Clear Button (X) */}
+        {value && !isDisabled && (
+          <button
+            type="button"
+            onClick={() => onChange({ target: { value: "" } })}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+          >
+            <X />
+          </button>
+        )}
+      </div>
 
       {/* Password toggle icon */}
       {type === "password" && (

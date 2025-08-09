@@ -18,6 +18,8 @@ const CustomTable = ({
   const [filteredUser, setFilteredUser] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [search, setSearch] = useState("");
+  const [showDaysAgo, setShowDaysAgo] = useState(true);
+  const [showCategory, setShowCategory] = useState(true);
 
   const textUtils = useTextUtils;
   const dateUtils = useDateUtils;
@@ -34,9 +36,11 @@ const CustomTable = ({
     const storedValuePerPage = await useCacheUtils.get("valuePerPage");
     const storedPageNum = await useCacheUtils.get("pageNum");
     const storedUserFilter = await useCacheUtils.get("userFilter");
+    const storedSearchInput = await useCacheUtils.get("searchInput");
     setItemsPerPage(storedValuePerPage || 5);
     setCurrentPage(storedPageNum || 1);
     setFilteredUser(storedUserFilter || "all");
+    setSearch(storedSearchInput || "");
   };
 
   // Handle user filter change
@@ -61,8 +65,10 @@ const CustomTable = ({
   };
 
   // Handle search input change
-  const handleSearchChange = (e) => {
-    setSearch(e.target.value);
+  const handleSearchChange = async (e) => {
+    const value = e.target.value;
+    await useCacheUtils.save("searchInput", value);
+    setSearch(value);
     setCurrentPage(1);
   };
 
@@ -102,12 +108,11 @@ const CustomTable = ({
       <div className="flex flex-wrap justify-between items-center mb-6 gap-2">
         <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
         <div className="flex gap-3 items-center overflow-x-auto whitespace-nowrap">
-          <input
+          <CustomInput
             type="text"
-            placeholder="Search..."
             value={search}
             onChange={handleSearchChange}
-            className="border text-sm rounded-md px-2 py-1 flex-grow min-w-[150px]"
+            placeholder="Search..."
           />
 
           <CustomInput
@@ -171,14 +176,32 @@ const CustomTable = ({
           <div className="space-y-4 overflow-x-auto">
             <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 pb-2 border-b border-gray-100 min-w-[700px]">
               <div className="col-span-1">User</div>
-              <div className="col-span-2">Date</div>
+              <div
+                className="col-span-2 cursor-pointer"
+                onClick={() => setShowDaysAgo((prev) => !prev)}
+              >
+                {showDaysAgo ? "Days Ago" : "Item Date"}
+              </div>
               <div className="col-span-3">Merchant</div>
-              <div className="col-span-2">Category</div>
+              <div
+                className="col-span-2 cursor-pointer"
+                onClick={() => setShowCategory((prev) => !prev)}
+              >
+                {showCategory ? "Category" : "Receipt Info"}
+              </div>
               <div className="col-span-2">Paid via</div>
               <div className="col-span-2 text-right">Amount</div>
             </div>
 
             {currentData.map((item, index) => {
+              const itemDate = showDaysAgo
+                ? dateUtils.getDaysAgo(item?.date)
+                : dateUtils.getFormattedDateString(item?.date);
+              const itemData = showCategory
+                ? item?.category
+                : item?.items?.length > 0
+                ? `${item?.items?.length} items`
+                : item?.note;
               const initials = textUtils?.getInitials(
                 getUser(item?.reportedBy)
               );
@@ -197,14 +220,14 @@ const CustomTable = ({
                       {initials}
                     </div>
                   </div>
-                  <div className="col-span-2">
-                    {dateUtils.getDaysAgo(item?.date)}
-                  </div>
+                  <div className="col-span-2">{itemDate}</div>
                   <div className="col-span-3">{item?.merchant}</div>
                   <div className="col-span-2">
-                    {item?.category === "Custom"
-                      ? item?.customCategory
-                      : item?.category}
+                    {showCategory
+                      ? item?.category === "Custom"
+                        ? item?.customCategory
+                        : item?.category
+                      : itemData}
                   </div>
                   <div className="col-span-2">
                     {paymentCard?.bankLogo ? (
