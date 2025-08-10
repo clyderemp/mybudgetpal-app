@@ -110,22 +110,23 @@ export default function AuthProvider({ children }) {
         } else {
           setFinancialAccounts([]);
         }
-
         currentUser = userData;
         useFormUtils.updateData(userData._id, userData, setAccountUsers);
         await useCacheUtils.save("userData", userData);
-        setUser(userData);
         if (!storedActiveUser) setActiveUser(userData);
       } else {
         showToast("Loaded Cached Data", "success");
         currentUser = storedUserData;
-        setUser(currentUser);
         if (!storedActiveUser) setActiveUser(currentUser);
         if (storedFinancialAccounts)
           setFinancialAccounts(storedFinancialAccounts);
         useFormUtils.updateData(currentUser._id, currentUser, setAccountUsers);
       }
-
+      handleCorrectionParamsConversion(
+        currentUser?._id,
+        currentUser,
+        currentUser?.exchangeRate?.code
+      );
       // 4. Exchange Rate (after user known)
       const exchangeRateData = storedExchangeRate || currentUser.exchangeRate;
       if (!exchangeRateData?.code) throw new Error("Missing exchange rate");
@@ -172,15 +173,25 @@ export default function AuthProvider({ children }) {
         const coUsersData = await useFirestoreServices.getAllDocuments(
           `users/${uid}/coUsers`
         );
-        coUsersData?.forEach((user) =>
-          useFormUtils.updateData(user._id, user, setAccountUsers)
-        );
+        coUsersData?.forEach((user) => {
+          handleCorrectionParamsConversion(
+            user?._id,
+            currentUser,
+            currentUser?.exchangeRate?.code
+          );
+          useFormUtils.updateData(user._id, user, setAccountUsers);
+        });
         setCoUsers(coUsersData);
         await useCacheUtils.save("coUsersData", coUsersData);
       } else {
-        storedCoUsersData.forEach((user) =>
-          useFormUtils.updateData(user._id, user, setAccountUsers)
-        );
+        storedCoUsersData.forEach((user) => {
+          handleCorrectionParamsConversion(
+            user?._id,
+            currentUser,
+            currentUser?.exchangeRate?.code
+          );
+          useFormUtils.updateData(user._id, user, setAccountUsers);
+        });
         setCoUsers(storedCoUsersData);
       }
 
@@ -217,6 +228,8 @@ export default function AuthProvider({ children }) {
           await useAnalyticsUtils.getFilteredData(converted)
         );
       }
+
+      setUser(currentUser);
     } catch (err) {
       console.error("AuthProvider Error:", err);
       setUser(null);
@@ -228,6 +241,35 @@ export default function AuthProvider({ children }) {
       setDataLoaded(true);
       setRunRateConversion(false);
     }
+  };
+
+  const handleCorrectionParamsConversion = (userID, mainUser, rateCode) => {
+    const { expenses, income, savings, credit } =
+      mainUser.correctionParams?.[userID];
+
+    const expenseParams = {
+      value: Number(expenses),
+      currency: rateCode || "CAD",
+    };
+    const incomeParams = {
+      value: Number(income),
+      currency: rateCode || "CAD",
+    };
+    const savingsParams = {
+      value: Number(savings),
+      currency: rateCode || "CAD",
+    };
+    const creditParams = {
+      value: Number(credit),
+      currency: rateCode || "CAD",
+    };
+    const converted = {
+      expenses: expenseParams?.value,
+      income: incomeParams?.value,
+      savings: savingsParams?.value,
+      credit: creditParams?.value,
+    };
+    mainUser.correctionParams[userID] = converted;
   };
 
   // 🔁 Data Reload Handler

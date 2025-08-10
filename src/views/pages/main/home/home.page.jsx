@@ -5,7 +5,8 @@ import AnalyticsSection from "./sections/analytics.section";
 import ReceiptCards from "@/views/components/cards/receipt.cards";
 
 const HomePage = () => {
-  const { activeUser, transactions } = useAuth();
+  const { user, activeUser, transactions } = useAuth();
+  console.log(user);
   const date = new Date().toDateString();
   const [recentTransactions, setRecentTransactions] = useState([]);
 
