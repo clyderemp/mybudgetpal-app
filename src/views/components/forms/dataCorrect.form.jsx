@@ -7,25 +7,23 @@ import { useAuth } from "@/context/auth.provider";
 const fields = ["expenses", "credit", "income", "savings"];
 
 const DataCorrectionForm = ({ initialData, onSave, onCancel }) => {
-  const { user, exchangeRate } = useAuth();
+  const { exchangeRate } = useAuth();
 
-  // Get saved corrections
-  const savedCorrections = user?.correctionParams?.[initialData?.user] || {};
-
-  // Combine initial value and correction to get corrected value
+  const getRaw = (field) => parseFloat(initialData?.raw?.[field]) || 0;
   const getCorrected = (field) =>
-    (initialData?.[field] || 0) + (savedCorrections?.[field] || 0);
+    parseFloat(initialData?.corrections?.[field]) || 0;
 
-  const [formValues, setFormValues] = useState({
-    expenses: getCorrected("expenses"),
-    credit: getCorrected("credit"),
-    income: getCorrected("income"),
-    savings: getCorrected("savings"),
+  // Initial input values come from corrected values (i.e., corrections = final values)
+  const [formValues, setFormValues] = useState(() => {
+    const initial = {};
+    fields.forEach((field) => {
+      initial[field] = getCorrected(field) || getRaw(field);
+    });
+    return initial;
   });
 
   const handleChange = (field, value) => {
     const parsed = parseFloat(value) || 0;
-
     setFormValues((prev) => ({
       ...prev,
       [field]: parsed,
@@ -33,14 +31,8 @@ const DataCorrectionForm = ({ initialData, onSave, onCancel }) => {
   };
 
   const handleSubmit = () => {
-    // Calculate corrections to return
-    const correctionValues = fields.reduce((acc, field) => {
-      const original = parseFloat(initialData?.[field]) || 0;
-      const corrected = parseFloat(formValues[field]) || 0;
-      acc[field] = corrected - original;
-      return acc;
-    }, {});
-    onSave?.(correctionValues);
+    // Return corrected values (not diffs)
+    onSave?.(formValues);
   };
 
   const formatMoney = (value) =>
@@ -50,38 +42,39 @@ const DataCorrectionForm = ({ initialData, onSave, onCancel }) => {
     <div className="bg-white p-4 space-y-4 w-full">
       <h2 className="text-lg font-medium mb-4">🛠️ Correct Analytics Values</h2>
 
-      <div className="grid grid-cols-4 font-semibold border-b pb-2 text-sm text-gray-600">
+      <div className="grid grid-cols-[120px_1fr_1fr_1fr] items-center py-2 border-b text-sm gap-4 font-semibold">
         <span>Label</span>
-        <span>Original</span>
-        <span>Corrected</span>
+        <span>Calculated Amount</span>
+        <span>Actual Amount</span>
         <span>Correction</span>
       </div>
 
       {fields.map((field) => {
-        const original = parseFloat(initialData?.[field]) || 0;
-        const corrected = parseFloat(formValues[field]) || 0;
-        const correction = corrected - original;
+        const raw = getRaw(field);
+        const corrected = formValues[field]?.toFixed(2);
+        const correction = corrected - raw;
 
         return (
           <div
             key={field}
-            className="grid grid-cols-4 items-center py-2 border-b text-sm gap-4"
+            className="grid grid-cols-[120px_1fr_1fr_1fr] items-center py-2 border-b text-sm gap-4"
           >
-            <div className="capitalize">{field}</div>
+            {/* Label - Thinner */}
+            <div className="capitalize text-gray-600">{field}</div>
 
-            {/* Original Value */}
-            <div className="text-gray-500">{formatMoney(original)}</div>
+            {/* Original (Raw) */}
+            <div className="text-gray-500">{formatMoney(raw)}</div>
 
-            {/* Corrected Value (Editable) */}
+            {/* Corrected (Input) */}
             <div>
               <CustomInput
                 type="number"
-                value={formValues[field]}
+                value={corrected}
                 onChange={(e) => handleChange(field, e.target.value)}
               />
             </div>
 
-            {/* Correction */}
+            {/* Correction Display */}
             <div
               className={`${
                 correction === 0

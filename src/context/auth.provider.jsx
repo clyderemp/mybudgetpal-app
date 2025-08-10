@@ -99,6 +99,19 @@ export default function AuthProvider({ children }) {
         showToast("Loaded Fresh Data", "success");
         const userData = await useFirestoreServices.getDocument("users", uid);
 
+        // Convert Correction Params
+        const entries = Object.entries(userData.correctionParams || {});
+
+        await Promise.all(
+          entries.map(async ([uid, correction]) => {
+            const convertedVals = await handleCorrectionParamsConversion(
+              correction,
+              userData?.exchangeRate
+            );
+            userData.correctionParams[uid].data = convertedVals;
+          })
+        );
+
         // Decrypt accounts
         if (userData?.financialAccounts) {
           const decrypted = await useEncryptionUtils.decryptData(
@@ -122,11 +135,6 @@ export default function AuthProvider({ children }) {
           setFinancialAccounts(storedFinancialAccounts);
         useFormUtils.updateData(currentUser._id, currentUser, setAccountUsers);
       }
-      handleCorrectionParamsConversion(
-        currentUser?._id,
-        currentUser,
-        currentUser?.exchangeRate?.code
-      );
       // 4. Exchange Rate (after user known)
       const exchangeRateData = storedExchangeRate || currentUser.exchangeRate;
       if (!exchangeRateData?.code) throw new Error("Missing exchange rate");
@@ -174,22 +182,12 @@ export default function AuthProvider({ children }) {
           `users/${uid}/coUsers`
         );
         coUsersData?.forEach((user) => {
-          handleCorrectionParamsConversion(
-            user?._id,
-            currentUser,
-            currentUser?.exchangeRate?.code
-          );
           useFormUtils.updateData(user._id, user, setAccountUsers);
         });
         setCoUsers(coUsersData);
         await useCacheUtils.save("coUsersData", coUsersData);
       } else {
         storedCoUsersData.forEach((user) => {
-          handleCorrectionParamsConversion(
-            user?._id,
-            currentUser,
-            currentUser?.exchangeRate?.code
-          );
           useFormUtils.updateData(user._id, user, setAccountUsers);
         });
         setCoUsers(storedCoUsersData);
@@ -243,33 +241,55 @@ export default function AuthProvider({ children }) {
     }
   };
 
-  const handleCorrectionParamsConversion = (userID, mainUser, rateCode) => {
-    const { expenses, income, savings, credit } =
-      mainUser.correctionParams?.[userID];
-
+  const handleCorrectionParamsConversion = async (
+    correctionParams,
+    exchangeRateData
+  ) => {
+    const { expenses, income, savings, credit } = correctionParams?.data;
+    const exchangeRate = correctionParams?.exchangeRate;
     const expenseParams = {
       value: Number(expenses),
-      currency: rateCode || "CAD",
+      currency: exchangeRate?.code || "CAD",
     };
     const incomeParams = {
       value: Number(income),
-      currency: rateCode || "CAD",
+      currency: exchangeRate?.code || "CAD",
     };
     const savingsParams = {
       value: Number(savings),
-      currency: rateCode || "CAD",
+      currency: exchangeRate?.code || "CAD",
     };
     const creditParams = {
       value: Number(credit),
-      currency: rateCode || "CAD",
+      currency: exchangeRate?.code || "CAD",
     };
     const converted = {
-      expenses: expenseParams?.value,
-      income: incomeParams?.value,
-      savings: savingsParams?.value,
-      credit: creditParams?.value,
+      expenses: Number(
+        await useFrankfurterCurrencyServices.convertRate(
+          expenseParams,
+          exchangeRateData
+        )
+      ),
+      income: Number(
+        await useFrankfurterCurrencyServices.convertRate(
+          incomeParams,
+          exchangeRateData
+        )
+      ),
+      savings: Number(
+        await useFrankfurterCurrencyServices.convertRate(
+          savingsParams,
+          exchangeRateData
+        )
+      ),
+      credit: Number(
+        await useFrankfurterCurrencyServices.convertRate(
+          creditParams,
+          exchangeRateData
+        )
+      ),
     };
-    mainUser.correctionParams[userID] = converted;
+    return converted;
   };
 
   // 🔁 Data Reload Handler

@@ -39,11 +39,17 @@ const DataCorrectorCard = () => {
   }, [activeTab, transactions, accountUsers]);
 
   const handleOpenCorrectorForm = () => {
-    const selectedUser = analytics[activeUserTabID].raw;
+    const selectedUser = analytics[activeUserTabID];
     const data = {
-      ...selectedUser,
-      expenses: selectedUser?.expenses?.total,
       user: activeUserTabID,
+      raw: {
+        ...selectedUser?.raw,
+        expenses: selectedUser?.raw?.expenses?.total,
+      },
+      corrections: {
+        ...selectedUser,
+        expenses: selectedUser?.expenses?.total,
+      },
     };
     openModal(
       <DataCorrectionForm initialData={data} onSave={handleSaveCorrection} />
@@ -55,7 +61,7 @@ const DataCorrectorCard = () => {
       await useFirestoreServices.updateDocument("users", user?._id, {
         correctionParams: {
           ...user?.correctionParams,
-          [activeUserTabID]: data,
+          [activeUserTabID]: { data, exchangeRate },
         },
       });
       closeModal();

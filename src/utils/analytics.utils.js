@@ -221,8 +221,7 @@ const getUserAnalytics = async (data = [], users = {}, type = "all") => {
     let installment = 0;
     let expenseTotal = 0;
     const categories = {};
-    const correctionValues = correctionParams[uid];
-
+    const correctionValues = correctionParams[uid]?.data;
     userData.forEach((item) => {
       const value = parseFloat(item.value || "0");
       const category = item.category || "Uncategorized";
@@ -266,12 +265,13 @@ const getUserAnalytics = async (data = [], users = {}, type = "all") => {
     });
     result[uid] = {
       name: `${users[uid].fname || ""} ${users[uid].lname || ""}`.trim(),
-      savings: +savings.toFixed(2) + correctionValues["savings"],
-      income: +income.toFixed(2) + correctionValues["income"],
-      credit: +credit.toFixed(2) + correctionValues["credit"],
-      installment: +installment.toFixed(2) + correctionValues["installment"],
+      savings: +savings.toFixed(2) + (correctionValues?.savings ?? 0),
+      income: +income.toFixed(2) + (correctionValues?.income ?? 0),
+      credit: +credit.toFixed(2) + (correctionValues?.credit ?? 0),
+      installment:
+        +installment.toFixed(2) + (correctionValues?.installment ?? 0),
       expenses: {
-        total: +expenseTotal.toFixed(2) + correctionValues["expenses"],
+        total: +expenseTotal.toFixed(2) + (correctionValues?.expenses ?? 0),
         categories,
       },
       raw: {

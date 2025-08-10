@@ -6,7 +6,6 @@ import ReceiptCards from "@/views/components/cards/receipt.cards";
 
 const HomePage = () => {
   const { user, activeUser, transactions } = useAuth();
-  console.log(user);
   const date = new Date().toDateString();
   const [recentTransactions, setRecentTransactions] = useState([]);
 
