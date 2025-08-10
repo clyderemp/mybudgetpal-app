@@ -45,7 +45,7 @@ export const ModalProvider = ({ children }) => {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, y: 50 }} // slide down by 50px + fade out
               transition={{ duration: 0.15, ease: "easeInOut" }}
-              className="relative bg-white p-6 rounded-2xl shadow-2xl max-w-lg w-full"
+              className="relative bg-white p-6 rounded-2xl shadow-2xl max-w-2xl w-full"
             >
               {modalData.showClose && (
                 <button

@@ -37,10 +37,14 @@ const CustomTable = ({
     const storedPageNum = await useCacheUtils.get("pageNum");
     const storedUserFilter = await useCacheUtils.get("userFilter");
     const storedSearchInput = await useCacheUtils.get("searchInput");
-    setItemsPerPage(storedValuePerPage || 5);
-    setCurrentPage(storedPageNum || 1);
-    setFilteredUser(storedUserFilter || "all");
-    setSearch(storedSearchInput || "");
+    const storedShowCategory = await useCacheUtils.get("showCategory");
+    const storedShowDaysAgo = await useCacheUtils.get("showDaysAgo");
+    setItemsPerPage(storedValuePerPage ?? 5);
+    setCurrentPage(storedPageNum ?? 1);
+    setFilteredUser(storedUserFilter ?? "all");
+    setSearch(storedSearchInput ?? "");
+    setShowCategory(storedShowCategory ?? true);
+    setShowDaysAgo(storedShowDaysAgo ?? true);
   };
 
   // Handle user filter change
@@ -178,14 +182,21 @@ const CustomTable = ({
               <div className="col-span-1">User</div>
               <div
                 className="col-span-2 cursor-pointer"
-                onClick={() => setShowDaysAgo((prev) => !prev)}
+                onClick={async () => {
+                  await useCacheUtils.save("showDaysAgo", !showDaysAgo);
+                  setShowDaysAgo((prev) => !prev);
+                }}
               >
                 {showDaysAgo ? "Days Ago" : "Item Date"}
               </div>
               <div className="col-span-3">Merchant</div>
               <div
                 className="col-span-2 cursor-pointer"
-                onClick={() => setShowCategory((prev) => !prev)}
+                onClick={async () => {
+                  const newVal = !showCategory;
+                  await useCacheUtils.save("showCategory", !showCategory);
+                  setShowCategory((prev) => !prev);
+                }}
               >
                 {showCategory ? "Category" : "Receipt Info"}
               </div>

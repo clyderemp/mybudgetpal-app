@@ -63,6 +63,7 @@ export const TRANSACTION_CATEGORIES = {
   savings: [
     "Short Term Savings",
     "Long Term Savings",
+    "Joint Savings",
     "Emergency Funds",
     "Retirement Savings",
     "Investment Savings",

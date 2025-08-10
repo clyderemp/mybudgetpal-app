@@ -149,7 +149,7 @@ const AnalyticsCard = ({
 
       <div className="text-center">
         <div className="mb-4">
-          <h2 className={`text-3xl font-bold ${accentTextClass} mb-2`}>
+          <h2 className={`text-2xl font-bold ${accentTextClass} mb-2`}>
             {value}
           </h2>
           <p className="text-gray-600 text-sm">{description}</p>

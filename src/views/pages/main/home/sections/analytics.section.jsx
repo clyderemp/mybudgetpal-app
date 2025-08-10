@@ -128,19 +128,20 @@ const AnalyticsSection = () => {
 
     const currency = user?.savings?.currency || "CAD";
     const progress = (totalSavings / user?.savings?.goal) * 100;
+    const string = `${useTextUtils.getMoneyText(
+      totalSavings,
+      currency,
+      "short"
+    )} / ${useTextUtils.getMoneyText(user?.savings?.goal, currency, "short")}`;
     setSavingsGoalTracker({
-      string: `${useTextUtils.getMoneyText(
-        user?.savings?.goal,
-        currency,
-        "short"
-      )}`,
+      string: string,
       value: progress,
       user: activeUser?.fname,
     });
   };
 
   const fetchSpendingInsightsData = async () => {
-    const spendingInsights = useAnalyticsUtils.getUserAnalytics(
+    const spendingInsights = await useAnalyticsUtils.getUserAnalytics(
       transactions,
       accountUsers,
       "all"

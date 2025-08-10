@@ -10,6 +10,7 @@ import CreditPage from "@/views/pages/main/transactions/credit.page";
 import UsersPage from "@/views/pages/main/accounts/users.page";
 import CardsPage from "@/views/pages/main/accounts/cards.page";
 import UnderConstructionRedirect from "@/views/components/customs/customRedirect";
+import SettingsPage from "@/views/pages/main/settings/settings.page";
 
 const MainStack = () => (
   <Routes>
@@ -23,6 +24,7 @@ const MainStack = () => (
       <Route path="/transactions/credit" element={<CreditPage />} />
       <Route path="/accounts/users" element={<UsersPage />} />
       <Route path="/accounts/cards" element={<CardsPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
 
       {/* Catch all unmatched routes, show toast, redirect */}
       <Route path="*" element={<UnderConstructionRedirect />} />

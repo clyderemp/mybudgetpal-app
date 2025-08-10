@@ -15,7 +15,10 @@ import {
   subWeeks,
   subMonths,
   subYears,
+  compareDesc,
 } from "date-fns";
+import { useCacheUtils } from "./cache.utils";
+import { useFilterUtils } from "./filter.utils";
 
 countries.registerLocale(enLocale);
 
@@ -188,8 +191,10 @@ const getAverage = (data, type = "weekly") => {
   };
 };
 
-const getUserAnalytics = (data = [], users = {}, type = "all") => {
+const getUserAnalytics = async (data = [], users = {}, type = "all") => {
   const now = new Date();
+  const { correctionParams } = await useCacheUtils.get("userData");
+  const cards = await useCacheUtils.get("financialAccounts");
 
   const matchPeriod = {
     all: () => true,
@@ -203,38 +208,81 @@ const getUserAnalytics = (data = [], users = {}, type = "all") => {
   const result = {};
 
   Object.keys(users).forEach((uid) => {
-    const userData = data.filter((item) => {
-      const itemDate = parseISO(item.date);
-      return item.reportedBy === uid && isInPeriod(itemDate);
-    });
+    const userData = data
+      .filter((item) => {
+        const itemDate = parseISO(item.date);
+        return item.reportedBy === uid && isInPeriod(itemDate);
+      })
+      .sort((a, b) => compareDesc(parseISO(b.date), parseISO(a.date)));
 
     let savings = 0;
     let income = 0;
+    let credit = 0;
+    let installment = 0;
     let expenseTotal = 0;
     const categories = {};
+    const correctionValues = correctionParams[uid];
 
     userData.forEach((item) => {
       const value = parseFloat(item.value || "0");
       const category = item.category || "Uncategorized";
       const entryType = item.type;
+      let paymentMethod = item?.paymentMethod;
 
-      if (entryType === "income") {
-        income += value;
-      } else if (entryType === "expenses") {
-        expenseTotal += value;
-        categories[category] = (categories[category] || 0) + value;
-      } else if (entryType === "savings") {
-        savings += value;
+      const [selectedCard] = useFilterUtils.filterByKeyValue(
+        cards,
+        "id",
+        paymentMethod
+      );
+      paymentMethod = selectedCard?.cardType ?? paymentMethod;
+
+      switch (paymentMethod) {
+        case "credit":
+          credit += value;
+          break;
+        case "installment":
+          installment += value;
+          break;
+        default:
+          switch (entryType) {
+            case "income":
+              income += value;
+              break;
+
+            case "expenses":
+              expenseTotal += value;
+              categories[category] = (categories[category] || 0) + value;
+              break;
+
+            case "savings":
+              savings += value;
+              break;
+
+            default:
+              break;
+          }
+          break;
       }
     });
-
     result[uid] = {
       name: `${users[uid].fname || ""} ${users[uid].lname || ""}`.trim(),
-      savings: +savings.toFixed(2),
-      income: +income.toFixed(2),
+      savings: +savings.toFixed(2) + correctionValues["savings"],
+      income: +income.toFixed(2) + correctionValues["income"],
+      credit: +credit.toFixed(2) + correctionValues["credit"],
+      installment: +installment.toFixed(2) + correctionValues["installment"],
       expenses: {
-        total: +expenseTotal.toFixed(2),
+        total: +expenseTotal.toFixed(2) + correctionValues["expenses"],
         categories,
+      },
+      raw: {
+        savings: +savings.toFixed(2),
+        income: +income.toFixed(2),
+        credit: +credit.toFixed(2),
+        installment: +installment.toFixed(2),
+        expenses: {
+          total: +expenseTotal.toFixed(2),
+          categories,
+        },
       },
     };
   });

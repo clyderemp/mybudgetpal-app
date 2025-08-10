@@ -1,4 +1,3 @@
-import { useBackendServices } from "@/services/server/backend.services";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
 import { arrayUnion } from "firebase/firestore";
 
