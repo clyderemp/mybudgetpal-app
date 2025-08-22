@@ -51,7 +51,7 @@ export const BANKS = {
     {
       name: "Tamara",
       logoUrl:
-        "https://cdn-lmhnd.nitrocdn.com/PxsLpNNbBwdYkUZLVjCUhJXJMWGUSoJk/assets/images/optimized/rev-b4ef560/opticone.ae/wp-content/uploads/2024/10/62bb1cb42f682a7472585f2e_Tamara_Logo-EN.png",
+        "https://dka575ofm4ao0.cloudfront.net/pages-transactional_logos/retina/254863/Logo_Badge-2.png",
       color: "from-[#FFEEE8] to-[#FF7A00]", // Tamara peach-orange gradient
     },
     {
