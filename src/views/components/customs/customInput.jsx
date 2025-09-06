@@ -79,6 +79,7 @@ const CustomInput = ({
   autoCapitalize = false,
   isDisabled = false,
   showIcon = false,
+  multiSelect = false,
 
   // New props for money type
   currencyOptions = CURRENCIES.codes,
@@ -146,19 +147,43 @@ const CustomInput = ({
   }
 
   if (type === "dropdown") {
+    const handleMultiChange = (e) => {
+      if (multiSelect) {
+        // Collect selected options into an array
+        const selected = Array.from(
+          e.target.selectedOptions,
+          (opt) => opt.value
+        );
+        onChange(selected);
+      } else {
+        onChange(e);
+      }
+    };
+
     return (
       <select
-        value={value}
-        onChange={onChange}
+        value={multiSelect ? value || [] : value}
+        onChange={handleMultiChange}
         className={`${shape} ${border} ${text} w-full border rounded p-2 ${errorBorderClass}`}
         disabled={isDisabled}
+        multiple={multiSelect} // <-- pass dynamically
       >
-        <option value="">{`Select ${placeholder?.toLowerCase()}`}</option>
-        {options?.map((opt, idx) => (
-          <option key={idx} value={opt.value ?? opt}>
-            {opt.label ?? useTextUtils.capitalize(opt)}
-          </option>
-        ))}
+        {!multiSelect && (
+          <option value="">{`Select ${placeholder?.toLowerCase()}`}</option>
+        )}
+        {options?.map((opt, idx) => {
+          const optionValue = typeof opt === "string" ? opt : opt.value;
+          const optionLabel =
+            typeof opt === "string"
+              ? useTextUtils.capitalize(opt)
+              : opt.label ?? opt.value;
+
+          return (
+            <option key={idx} value={optionValue}>
+              {optionLabel}
+            </option>
+          );
+        })}
       </select>
     );
   }

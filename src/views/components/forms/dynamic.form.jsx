@@ -2,8 +2,20 @@ import React, { useState, useEffect } from "react";
 import CustomInput from "../customs/customInput";
 import CustomButton from "../customs/customButton";
 
-const DynamicForm = ({ schema = {}, defaultData = {}, onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState({});
+const DynamicForm = ({
+  title,
+  schema = {},
+  defaultData = {},
+  onSubmit,
+  onCancel,
+}) => {
+  const [formData, setFormData] = useState(() => {
+    const initialData = {};
+    Object.keys(schema).forEach((key) => {
+      initialData[key] = defaultData[key] ?? "";
+    });
+    return initialData;
+  });
 
   useEffect(() => {
     const initialData = {};
@@ -11,7 +23,7 @@ const DynamicForm = ({ schema = {}, defaultData = {}, onSubmit, onCancel }) => {
       initialData[key] = defaultData[key] ?? "";
     });
     setFormData(initialData);
-  }, [schema, defaultData]);
+  }, [JSON.stringify(schema), JSON.stringify(defaultData)]);
 
   const handleChange = (key) => (e) => {
     const value = e?.target?.value ?? e;
@@ -25,6 +37,9 @@ const DynamicForm = ({ schema = {}, defaultData = {}, onSubmit, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Optional title */}
+      {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
+
       {Object.entries(schema).map(([key, config]) => (
         <div key={key}>
           <label className="block mb-1 font-medium">
@@ -37,14 +52,16 @@ const DynamicForm = ({ schema = {}, defaultData = {}, onSubmit, onCancel }) => {
             placeholder={config.placeholder || ""}
             options={config.options || []}
             isDisabled={!config.allowEdit && defaultData[key]}
+            multiSelect={config?.multiSelect}
           />
         </div>
       ))}
 
       <div className="flex justify-end gap-2">
-        <CustomButton className="py-2" label="Save" onClick={handleSubmit} />
+        <CustomButton type="submit" className="py-2" label="Save" />
         {onCancel && (
           <CustomButton
+            type="button"
             color="danger"
             className="py-2"
             label="Cancel"

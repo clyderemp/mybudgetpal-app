@@ -9,11 +9,11 @@ import {
   ShoppingBasket,
   Settings,
   LogOut,
+  PencilRuler,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTextUtils } from "@/utils/text.utils";
-import { MODE } from "@/configs/servers.config";
 import { useDateUtils } from "@/utils/date.utils";
 import { CURRENCIES } from "@/constants/currencies.constants";
 import { useModal } from "@/context/modal.provider";
@@ -89,6 +89,18 @@ const Sidebar = () => {
       submenu: [
         { name: "User Accounts", path: "/accounts/users" },
         { name: "Card Accounts", path: "/accounts/cards" },
+      ],
+    },
+    {
+      name: "Planner",
+      icon: PencilRuler,
+      path: "/planner",
+      hasSubmenu: true,
+      key: "planner",
+      submenu: [
+        { name: "Budget Planner", path: "/planner/budget" },
+        { name: "Credit Payments", path: "/planner/credit" },
+        { name: "Savings Planner", path: "/planner/savings" },
       ],
     },
     {

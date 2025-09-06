@@ -17,6 +17,7 @@ import { useEncryptionUtils } from "@/utils/encryption.utils";
 
 // Toast
 import { useToast } from "./toast.provider";
+import { useGeneratorUtils } from "@/utils/generator.utils";
 
 // Firebase Auth init
 const { auth } = useFirebaseConfig;
@@ -40,6 +41,7 @@ export default function AuthProvider({ children }) {
   const [activeUser, setActiveUser] = useState(null);
   const [accountUsers, setAccountUsers] = useState(null);
   const [transactions, setTransactions] = useState(null);
+  const [budgetData, setBudgetData] = useState(null);
   const [filteredTransactions, setFilteredTransactions] = useState(null);
   const [coUsers, setCoUsers] = useState(null);
   const [financialAccounts, setFinancialAccounts] = useState(null);
@@ -75,6 +77,7 @@ export default function AuthProvider({ children }) {
         storedUserData,
         storedActiveUser,
         storedReceiptsData,
+        storedBudgetData,
         storedCoUsersData,
         storedExchangeRate,
         storedExchangeRates,
@@ -83,6 +86,7 @@ export default function AuthProvider({ children }) {
         useCacheUtils.get("userData"),
         useCacheUtils.get("activeUser"),
         useCacheUtils.get("receiptsData"),
+        useCacheUtils.get("budgetData"),
         useCacheUtils.get("coUsersData"),
         useCacheUtils.get("exchangeRateData"),
         useCacheUtils.get("exchangeRates"),
@@ -227,6 +231,17 @@ export default function AuthProvider({ children }) {
         );
       }
 
+      // 8. Budget Data
+      if (!storedBudgetData) {
+        let budgetData = await useFirestoreServices.getAllDocuments(
+          `users/${uid}/budgetData`
+        );
+        await useCacheUtils.save("budgetData", budgetData);
+        setBudgetData(budgetData || []);
+      } else {
+        setBudgetData(storedBudgetData);
+      }
+
       setUser(currentUser);
     } catch (err) {
       console.error("AuthProvider Error:", err);
@@ -301,6 +316,7 @@ export default function AuthProvider({ children }) {
         "exchangeRateData",
         "coUsersData",
         "receiptsData",
+        "budgetData",
         "financialAccounts",
       ],
       user: ["userData"],
@@ -396,6 +412,53 @@ export default function AuthProvider({ children }) {
     setLoading(false);
   };
 
+  const handleUpdateBudgetData = async (type, data) => {
+    if (!data) return;
+
+    // Edit or Delete existing document
+    if (data._id) {
+      if (type === "edit") {
+        await useFirestoreServices.updateDocument(
+          `users/${uid}/budgetData`,
+          data._id,
+          data
+        );
+
+        // Update local state and cache
+        const updatedData = budgetData.map((item) =>
+          item._id === data._id ? data : item
+        );
+        setBudgetData(updatedData);
+        await useCacheUtils.save("budgetData", updatedData);
+      } else if (type === "delete") {
+        await useFirestoreServices.deleteDocument(
+          `users/${uid}/budgetData`,
+          data._id
+        );
+
+        // Remove from local state and cache
+        const updatedData = budgetData.filter((item) => item._id !== data._id);
+        setBudgetData(updatedData);
+        await useCacheUtils.save("budgetData", updatedData);
+      }
+    } else {
+      // Add new document
+      const newData = {
+        ...data,
+        _id: useGeneratorUtils.generateUid(`budget-${data?.type}`),
+      };
+      await useFirestoreServices.addDocument(
+        `users/${uid}/budgetData`,
+        newData
+      );
+
+      // Update local state and cache
+      const updatedData = [...budgetData, newData];
+      setBudgetData(updatedData);
+      await useCacheUtils.save("budgetData", updatedData);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -405,6 +468,7 @@ export default function AuthProvider({ children }) {
         accountUsers,
         financialAccounts,
         transactions,
+        budgetData,
         filteredTransactions,
         coUsers,
         exchangeRate,
@@ -418,6 +482,7 @@ export default function AuthProvider({ children }) {
         runRateConversion: setRunRateConversion,
         updateReceipts: handleUpdateReceipts,
         updateFinancialAccounts: handleUpdateFinancialAccounts,
+        updateBudgetData: handleUpdateBudgetData,
       }}
     >
       {children}
