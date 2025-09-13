@@ -9,16 +9,18 @@ export const BudgetTable = ({
   onRowClick,
 }) => {
   return (
-    <div className="my-6 bg-gray-50 rounded-xl p-4 shadow-sm">
+    <div className="bg-gray-50 p-4 shadow-sm">
       {/* Header with title + add button */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">{title}</h2>
-        <button
-          onClick={onAdd}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary-dark transition"
-        >
-          <Plus size={16} /> Add
-        </button>
+        {onAdd && (
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary-dark transition"
+          >
+            <Plus size={16} /> Add
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -38,9 +40,9 @@ export const BudgetTable = ({
           </thead>
           <tbody>
             {data.length > 0 ? (
-              data.map((item) => (
+              data.map((item, idx) => (
                 <tr
-                  key={item.id}
+                  key={idx}
                   className="border-b border-gray-100 hover:bg-gray-100 transition cursor-pointer"
                   onClick={() => onRowClick?.(item)}
                 >

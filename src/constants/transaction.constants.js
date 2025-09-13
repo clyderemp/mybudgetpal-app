@@ -24,6 +24,7 @@ export const TRANSACTION_CATEGORIES = {
     "Custom",
     // FIXED EXPENSES
     "Car Payments",
+    "Car Rental",
     "Credit Payments",
     "Insurance",
     "Internet Bill",
@@ -62,6 +63,7 @@ export const TRANSACTION_CATEGORIES = {
   credit: ["Personal Loan", "Credit Card", "Student Loan", "Auto Loan"],
   savings: [
     "Short Term Savings",
+    "Personal Savings",
     "Long Term Savings",
     "Joint Savings",
     "Emergency Funds",

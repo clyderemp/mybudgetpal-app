@@ -3,7 +3,7 @@
 import { CURRENCIES } from "@/constants/currencies.constants";
 import { useCacheUtils } from "@/utils/cache.utils";
 
-const BASE_URL = "https://api.frankfurter.app";
+const BASE_URL = "https://api.frankfurter.dev/v1";
 
 async function fetchWithRetry(url, retries = 3) {
   const delay = (ms) => new Promise((res) => setTimeout(res, ms));

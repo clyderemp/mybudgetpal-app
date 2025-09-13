@@ -6,6 +6,7 @@ import { useFirebaseConfig } from "@/configs/firebase.config";
 import { useFirebaseAuth } from "@/services/client/firebase-auth.service";
 import { useFirestoreServices } from "@/services/client/firebase-firestore.service";
 import { useFrankfurterCurrencyServices } from "@/services/server/frankfurter.api.services";
+import { useExchangeRateServices } from "@/services/server/exchange-rate.services";
 
 // Utilities
 import { useCacheUtils } from "@/utils/cache.utils";
@@ -32,6 +33,7 @@ export const useAuth = () => {
 
 export default function AuthProvider({ children }) {
   // Services
+  const exchangeRateServices = useExchangeRateServices;
   const { showToast } = useToast();
   const { login, logout } = useFirebaseAuth;
 
@@ -149,9 +151,7 @@ export default function AuthProvider({ children }) {
       const rates =
         storedExchangeRates?.length > 0
           ? storedExchangeRates
-          : await useFrankfurterCurrencyServices.getExchangeRates(
-              exchangeRateData.code
-            );
+          : await exchangeRateServices.getExchangeRates(exchangeRateData.code);
 
       setAllExchangeRates(rates);
       if (!storedExchangeRates) {
@@ -169,11 +169,11 @@ export default function AuthProvider({ children }) {
       };
 
       currentUser.savings = {
-        balance: await useFrankfurterCurrencyServices.convertRate(
+        balance: await exchangeRateServices.convertRate(
           savingsBalance,
           exchangeRateData
         ),
-        goal: await useFrankfurterCurrencyServices.convertRate(
+        goal: await exchangeRateServices.convertRate(
           savingsGoal,
           exchangeRateData
         ),
@@ -208,11 +208,10 @@ export default function AuthProvider({ children }) {
           "descending"
         );
 
-        const converted =
-          await useFrankfurterCurrencyServices.convertRateForReceipts(
-            receipts,
-            exchangeRateData
-          );
+        const converted = await exchangeRateServices.convertRateForReceipts(
+          receipts,
+          exchangeRateData
+        );
 
         setTransactions(converted);
         setFilteredTransactions(
@@ -220,11 +219,10 @@ export default function AuthProvider({ children }) {
         );
         await useCacheUtils.save("receiptsData", converted);
       } else {
-        const converted =
-          await useFrankfurterCurrencyServices.convertRateForReceipts(
-            storedReceiptsData,
-            exchangeRateData
-          );
+        const converted = await exchangeRateServices.convertRateForReceipts(
+          storedReceiptsData,
+          exchangeRateData
+        );
         setTransactions(converted);
         setFilteredTransactions(
           await useAnalyticsUtils.getFilteredData(converted)
@@ -280,28 +278,16 @@ export default function AuthProvider({ children }) {
     };
     const converted = {
       expenses: Number(
-        await useFrankfurterCurrencyServices.convertRate(
-          expenseParams,
-          exchangeRateData
-        )
+        await exchangeRateServices.convertRate(expenseParams, exchangeRateData)
       ),
       income: Number(
-        await useFrankfurterCurrencyServices.convertRate(
-          incomeParams,
-          exchangeRateData
-        )
+        await exchangeRateServices.convertRate(incomeParams, exchangeRateData)
       ),
       savings: Number(
-        await useFrankfurterCurrencyServices.convertRate(
-          savingsParams,
-          exchangeRateData
-        )
+        await exchangeRateServices.convertRate(savingsParams, exchangeRateData)
       ),
       credit: Number(
-        await useFrankfurterCurrencyServices.convertRate(
-          creditParams,
-          exchangeRateData
-        )
+        await exchangeRateServices.convertRate(creditParams, exchangeRateData)
       ),
     };
     return converted;
@@ -388,11 +374,10 @@ export default function AuthProvider({ children }) {
       "date",
       "descending"
     );
-    const converted =
-      await useFrankfurterCurrencyServices.convertRateForReceipts(
-        sorted,
-        exchangeRate || user?.exchangeRate
-      );
+    const converted = await exchangeRateServices.convertRateForReceipts(
+      sorted,
+      exchangeRate || user?.exchangeRate
+    );
     const filtered = await useAnalyticsUtils.getFilteredData(converted);
 
     setTransactions(converted);
