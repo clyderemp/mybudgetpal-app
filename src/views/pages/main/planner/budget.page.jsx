@@ -252,7 +252,12 @@ const BudgetPlannerPage = () => {
       categories: {
         label: "Select category filter",
         type: "dropdown",
-        options: TRANSACTION_CATEGORIES?.[type],
+        options:
+          type === "money-in"
+            ? TRANSACTION_CATEGORIES?.income
+            : type === "money-out"
+            ? TRANSACTION_CATEGORIES?.expenses
+            : TRANSACTION_CATEGORIES.savings,
         placeholder: "Choose category",
         multiSelect: true,
         allowEdit: true,
