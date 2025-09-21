@@ -30,6 +30,7 @@ const BudgetPlannerPage = () => {
   const { openModal, closeModal } = useModal();
   const date = new Date().toDateString();
 
+  const [customCategories, setCustomCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [monthlyBudgetData, setMonthlyBudgetData] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(null);
@@ -88,12 +89,17 @@ const BudgetPlannerPage = () => {
           const monthName = dateObj.toLocaleString("default", {
             month: "long",
           });
+
           const year = dateObj.getFullYear();
 
           if (`${monthName} ${year}` === month.label) {
             const val = Number(Number(txn.value).toFixed(2));
             const cat = txn.type || "Uncategorized";
-            if (budget.categories.includes(txn?.category)) {
+
+            if (
+              budget.categories.includes(txn?.category) ||
+              budget.categories.includes(txn?.customCategory?.trim())
+            ) {
               pieMap[cat] = (pieMap[cat] || 0) + val;
               budget.actual += val;
               actualTraffic[budget.type] =
@@ -136,6 +142,18 @@ const BudgetPlannerPage = () => {
   const fetchMonthlyData = async () => {
     let monthsData = await useCacheUtils.get("monthsData");
     const allTxns = filteredTransactions.all || [];
+    const customCats = [];
+
+    allTxns.forEach((txn) => {
+      const customCat = txn.customCategory?.trim();
+      if (
+        txn.category?.toLowerCase() === "custom" &&
+        !customCats.includes(customCat)
+      ) {
+        customCats.push(customCat);
+      }
+    });
+    setCustomCategories(customCats);
 
     if (!monthsData) {
       if (!allTxns.length)
@@ -256,7 +274,7 @@ const BudgetPlannerPage = () => {
           type === "money-in"
             ? TRANSACTION_CATEGORIES?.income
             : type === "money-out"
-            ? TRANSACTION_CATEGORIES?.expenses
+            ? [...customCategories, ...TRANSACTION_CATEGORIES?.expenses]
             : TRANSACTION_CATEGORIES.savings,
         placeholder: "Choose category",
         multiSelect: true,
