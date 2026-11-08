@@ -1,0 +1,9 @@
+# Python / tooling (root .gitignore lacks these)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+.env.*
+!.env.example

@@ -68,3 +68,23 @@ node_modules/
 # dataconnect generated files
 .dataconnect
 /dist
+
+# Secrets
+keys.env
+*.env
+.env*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Next.js
+.next/
+next-env.d.ts
+*.tsbuildinfo

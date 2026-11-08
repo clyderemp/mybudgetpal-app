@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+import datetime as dt
+from datetime import datetime
+from typing import Literal
+
+from pydantic import model_validator
+
+from app.models.transactions import TxnType
+from app.schemas.base import ApiModel, InputModel, LongText, ObjectIdStr, PosFils, ShortText
+
+
+class TransactionCreate(InputModel):
+    account_id: ObjectIdStr
+    date: dt.date
+    amount_fils: PosFils
+    type: TxnType
+    category_id: ObjectIdStr | None = None
+    to_account_id: ObjectIdStr | None = None
+    merchant: ShortText | None = None
+    note: LongText | None = None
+
+    @model_validator(mode="after")
+    def _rules(self) -> "TransactionCreate":
+        if self.type == "transfer":
+            if not self.to_account_id:
+                raise ValueError("toAccountId is required for transfers")
+            if self.to_account_id == self.account_id:
+                raise ValueError("toAccountId must differ from accountId")
+            self.category_id = None
+        else:
+            if not self.category_id:
+                raise ValueError("categoryId is required unless type is transfer")
+            self.to_account_id = None
+        return self
+
+
+class TransactionPatch(InputModel):
+    account_id: ObjectIdStr | None = None
+    date: dt.date | None = None
+    amount_fils: PosFils | None = None
+    type: TxnType | None = None
+    category_id: ObjectIdStr | None = None
+    to_account_id: ObjectIdStr | None = None
+    merchant: ShortText | None = None
+    note: LongText | None = None
+
+
+class TransactionOut(ApiModel):
+    id: str
+    account_id: str
+    date: dt.date
+    amount_fils: int
+    type: str
+    category_id: str | None
+    to_account_id: str | None
+    merchant: str | None
+    note: str | None
+    created_by: str
+    created_by_name: str | None
+    source: str
+    created_at: datetime
+    updated_at: datetime
+
+
+TxnSort = Literal["date", "-date", "amount", "-amount"]
