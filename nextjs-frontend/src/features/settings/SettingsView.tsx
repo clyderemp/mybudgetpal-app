@@ -5,7 +5,8 @@ import { InlineError, PageHeader, Skeleton } from "@/components/ui";
 import { useMe } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { CategoriesSection } from "./CategoriesCard";
-import { AppearanceSection, HouseholdSection, InvitesSection, ProfileSection } from "./HouseholdCards";
+import { AppearanceSection, HouseholdSection, InvitesSection } from "./HouseholdCards";
+import { ProfileSection } from "./ProfileSection";
 
 type Section = "profile" | "household" | "invites" | "categories" | "appearance";
 
@@ -36,7 +37,7 @@ export function SettingsView() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your profile, household members, invites, categories and appearance." />
+      <PageHeader title="Settings" description="Your profile and password, household members, invites, categories and appearance." />
       <div className="grid min-w-0 gap-5 md:grid-cols-[208px_minmax(0,1fr)] md:gap-8">
         <nav aria-label="Settings sections" className="min-w-0">
           <ul className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:border-b-0 md:px-0">

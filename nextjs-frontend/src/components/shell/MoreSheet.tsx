@@ -1,11 +1,12 @@
 "use client";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronRight, LogOut, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLogout, useMe } from "@/lib/queries";
 import { cn } from "@/lib/utils";
-import { Avatar } from "@/components/ui/Avatar";
+
 import { Button } from "@/components/ui/Button";
 import { overlayClass } from "@/components/ui/FormDialog";
 import { MORE_ITEMS, isActive } from "./nav";
@@ -57,7 +58,7 @@ export function MoreSheet({ open, onOpenChange }: { open: boolean; onOpenChange:
               <ThemeToggle />
             </div>
             <div className="flex items-center gap-3">
-              <Avatar name={me.data?.user.name} size="md" />
+              <MemberAvatar userId={me.data?.user.id} name={me.data?.user.name} size="md" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{me.data?.user.name}</p>
                 <p className="truncate text-xs text-ink-2">{me.data?.household.name}</p>

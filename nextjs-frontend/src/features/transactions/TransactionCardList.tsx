@@ -1,6 +1,7 @@
 "use client";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Avatar, Button, Money } from "@/components/ui";
+import { Button, Money } from "@/components/ui";
 import { formatDayLabel } from "@/lib/dates";
 import type { Transaction } from "@/lib/types";
 import { useCategoryColor } from "./CategoryDot";
@@ -85,7 +86,7 @@ export function TransactionRowButton({
           <span className="truncate">{secondary}</span>
         </span>
       </span>
-      {showAddedBy && t.createdByName ? <Avatar name={t.createdByName} size="xs" title={`Added by ${t.createdByName}`} /> : null}
+      {showAddedBy && t.createdByName ? <MemberAvatar userId={t.createdBy} name={t.createdByName} size="xs" title={`Added by ${t.createdByName}`} /> : null}
       <Money
         fils={t.amountFils}
         currency={txnCurrency(t, lookups)}

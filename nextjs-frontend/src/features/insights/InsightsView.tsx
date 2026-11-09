@@ -19,7 +19,7 @@ import { AnomaliesPanel, CategoryBreakdownPanel, ForecastPanel, HealthBreakdownP
 export function InsightsView() {
   const { month } = usePeriod();
   const summary = useInsightsSummary(month);
-  const trends = useInsightsTrends(12);
+  const trends = useInsightsTrends(12, month);
   const forecast = useInsightsForecast();
   // Forecast uses history up to last month; compare against that month's actuals.
   const lastMonth = useInsightsSummary(forecast.data ? addMonths(forecast.data.month, -2) : "");

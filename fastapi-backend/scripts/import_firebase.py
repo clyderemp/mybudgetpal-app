@@ -5,7 +5,8 @@ because it holds personal financial data. Only the owner's own Firebase user is 
 people who signed up to the old public app are never read beyond their path.
 
 Usage (from fastapi-backend/):
-    .venv/bin/python scripts/import_firebase.py EXPORT.json --owner-email E --member-email E \
+    MBP_IMPORT_PASSWORD=... .venv/bin/python scripts/import_firebase.py EXPORT.json --owner-email E \
+        [--owner-username clyde] [--member-username patricia] [--member-email E] \
         [--target development|production] [--replace] [--dry-run] [--confirm-production]
 
 Mapping (decided with the owner, 9 Nov 2026):
@@ -15,9 +16,11 @@ Mapping (decided with the owner, 9 Nov 2026):
   amount and rate are kept in the note.
 * Cards from the (decrypted) ``financialAccounts`` become accounts; generic payment methods become
   per-era accounts ("Canada ..." archived, "UAE ...").
-* ``savings`` receipts become transfers into a savings account; zero amounts are skipped.
+* ``savings`` receipts become transfers into a savings pot (one per old savings category / savings
+  card); negative values are withdrawals out of it. Zero amounts are skipped.
 * ``reportedBy`` maps to the owner or the member login. Opening balances are 0 (unknown).
-* ``money-out`` budget lines become monthly budgets; ``money-in``/``savings`` lines are skipped.
+* ``money-out`` budget lines become monthly budgets (a multi-category line is split by that month's
+  spend); ``money-in``/``savings`` lines are skipped. The old plan's monthly savings goes to Plan.
 * The single savings goal is kept. Card numbers are never imported.
 
 Writes go to ``development`` by default. ``--target production`` additionally needs
@@ -33,6 +36,7 @@ import bisect
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import secrets
 import sys
@@ -46,7 +50,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from beanie import PydanticObjectId, init_beanie  # noqa: E402
 
 from app.db import document_models  # noqa: E402
-from app.models import Account, Budget, Category, Goal, Household, Transaction, User  # noqa: E402
+from app.models import Account, Budget, Category, Goal, Household, Plan, Transaction, User  # noqa: E402
 from app.models.budgets import BudgetLine  # noqa: E402
 from app.security.passwords import hash_password  # noqa: E402
 from app.services.categories import DEFAULT_CATEGORIES  # noqa: E402
@@ -224,14 +228,32 @@ def build_plan(export: dict[str, Any], fx: CadToAed | None, owner_uid: str = OWN
             return method
         return generic(era, {"credit": "credit_card", "savings": "savings", "cash": "cash"}.get(method or "", "bank"))
 
+    def savings_sides(method: str | None, era: str, pot_name: str | None) -> tuple[str, str]:
+        """(savings pot, other account). A savings-type card is the pot; else one pot per old savings
+        category ("Long Term Savings", ...) per era, so each pot keeps its own balance."""
+        if method and method in accounts:
+            if accounts[method]["type"] == "savings":
+                return method, generic(era, "bank")
+            other = method
+        else:
+            other = generic(era, "bank")
+        if not pot_name:
+            return generic(era, "savings"), other
+        key = f"{era}:pot:{pot_name}"
+        if key not in accounts:
+            accounts[key] = {"name": f"{'Canada' if era == 'CAD' else 'UAE'} {pot_name.strip()}", "institution": None,
+                             "type": "savings", "archived": era == "CAD"}
+        return key, other
+
     txns: list[dict[str, Any]] = []
     skipped = Counter()
     converted = 0
     for r in sorted(receipts, key=lambda x: (str(x["date"]), str(x.get("creationDate")))):
-        value = _num(r.get("value"))
-        if value <= 0:
-            skipped["zero amount"] += 1
+        signed = _num(r.get("value"))
+        if signed == 0 or (signed < 0 and r["type"] != "savings"):
+            skipped["zero amount" if signed == 0 else "negative non-savings"] += 1
             continue
+        value, withdrawal = abs(signed), signed < 0
         day = _date(r["date"])
         era = "CAD" if r.get("currency") == "CAD" else "AED"
         note_parts = [r.get("note") or ""]
@@ -259,11 +281,11 @@ def build_plan(export: dict[str, Any], fx: CadToAed | None, owner_uid: str = OWN
         t: dict[str, Any] = {"date": day, "amount_fils": amount, "merchant": (r.get("merchant") or "").strip() or None,
                              "note": note, "by": by, "category": None, "to": None}
         if r["type"] == "savings":
-            src = account_for(method, era)
-            if accounts[src]["type"] == "savings":
-                t.update(type="transfer", account=generic(era, "bank"), to=src)
-            else:
-                t.update(type="transfer", account=src, to=generic(era, "savings"))
+            # Savings moves are transfers between a spending account and a savings pot. A negative
+            # value in the old app is a withdrawal, so the direction flips.
+            pot, other = savings_sides(method, era, r.get("category"))
+            src, dst = (other, pot) if withdrawal is False else (pot, other)
+            t.update(type="transfer", account=src, to=dst)
         elif r["type"] == "income":
             t.update(type="income", account=account_for(method, era), category=map_category(r.get("category"), r.get("customCategory")))
         else:
@@ -271,14 +293,32 @@ def build_plan(export: dict[str, Any], fx: CadToAed | None, owner_uid: str = OWN
         txns.append(t)
 
     budgets: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    spent: Counter[tuple[str, str]] = Counter()
+    for t in txns:
+        if t["type"] == "expense":
+            spent[(t["date"].strftime("%Y-%m"), t["category"])] += t["amount_fils"]
     skipped_budget = Counter()
     for b in budgets_src:
         if b.get("type") != "money-out":
             skipped_budget[b.get("type")] += 1
             continue
         y, m = str(b["month"]).split("-")
-        cats = b.get("categories") or ["Other"]
-        budgets[f"{y}-{int(m):02d}"][map_category(cats[0], cats[0])] += int(round(_num(b.get("amount")) * 100))
+        month = f"{y}-{int(m):02d}"
+        targets = list(dict.fromkeys(map_category(c, c) for c in (b.get("categories") or ["Other"])))
+        total = int(round(_num(b.get("amount")) * 100))
+        # A line covering several categories is split by that month's actual spend in each
+        # (evenly if none), so no category's budget silently absorbs another's.
+        spend = {c: spent[(month, c)] for c in targets}
+        weights = spend if sum(spend.values()) > 0 else {c: 1 for c in targets}
+        acc, wsum = 0, sum(weights.values())
+        for i, c in enumerate(targets):
+            share = total - acc if i == len(targets) - 1 else total * weights[c] // wsum
+            acc += share
+            budgets[month][c] += share
+
+    plan_lines = (user.get("budgetPlanData") or {}).get("budgetPlanArray") or []
+    monthly_savings = sum(int(round(_num(x.get("amount")) * 100)) for x in plan_lines
+                          if x.get("category") == "savings" and x.get("currency", "AED") == "AED")
 
     goal = None
     savings = user.get("savings") or {}
@@ -290,7 +330,7 @@ def build_plan(export: dict[str, Any], fx: CadToAed | None, owner_uid: str = OWN
         "owner": {"name": _owner_name(user, "Owner"), "created": user.get("createdOn")},
         "member": {"name": _owner_name(member, "Member")} if member else None,
         "accounts": accounts, "transactions": txns, "budgets": {k: dict(v) for k, v in budgets.items()},
-        "goal": goal,
+        "goal": goal, "monthly_savings_fils": monthly_savings,
         "stats": {"receipts": len(receipts), "imported": len(txns), "skipped": dict(skipped),
                   "cad_converted": converted, "budget_lines_skipped": dict(skipped_budget),
                   "by_type": dict(Counter(t["type"] for t in txns)),
@@ -303,12 +343,22 @@ def build_plan(export: dict[str, Any], fx: CadToAed | None, owner_uid: str = OWN
 
 
 # ---------------------------------------------------------------- write
-async def write_plan(plan: dict[str, Any], owner_email: str, member_email: str | None, replace: bool) -> dict[str, Any]:
-    emails = [e for e in (owner_email, member_email) if e]
-    existing = await User.find({"email": {"$in": emails}}).to_list()
+async def write_plan(
+    plan: dict[str, Any],
+    owner: tuple[str, str],
+    member: tuple[str, str] | None,
+    replace: bool,
+    password: str | None = None,
+) -> dict[str, Any]:
+    """``owner``/``member`` are ``(username, email)``. ``password`` None -> a random one each."""
+    logins = [x for x in (owner, member) if x]
+    existing = await User.find({"$or": [
+        {"email": {"$in": [e.lower() for _, e in logins]}},
+        {"username": {"$in": [u.lower() for u, _ in logins]}},
+    ]}).to_list()
     if existing:
         if not replace:
-            raise SystemExit(f"users already exist for {[u.email for u in existing]}; rerun with --replace")
+            raise SystemExit(f"users already exist for {[u.username or u.email for u in existing]}; rerun with --replace")
         for hid in {u.household_id for u in existing}:
             for model in (Account, Budget, Category, Goal, Transaction):
                 await model.find({"household_id": hid}).delete()
@@ -323,19 +373,20 @@ async def write_plan(plan: dict[str, Any], owner_email: str, member_email: str |
     hid: PydanticObjectId = household.id  # type: ignore[assignment]
     passwords: dict[str, str] = {}
     users = {"owner": owner_id}
-    pw = secrets.token_urlsafe(12)
-    passwords[owner_email] = pw
-    await User(id=owner_id, household_id=hid, email=owner_email.lower(), name=plan["owner"]["name"],
-               password_hash=hash_password(pw), role="owner").insert()
-    if plan["member"] and member_email:
-        pw = secrets.token_urlsafe(12)
-        passwords[member_email] = pw
-        member = User(household_id=hid, email=member_email.lower(), name=plan["member"]["name"],
-                      password_hash=hash_password(pw), role="member")
-        await member.insert()
-        users["member"] = member.id  # type: ignore[assignment]
-    else:
-        users["member"] = owner_id
+
+    async def add(login: tuple[str, str], name: str, role: str, uid: PydanticObjectId | None = None) -> PydanticObjectId:
+        username, email = login[0].lower(), login[1].lower()
+        pw = password or secrets.token_urlsafe(12)
+        passwords[username] = pw
+        user = User(household_id=hid, email=email, username=username, name=name,
+                    password_hash=hash_password(pw), role=role)  # type: ignore[arg-type]
+        if uid is not None:
+            user.id = uid
+        await user.insert()
+        return user.id  # type: ignore[return-value]
+
+    await add(owner, plan["owner"]["name"], "owner", owner_id)
+    users["member"] = await add(member, plan["member"]["name"], "member") if plan["member"] and member else owner_id
 
     names = [c[0] for c in DEFAULT_CATEGORIES] + [c[0] for c in EXTRA_CATEGORIES]
     cats = [Category(household_id=hid, name=n, kind=k, group=g, icon=i)  # type: ignore[arg-type]
@@ -365,14 +416,19 @@ async def write_plan(plan: dict[str, Any], owner_email: str, member_email: str |
                      lines=[BudgetLine(category_id=cat_ids[c], limit_fils=v) for c, v in lines.items()]).insert()
     if plan["goal"]:
         await Goal(household_id=hid, priority=1, **plan["goal"]).insert()
+    if plan.get("monthly_savings_fils"):
+        await Plan(household_id=hid, monthly_savings_fils=plan["monthly_savings_fils"]).insert()
     return {"household_id": str(hid), "passwords": passwords}
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("export", type=Path)
+    parser.add_argument("--owner-username", default="clyde")
     parser.add_argument("--owner-email", required=True)
-    parser.add_argument("--member-email")
+    parser.add_argument("--member-username", default="patricia")
+    parser.add_argument("--member-email", help="default: <member-username>@mybudgetpal.local")
+    parser.add_argument("--no-member", action="store_true", help="import everything under the owner")
     parser.add_argument("--target", choices=("development", "production"), default="development")
     parser.add_argument("--confirm-production", action="store_true")
     parser.add_argument("--replace", action="store_true", help="delete these users' existing household first")
@@ -402,10 +458,15 @@ async def main() -> None:
         raise SystemExit("MONGODB_URI (Atlas) missing from .env")
     client = AsyncIOMotorClient(uri, uuidRepresentation="standard")
     await init_beanie(database=client[args.target], document_models=document_models)
-    result = await write_plan(plan, args.owner_email, args.member_email, args.replace)
+    member = None if args.no_member else (
+        args.member_username, args.member_email or f"{args.member_username}@mybudgetpal.local")
+    # Shared starting password from the environment (never a CLI arg / committed); else random.
+    password = os.environ.get("MBP_IMPORT_PASSWORD") or None
+    result = await write_plan(plan, (args.owner_username, args.owner_email), member, args.replace, password)
     print(f"Imported into '{args.target}', household {result['household_id']}.")
-    for email, pw in result["passwords"].items():
-        print(f"Login {email} / temporary password (shown once): {pw}")
+    for username, pw in result["passwords"].items():
+        shown = "(from MBP_IMPORT_PASSWORD)" if password else f"temporary password (shown once): {pw}"
+        print(f"Login {username} / {shown}")
 
 
 if __name__ == "__main__":

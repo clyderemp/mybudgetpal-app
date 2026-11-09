@@ -84,10 +84,12 @@ Responses use **camelCase** (Pydantic `alias_generator=to_camel`, `populate_by_n
 Auth
 - `POST /auth/register` `{name, email, password, householdName}` → 201 `{user}` + cookies (bootstrap only, see §3)
 - `POST /auth/join` `{name, email, password, inviteCode}` → 201 `{user}` + cookies
-- `POST /auth/login` `{email, password}` → 200 `{user}` + cookies
+- `POST /auth/login` `{username, password}` (username or email; legacy `{email}` key accepted) → 200 `{user}` + cookies
+- `PATCH /auth/me` `{name?, avatarStyle?, avatarSeed?}` → `{user}` (DiceBear style ids: see `AVATAR_STYLES`)
+- `POST /auth/password` `{currentPassword, newPassword}` → `{user}`; revokes every other session and re-issues this one's cookies
 - `POST /auth/refresh` → 200 `{user}` + rotated cookies
 - `POST /auth/logout` → 204, clears cookies, revokes session
-- `GET /auth/me` → `{user: {id, name, email, role}, household: {id, name, baseCurrency, members: [{id, name, email, role}]}}`
+- `GET /auth/me` → `{user: {id, name, email, username, role, avatarStyle, avatarSeed}, household: {id, name, baseCurrency, members: [same shape]}}`
 - `GET /auth/status` → `{registrationOpen: bool}` (public; true when no users exist or ALLOW_REGISTRATION)
 
 Household
@@ -115,7 +117,7 @@ Plan:
 - `GET /plan/compare?monthlyBudgetFils=` → `{avalanche: PayoffResult, snowball: PayoffResult}`
 Insights:
 - `GET /insights/summary?month=YYYY-MM` → `monthly_summary` for that month + previous month deltas
-- `GET /insights/trends?months=12` → `monthly_series`
+- `GET /insights/trends?months=12&end=YYYY-MM` → `monthly_series` (`end` defaults to the current month)
 - `GET /insights/forecast` → `forecast_next_month`
 - `GET /insights/anomalies?month=` → `detect_anomalies`
 - `GET /insights/health` → `financial_health`

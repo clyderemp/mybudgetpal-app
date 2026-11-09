@@ -1,8 +1,9 @@
 "use client";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
-import { Avatar, Badge, Button, ConfirmDialog, DetailDrawer, DetailRow, Money, notify } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, DetailDrawer, DetailRow, Money, notify } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
 import { useDeleteTransaction } from "@/lib/queries";
 import type { Transaction } from "@/lib/types";
@@ -91,7 +92,7 @@ export function TransactionDetailDrawer({
                 {t.createdByName ? (
                   <span className="inline-flex items-center gap-2">
                     <span aria-hidden>
-                      <Avatar name={t.createdByName} size="xs" />
+                      <MemberAvatar userId={t.createdBy} name={t.createdByName} size="xs" />
                     </span>
                     {t.createdByName}
                   </span>

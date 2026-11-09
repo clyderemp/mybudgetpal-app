@@ -1,5 +1,7 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import type { AvatarChoice } from "../avatars";
 import { api, markLoggingOut } from "../api";
 import type {
   AuthStatus,
@@ -7,6 +9,8 @@ import type {
   JoinRequest,
   LoginRequest,
   MeResponse,
+  PasswordChange,
+  ProfileUpdate,
   RegisterRequest,
 } from "../types";
 import { qk } from "./keys";
@@ -58,4 +62,42 @@ export function useLogout() {
       if (typeof window !== "undefined") window.location.assign("/login");
     },
   });
+}
+
+/** Update your own name / avatar; the new user lands in the cached /auth/me. */
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProfileUpdate) => api.patch<AuthUserResponse>("/auth/me", body),
+    onSuccess: ({ user }) => {
+      qc.setQueryData<MeResponse>(qk.me, (prev) =>
+        prev
+          ? { user, household: { ...prev.household, members: prev.household.members.map((m) => (m.id === user.id ? user : m)) } }
+          : prev,
+      );
+    },
+  });
+}
+
+/** Change password. The API signs out every other device and re-issues this one's cookies. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: PasswordChange) => api.post<AuthUserResponse>("/auth/password", body),
+  });
+}
+
+/** Household members' avatars, looked up by user id (preferred) or display name. */
+export function useMemberAvatars() {
+  const me = useMe();
+  return useMemo(() => {
+    const byId = new Map<string, AvatarChoice>();
+    const byName = new Map<string, AvatarChoice>();
+    for (const m of me.data?.household.members ?? []) {
+      const choice = { style: m.avatarStyle, seed: m.avatarSeed };
+      byId.set(m.id, choice);
+      byName.set(m.name, choice);
+    }
+    return (userId?: string | null, name?: string | null): AvatarChoice | null =>
+      (userId ? byId.get(userId) : undefined) ?? (name ? byName.get(name) : undefined) ?? null;
+  }, [me.data]);
 }

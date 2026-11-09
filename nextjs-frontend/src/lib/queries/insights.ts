@@ -12,12 +12,16 @@ export function useInsightsSummary(month: string) {
   });
 }
 
-/** Zero-filled monthly series, oldest → newest. */
-export function useInsightsTrends(months = 12) {
+/** Zero-filled monthly series, oldest → newest, ending at `end` (YYYY-MM; default current month). */
+export function useInsightsTrends(months = 12, end?: string) {
   return useQuery({
-    queryKey: qk.insights.trends(months),
+    queryKey: qk.insights.trends(months, end),
     queryFn: ({ signal }) =>
-      api.get<MonthlySeriesPoint[] | { items: MonthlySeriesPoint[] }>("/insights/trends", { months }, { signal }),
+      api.get<MonthlySeriesPoint[] | { items: MonthlySeriesPoint[] }>(
+        "/insights/trends",
+        end ? { months, end } : { months },
+        { signal },
+      ),
     select: (d) => toList(d),
   });
 }

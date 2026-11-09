@@ -53,3 +53,29 @@ def test_category_mapping():
     assert map_category("Phone Bill", None) == "Telecom"
     assert map_category("Something new", None) == "Other"
     assert CadToAed({"2025-01-01": 1.0}).rate(dt.date(2025, 1, 5)) == 3.6725
+
+
+def test_savings_withdrawals_pots_and_split_budgets():
+    ex = _export()
+    r = lambda i, **f: (f"{U}/receipts/W{i}", {"_fields": {"date": "2025-01-1%dT00:00:00.000Z" % i, **f}})
+    ex.update([
+        r(1, type="savings", currency="AED", value=-40, category="Joint Savings", paymentMethod="debit"),
+        r(2, type="expenses", currency="AED", value=-5, category="Gas", paymentMethod="debit"),
+        r(3, type="expenses", currency="AED", value=30, category="Loan Payments", paymentMethod="debit"),
+        (f"{U}/budgetData/M", {"_fields": {"month": "2025-1", "type": "money-out",
+                                           "categories": ["Biscoff Stuff", "Tamara Installments"], "amount": "100"}}),
+    ])
+    ex[U]["_fields"]["budgetPlanData"] = {"budgetPlanArray": [
+        {"category": "savings", "amount": 500, "currency": "AED"}, {"category": "savings", "amount": 100},
+        {"category": "expenses", "amount": 4500}]}
+    plan = build_plan(ex, CadToAed({"2024-12-31": 0.7}), owner_uid="OWNER")
+    moves = [x for x in plan["transactions"] if x["type"] == "transfer"]
+    deposit = next(x for x in moves if x["amount_fils"] == 10000)
+    withdrawal = next(x for x in moves if x["amount_fils"] == 4000)
+    pot = deposit["to"]
+    assert plan["accounts"][pot]["name"] == "UAE Joint Savings" and plan["accounts"][pot]["type"] == "savings"
+    assert (withdrawal["account"], withdrawal["to"]) == (pot, deposit["account"])  # money back out of the pot
+    assert plan["stats"]["skipped"] == {"zero amount": 1, "negative non-savings": 1}
+    # 100.00 split by January spend: Pet care 20.50, Debt payment 30.00
+    assert plan["budgets"]["2025-01"] == {"Pet care": 4059, "Debt payment": 5941}
+    assert plan["monthly_savings_fils"] == 60000

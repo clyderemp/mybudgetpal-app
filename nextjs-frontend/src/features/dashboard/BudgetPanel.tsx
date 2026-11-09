@@ -35,7 +35,10 @@ export function BudgetPanel({
         .sort((a, b) => usage(b.spentFils, b.limitFils) - usage(a.spentFils, a.limitFils) || b.spentFils - a.spentFils)
         .slice(0, ROWS)
     : [];
-  const overall = budget && budget.totalLimitFils > 0 ? usage(budget.totalSpentFils, budget.totalLimitFils) : null;
+  // Spending in budgeted categories only (same rule as the Budget page); unbudgeted spend is
+  // shown separately below, so it must not also count against the limit.
+  const lineSpent = budget ? budget.lines.reduce((s, l) => s + l.spentFils, 0) : 0;
+  const overall = budget && budget.totalLimitFils > 0 ? usage(lineSpent, budget.totalLimitFils) : null;
 
   return (
     <Panel
@@ -44,7 +47,7 @@ export function BudgetPanel({
       description={
         budget && budget.totalLimitFils > 0 ? (
           <span className="tabular">
-            {formatFils(budget.totalSpentFils, "AED", { noDecimals: true })} of {formatFils(budget.totalLimitFils, "AED", { noDecimals: true })} spent
+            {formatFils(lineSpent, "AED", { noDecimals: true })} of {formatFils(budget.totalLimitFils, "AED", { noDecimals: true })} spent
           </span>
         ) : undefined
       }

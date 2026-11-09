@@ -1,7 +1,8 @@
 "use client";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
 import type { GridColDef, GridSortModel } from "@mui/x-data-grid";
 import { useMemo } from "react";
-import { Avatar, DataTable, Money } from "@/components/ui";
+import { DataTable, Money } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
 import type { Transaction, TransactionSort } from "@/lib/types";
 import { CategoryLabel } from "./CategoryDot";
@@ -102,7 +103,7 @@ export function TransactionsGrid({
         renderCell: ({ row }) =>
           row.createdByName ? (
             <div className="flex h-full items-center justify-center">
-              <Avatar name={row.createdByName} size="sm" title={`Added by ${row.createdByName}`} />
+              <MemberAvatar userId={row.createdBy} name={row.createdByName} size="sm" title={`Added by ${row.createdByName}`} />
             </div>
           ) : (
             <span className="text-ink-2">—</span>

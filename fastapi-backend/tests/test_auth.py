@@ -98,7 +98,7 @@ async def test_login(owner, new_client):
         bad2 = await c.post("/api/v1/auth/login", json={"email": "nobody@example.com", "password": "wrong-password"})
         assert bad1.status_code == bad2.status_code == 401
         assert bad1.json() == bad2.json()
-        assert bad1.json()["error"]["message"] == "Invalid email or password"
+        assert bad1.json()["error"]["message"] == "Invalid username or password"
 
 
 async def test_refresh_rotation(owner):

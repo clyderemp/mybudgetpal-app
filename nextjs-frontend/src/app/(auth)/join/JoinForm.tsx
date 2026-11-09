@@ -15,6 +15,11 @@ const schema = z
   .object({
     inviteCode: z.string().trim().min(10, "Invite codes are at least 10 characters"),
     name: z.string().trim().min(1, "Enter your name").max(80),
+    username: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9][a-z0-9._-]{2,31}$/, "3–32 characters: letters, numbers, . _ -"),
     email: z.email("Enter a valid email").trim().toLowerCase(),
     password: z.string().min(10, "At least 10 characters").max(256),
     confirm: z.string(),
@@ -33,7 +38,7 @@ export function JoinForm() {
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { inviteCode: params.get("code") ?? "", name: "", email: "", password: "", confirm: "" },
+    defaultValues: { inviteCode: params.get("code") ?? "", name: "", username: "", email: "", password: "", confirm: "" },
   });
 
   const onSubmit = handleSubmit(async ({ confirm: _confirm, ...v }) => {
@@ -46,7 +51,7 @@ export function JoinForm() {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/");
     } catch (err) {
-      setFormError(applyApiErrors(err, setError, ["inviteCode", "name", "email", "password"]));
+      setFormError(applyApiErrors(err, setError, ["inviteCode", "name", "username", "email", "password"]));
     }
   });
 
@@ -70,6 +75,9 @@ export function JoinForm() {
         </Field>
         <Field label="Your name" htmlFor="name" error={errors.name?.message}>
           <Input id="name" autoComplete="name" invalid={!!errors.name} {...register("name")} />
+        </Field>
+        <Field label="Username" htmlFor="username" error={errors.username?.message} hint="What you'll sign in with: letters, numbers, . _ -">
+          <Input id="username" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} invalid={!!errors.username} {...register("username")} />
         </Field>
         <Field label="Email" htmlFor="email" error={errors.email?.message}>
           <Input id="email" type="email" autoComplete="email" inputMode="email" invalid={!!errors.email} {...register("email")} />

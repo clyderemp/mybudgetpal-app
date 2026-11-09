@@ -24,7 +24,12 @@ export interface User {
   id: ID;
   name: string;
   email: string;
+  /** Sign-in name; null for accounts that sign in with their email. */
+  username: string | null;
   role: Role;
+  /** DiceBear style id (see lib/avatars.ts) and seed; always set by the API. */
+  avatarStyle: string;
+  avatarSeed: string;
 }
 
 export type Member = User;
@@ -51,6 +56,7 @@ export interface AuthStatus {
 
 export interface RegisterRequest {
   name: string;
+  username: string;
   email: string;
   password: string;
   householdName: string;
@@ -58,14 +64,27 @@ export interface RegisterRequest {
 
 export interface JoinRequest {
   name: string;
+  username: string;
   email: string;
   password: string;
   inviteCode: string;
 }
 
 export interface LoginRequest {
-  email: string;
+  /** Username or email address. */
+  username: string;
   password: string;
+}
+
+export interface ProfileUpdate {
+  name?: string;
+  avatarStyle?: string;
+  avatarSeed?: string;
+}
+
+export interface PasswordChange {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface HouseholdUpdate {

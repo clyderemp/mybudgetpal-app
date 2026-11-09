@@ -81,6 +81,10 @@ async def test_insights_trends(seeded):
     assert default["total"] == 12 and default["items"][0]["month"] == "2025-12"
     assert default["items"][0]["incomeFils"] == 0
     assert (await c.get("/api/v1/insights/trends", params={"months": 0})).status_code == 422
+    ended = (await c.get("/api/v1/insights/trends", params={"months": 3, "end": "2026-07"})).json()
+    assert [x["month"] for x in ended["items"]] == ["2026-05", "2026-06", "2026-07"]
+    assert ended["items"][1] == body["items"][0]
+    assert (await c.get("/api/v1/insights/trends", params={"end": "2026-13"})).status_code == 422
 
 
 async def test_insights_forecast(seeded):
@@ -141,6 +145,10 @@ async def test_plan_settings_and_payoff(seeded):
     first_visa = next(x for x in po["schedule"][0]["payments"] if x["debtId"] == visa["id"])
     assert first_visa["interestFils"] == 7_498
 
+    zero = (await c.get("/api/v1/plan/payoff", params={"monthlyBudgetFils": 0})).json()
+    assert zero == (await c.get("/api/v1/plan/payoff", params={"monthlyBudgetFils": 215_000})).json()
+    assert zero["feasible"] is True  # 0 means "sum of minimums", same as an unset/saved 0 budget
+    assert (await c.put("/api/v1/plan", json={**bad, "monthlyDebtBudgetFils": 0})).status_code == 200
     infeasible = (await c.get("/api/v1/plan/payoff", params={"monthlyBudgetFils": 100_000})).json()
     assert infeasible == {**infeasible, "feasible": False, "reason": "budget_below_minimums", "shortfallFils": 115_000}
     sb = (await c.get("/api/v1/plan/payoff", params={"strategy": "snowball"})).json()

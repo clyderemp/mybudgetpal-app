@@ -44,7 +44,8 @@ async def get_plan_settings(current: CurrentUser = Depends(get_current_user)) ->
 async def put_plan_settings(body: PlanPut, current: CurrentUser = Depends(get_current_user)) -> PlanOut:
     debts, plan = await asyncio.gather(active_debts(current.household_id), get_plan(current.household_id))
     minimums = sum_minimums(debts)
-    if body.monthly_debt_budget_fils < minimums:
+    # 0 is allowed and means "the sum of minimum payments" (same as payoff/compare below).
+    if 0 < body.monthly_debt_budget_fils < minimums:
         raise validation_error(
             {"monthlyDebtBudgetFils": f"must be at least the sum of minimum payments ({minimums} fils)"}
         )
@@ -62,9 +63,11 @@ async def put_plan_settings(body: PlanPut, current: CurrentUser = Depends(get_cu
 
 async def _inputs(current: CurrentUser, budget: int | None) -> tuple[list[dict[str, Any]], int, Plan | None]:
     debts, plan = await asyncio.gather(active_debts(current.household_id), get_plan(current.household_id))
+    # Omitted -> the saved budget; 0 (explicit or saved) -> the sum of minimum payments.
     if budget is None:
-        saved = plan.monthly_debt_budget_fils if plan else 0
-        budget = saved if saved > 0 else sum_minimums(debts)
+        budget = plan.monthly_debt_budget_fils if plan else 0
+    if budget == 0:
+        budget = sum_minimums(debts)
     return debts_for_analytics(debts), budget, plan
 
 

@@ -1,10 +1,11 @@
 """Spending anomaly detection (spec §6 anomalies.py).
 
 Lookback = the ``lookback_months`` calendar months before ``month``. Like the forecast,
-lookback months before the household's first transaction in the window are dropped;
-zero months after that count as zero spend.
+lookback months before the first / after the last month with any income or expense in the
+window are dropped; zero months inside that span count as zero spend.
 
-category_spike (needs >= 2 lookback data months), all of:
+category_spike (needs >= 2 lookback data months, and the category must have spend in at
+least one of them -- a brand-new category is not a "spike"), all of:
   * spend > mean + 2 * std   (population std, ddof = 0)
   * spend >= 1.2 * mean      (at least 20% above mean)
   * spend - mean >= AED 100  (10_000 fils)
@@ -56,13 +57,15 @@ def detect_anomalies(txns: Iterable[Any], month: str, lookback_months: int = 6) 
             hist_by_cat[cid][m] += amount(t)
             hist_amounts[cid].append(amount(t))
 
-    span = window[window.index(min(active)):] if active else []
+    span = window[window.index(min(active)) : window.index(max(active)) + 1] if active else []
     n = len(span)
 
     spikes: list[tuple[int, dict]] = []
     if n >= MIN_SPIKE_MONTHS:
         for cid, spend in current_by_cat.items():
             series = [hist_by_cat.get(cid, {}).get(m, 0) for m in span]
+            if not any(series):
+                continue
             mean = sum(series) / n
             std = statistics.pstdev(series)
             excess = spend - mean

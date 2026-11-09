@@ -1,14 +1,14 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy, KeyRound, LogOut } from "lucide-react";
+import { Check, Copy, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
-import { ActionButton, Avatar, Badge, Button, DetailRow, EmptyState, Field, InlineError, Input, notify, Panel, SkeletonList } from "@/components/ui";
+import { ActionButton, Avatar, Badge, Button, EmptyState, Field, InlineError, Input, notify, Panel, SkeletonList } from "@/components/ui";
 import { applyApiErrors } from "@/lib/form-errors";
-import { useCreateInvite, useInvites, useLogout, useRevokeInvite, useUpdateHousehold } from "@/lib/queries";
-import type { Household, Invite, User } from "@/lib/types";
+import { useCreateInvite, useInvites, useRevokeInvite, useUpdateHousehold } from "@/lib/queries";
+import type { Household, Invite } from "@/lib/types";
 import { SectionHeader } from "./SectionHeader";
 
 const ROLE_LABEL = { owner: "Owner", member: "Member" } as const;
@@ -17,37 +17,6 @@ function formatDateTime(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Dubai" });
-}
-
-/* ---------------- Profile ---------------- */
-
-export function ProfileSection({ user }: { user: User }) {
-  const logout = useLogout();
-  return (
-    <section>
-      <SectionHeader title="Profile" description="The account you sign in with." />
-      <Panel flush>
-        <div className="flex items-center gap-3 border-b border-line px-4 py-4 md:px-5">
-          <Avatar name={user.name} size="lg" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-ink">{user.name}</p>
-            <p className="truncate text-meta text-ink-2">{user.email}</p>
-          </div>
-        </div>
-        <dl className="px-4 md:px-5">
-          <DetailRow label="Name">{user.name}</DetailRow>
-          <DetailRow label="Email">{user.email}</DetailRow>
-          <DetailRow label="Role">{ROLE_LABEL[user.role]}</DetailRow>
-        </dl>
-      </Panel>
-
-      <Panel className="mt-5" title="Session" description="Signs you out on this device only.">
-        <Button variant="secondary" loading={logout.isPending} onClick={() => logout.mutate()}>
-          <LogOut aria-hidden /> Log out
-        </Button>
-      </Panel>
-    </section>
-  );
 }
 
 /* ---------------- Appearance ---------------- */
@@ -114,7 +83,7 @@ export function HouseholdSection({ household, currentUserId, isOwner }: { househ
                 Name
               </th>
               <th scope="col" className="px-4 font-medium">
-                Email
+                Username
               </th>
               <th scope="col" className="w-28 px-4 text-right font-medium md:px-5">
                 Role
@@ -126,17 +95,17 @@ export function HouseholdSection({ household, currentUserId, isOwner }: { househ
               <tr key={m.id} className="border-b border-line last:border-0">
                 <td className="h-12 px-4 md:px-5">
                   <span className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={m.name} size="sm" />
+                    <Avatar name={m.name} avatar={{ style: m.avatarStyle, seed: m.avatarSeed }} size="sm" />
                     <span className="min-w-0">
                       <span className="block truncate font-medium text-ink">
                         {m.name}
                         {m.id === currentUserId ? <span className="font-normal text-ink-2"> (you)</span> : null}
                       </span>
-                      <span className="block truncate text-xs text-ink-2 sm:hidden">{m.email}</span>
+                      <span className="block truncate text-xs text-ink-2 sm:hidden">{m.username ? `@${m.username}` : m.email}</span>
                     </span>
                   </span>
                 </td>
-                <td className="hidden truncate px-4 text-ink-2 sm:table-cell">{m.email}</td>
+                <td className="hidden truncate px-4 text-ink-2 sm:table-cell">{m.username ? `@${m.username}` : m.email}</td>
                 <td className="w-24 px-4 text-right sm:w-28 md:px-5">
                   <Badge tone={m.role === "owner" ? "ink" : "neutral"}>{ROLE_LABEL[m.role]}</Badge>
                 </td>

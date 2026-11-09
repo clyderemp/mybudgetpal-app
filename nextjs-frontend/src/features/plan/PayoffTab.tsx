@@ -60,13 +60,15 @@ export function PayoffTab({ onGoToDebts }: { onGoToDebts: () => void }) {
   }
 
   const debounced = useDebounced(budget);
-  const queryBudget = debounced !== null && debounced >= 0 ? debounced : undefined;
+  // 0 / empty means "sum of minimum payments" (the backend applies the same rule).
+  const queryBudget = debounced !== null && debounced > 0 ? debounced : 0;
   const payoff = usePayoff({ strategy, monthlyBudgetFils: queryBudget });
   const compare = useCompare({ monthlyBudgetFils: queryBudget });
 
   const activeDebts = useMemo(() => (debts.data ?? []).filter((d) => d.balanceFils > 0), [debts.data]);
   const minimums = activeDebts.reduce((s, d) => s + Math.min(d.minPaymentFils, d.balanceFils), 0);
-  const dirty = Boolean(plan.data) && (strategy !== plan.data?.strategy || budget !== plan.data?.monthlyDebtBudgetFils);
+  const effectiveBudget = queryBudget > 0 ? queryBudget : minimums;
+  const dirty = Boolean(plan.data) && (strategy !== plan.data?.strategy || (budget ?? 0) !== plan.data?.monthlyDebtBudgetFils);
 
   if (plan.isPending || debts.isPending) return <PayoffSkeleton />;
   if (plan.isError) return <InlineError error={plan.error} onRetry={() => plan.refetch()} title="Couldn't load your plan" />;
@@ -90,17 +92,14 @@ export function PayoffTab({ onGoToDebts }: { onGoToDebts: () => void }) {
   }
 
   async function save() {
-    if (!plan.data || budget === null) {
-      setBudgetError("Enter a monthly amount");
-      return;
-    }
-    if (budget < minimums) {
+    if (!plan.data) return;
+    if (budget !== null && budget > 0 && budget < minimums) {
       setBudgetError(`Enter at least ${formatFils(minimums)} to cover every minimum payment`);
       return;
     }
     setBudgetError(undefined);
     try {
-      await putM.mutateAsync({ ...plan.data, strategy, monthlyDebtBudgetFils: budget });
+      await putM.mutateAsync({ ...plan.data, strategy, monthlyDebtBudgetFils: budget ?? 0 });
       notify.success("Plan saved");
     } catch (err) {
       const fieldErr: { message?: string } = {};
@@ -127,9 +126,9 @@ export function PayoffTab({ onGoToDebts }: { onGoToDebts: () => void }) {
         ) : !result ? (
           <Skeleton className="h-[120px] w-full rounded-container" />
         ) : !result.feasible ? (
-          <Infeasible result={result} debts={activeDebts} minimums={minimums} budget={queryBudget ?? 0} onUseMinimums={() => setBudget(minimums)} />
+          <Infeasible result={result} debts={activeDebts} minimums={minimums} budget={effectiveBudget} onUseMinimums={() => setBudget(minimums)} />
         ) : (
-          <Headline result={result} strategy={strategy} budget={queryBudget ?? 0} />
+          <Headline result={result} strategy={strategy} budget={effectiveBudget} />
         )}
       </div>
 
@@ -160,7 +159,7 @@ export function PayoffTab({ onGoToDebts }: { onGoToDebts: () => void }) {
                 setBudgetError(undefined);
               }}
               error={budgetError}
-              hint={<span className="tabular">Minimum payments total {formatFils(minimums)}</span>}
+              hint={<span className="tabular">Minimum payments total {formatFils(minimums)}. Leave empty or 0 to pay just the minimums.</span>}
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 lg:mt-[22px] lg:ml-auto">

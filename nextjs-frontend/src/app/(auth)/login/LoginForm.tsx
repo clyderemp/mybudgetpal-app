@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Field";
 
 const schema = z.object({
-  email: z.email("Enter a valid email").trim().toLowerCase(),
+  username: z.string().trim().toLowerCase().min(1, "Enter your username"),
   password: z.string().min(1, "Enter your password"),
 });
 type Values = z.infer<typeof schema>;
@@ -29,7 +29,7 @@ export function LoginForm() {
     handleSubmit,
     setError,
     formState: { errors },
-  } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { email: "", password: "" } });
+  } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { username: "", password: "" } });
 
   const onSubmit = handleSubmit(async (v) => {
     setFormError(null);
@@ -38,14 +38,14 @@ export function LoginForm() {
       router.replace(safeNext(params.get("next")));
       router.refresh();
     } catch (err) {
-      setFormError(applyApiErrors(err, setError, ["email", "password"]));
+      setFormError(applyApiErrors(err, setError, ["username", "password"]));
     }
   });
 
   return (
     <AuthForm
       title="Sign in"
-      description="Use the email and password for your household account."
+      description="Use your username (or email) and password."
       footer={
         <div className="flex flex-col gap-1.5">
           <span>
@@ -67,8 +67,16 @@ export function LoginForm() {
     >
       <form noValidate onSubmit={onSubmit} className="flex flex-col gap-4">
         <FormError message={formError} />
-        <Field label="Email" htmlFor="email" error={errors.email?.message}>
-          <Input id="email" type="email" autoComplete="email" inputMode="email" invalid={!!errors.email} {...register("email")} />
+        <Field label="Username" htmlFor="username" error={errors.username?.message}>
+          <Input
+            id="username"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            invalid={!!errors.username}
+            {...register("username")}
+          />
         </Field>
         <Field label="Password" htmlFor="password" error={errors.password?.message}>
           <Input id="password" type="password" autoComplete="current-password" invalid={!!errors.password} {...register("password")} />

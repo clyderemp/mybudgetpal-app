@@ -7,7 +7,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-AUTH_LIMITED_PATHS = {"/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/join"}
+AUTH_LIMITED_PATHS = {
+    "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/join", "/api/v1/auth/password",
+}
 
 
 class FixedWindowLimiter:

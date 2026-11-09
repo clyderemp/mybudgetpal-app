@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.models import Account, Category, Debt, Goal, Transaction, User
 from app.schemas.accounts import AccountOut
-from app.schemas.auth import UserOut
+from app.schemas.auth import DEFAULT_AVATAR_STYLE, UserOut
 from app.schemas.categories import CategoryOut
 from app.schemas.debts import DebtOut
 from app.schemas.goals import GoalOut
@@ -14,7 +14,15 @@ def _s(v: object) -> str | None:
 
 
 def user_out(u: User) -> UserOut:
-    return UserOut(id=str(u.id), name=u.name, email=u.email, role=u.role)
+    return UserOut(
+        id=str(u.id),
+        name=u.name,
+        email=u.email,
+        username=u.username,
+        role=u.role,
+        avatar_style=u.avatar_style or DEFAULT_AVATAR_STYLE,
+        avatar_seed=u.avatar_seed or u.username or u.name,
+    )
 
 
 def account_out(a: Account, balance_fils: int) -> AccountOut:

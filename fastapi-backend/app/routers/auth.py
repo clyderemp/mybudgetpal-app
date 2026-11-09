@@ -15,6 +15,8 @@ from app.schemas.auth import (
     JoinIn,
     LoginIn,
     MeOut,
+    PasswordChangeIn,
+    ProfilePatch,
     RegisterIn,
     StatusOut,
     UserEnvelope,
@@ -45,6 +47,17 @@ async def _ensure_email_free(email: str) -> None:
         raise AppError(409, "email_taken", "An account with this email already exists", {"email": "already registered"})
 
 
+async def _ensure_username_free(username: str | None) -> None:
+    if username and await User.find_one({"username": username}) is not None:
+        raise AppError(409, "username_taken", "That username is taken", {"username": "already taken"})
+
+
+async def find_login_user(identifier: str) -> User | None:
+    """A value containing "@" is an email; anything else is a username."""
+    key = "email" if "@" in identifier else "username"
+    return await User.find_one({key: identifier})
+
+
 @router.get("/status", response_model=StatusOut)
 async def auth_status(settings: Settings = Depends(get_app_settings)) -> StatusOut:
     return StatusOut(registration_open=await _registration_open(settings))
@@ -57,6 +70,7 @@ async def register(
     if not await _registration_open(settings):
         raise AppError(403, "registration_closed", "Registration is closed")
     await _ensure_email_free(body.email)
+    await _ensure_username_free(body.username)
     user_id = PydanticObjectId()
     household = Household(name=body.household_name, owner_id=user_id)
     await household.insert()
@@ -64,6 +78,7 @@ async def register(
         id=user_id,
         household_id=household.id,  # type: ignore[arg-type]
         email=body.email,
+        username=body.username,
         name=body.name,
         password_hash=hash_password(body.password),
         role="owner",
@@ -83,9 +98,11 @@ async def join(
     if invite is None or as_utc(invite.expires_at) <= utcnow():
         raise invalid
     await _ensure_email_free(body.email)
+    await _ensure_username_free(body.username)
     user = User(
         household_id=invite.household_id,
         email=body.email,
+        username=body.username,
         name=body.name,
         password_hash=hash_password(body.password),
         role="member",
@@ -110,14 +127,15 @@ async def login(
     body: LoginIn, request: Request, response: Response, settings: Settings = Depends(get_app_settings)
 ) -> UserEnvelope:
     failures = request.app.state.login_failures
-    if failures.is_locked(body.email):
+    ident = body.identifier
+    if failures.is_locked(ident):
         raise AppError(429, "too_many_attempts", "Too many failed sign-in attempts. Try again in a few minutes.")
-    user = await User.find_one({"email": body.email})
+    user = await find_login_user(ident)
     ok = verify_password(user.password_hash if user else None, body.password)
     if user is None or not ok:
-        failures.record_failure(body.email)
-        raise AppError(401, "invalid_credentials", "Invalid email or password")
-    failures.reset(body.email)
+        failures.record_failure(ident)
+        raise AppError(401, "invalid_credentials", "Invalid username or password")
+    failures.reset(ident)
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
         user.touch()
@@ -250,3 +268,45 @@ async def me(current: CurrentUser = Depends(get_current_user)) -> MeOut:
         user = await User.get(current.user_id)
     assert user is not None
     return MeOut(user=user_out(user), household=household)
+
+
+@router.patch("/me", response_model=UserEnvelope)
+async def update_profile(body: ProfilePatch, current: CurrentUser = Depends(get_current_user)) -> UserEnvelope:
+    """Change your own display name or DiceBear avatar."""
+    user = await User.get(current.user_id)
+    if user is None:
+        raise AppError(404, "not_found", "User not found")
+    for key, value in body.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(user, key, value)
+    user.touch()
+    await user.save()
+    return UserEnvelope(user=user_out(user))
+
+
+@router.post("/password", response_model=UserEnvelope)
+async def change_password(
+    body: PasswordChangeIn,
+    request: Request,
+    response: Response,
+    current: CurrentUser = Depends(get_current_user),
+    settings: Settings = Depends(get_app_settings),
+) -> UserEnvelope:
+    """Change your password: signs out every other device and re-issues this one's session."""
+    failures = request.app.state.login_failures
+    key = f"pw:{current.user_id}"
+    if failures.is_locked(key):
+        raise AppError(429, "too_many_attempts", "Too many wrong passwords. Try again in a few minutes.")
+    user = await User.get(current.user_id)
+    if user is None or not verify_password(user.password_hash, body.current_password):
+        failures.record_failure(key)
+        raise AppError(400, "wrong_password", "Current password is incorrect", {"currentPassword": "incorrect"})
+    failures.reset(key)
+    if body.new_password == body.current_password:
+        raise AppError(422, "validation_error", "Invalid input", {"newPassword": "must differ from the current password"})
+    user.password_hash = hash_password(body.new_password)
+    user.touch()
+    await user.save()
+    await revoke_all_sessions(user.id, get_auth_cache(request.app))
+    await issue_session(user, request, response, settings)
+    return UserEnvelope(user=user_out(user))

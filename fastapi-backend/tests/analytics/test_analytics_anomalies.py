@@ -53,11 +53,25 @@ def test_two_sigma_threshold():
     assert kinds(r) == [("category_spike", "groceries")]
 
 
-def test_new_category_with_history_is_spike():
+def test_new_category_is_not_a_spike():
+    # No prior spend in "gifts": a first purchase is not "well above an average of AED 0".
     txns = history([100000] * 6, cat="rent") + [tx(2026, 11, 30000, cat="gifts")]
+    assert detect_anomalies(txns, MONTH) == []
+
+
+def test_category_with_one_prior_month_can_spike():
+    txns = history([100000] * 6, cat="rent") + [tx(2026, 9, 5000, cat="gifts"), tx(2026, 11, 300000, cat="gifts")]
     r = detect_anomalies(txns, MONTH)
     assert kinds(r) == [("category_spike", "gifts")]
-    assert r[0]["baselineFils"] == 0
+
+
+def test_empty_months_after_recording_stopped_are_ignored():
+    # Data May..Jul only (Aug..Oct not recorded). Baseline is May..Jul (mean 100000, std 0), not
+    # [x, x, x, 0, 0, 0] (mean 50000, std 50000 -> threshold 150000, which hid this +40% month).
+    txns = [tx(2026, m, 100000) for m in (5, 6, 7)] + [tx(2026, 11, 140000)]
+    r = detect_anomalies(txns, MONTH)
+    assert kinds(r) == [("category_spike", "groceries")] and r[0]["baselineFils"] == 100000
+    assert "3-month average" in r[0]["message"]
 
 
 def test_needs_two_months_of_history():

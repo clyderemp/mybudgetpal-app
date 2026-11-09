@@ -7,12 +7,14 @@ and passed down; analytics functions stay pure.
 from __future__ import annotations
 
 import asyncio
+import calendar
 import datetime as dt
 from typing import Any
 
 from beanie import PydanticObjectId
 
 from app.analytics import financial_health, monthly_series, monthly_summary
+from app.analytics._common import round_half_up
 from app.models import Account, Debt, Plan
 from app.services.analytics_data import load_analytics_txns
 from app.services.balances import apply_balances, transaction_deltas
@@ -106,6 +108,19 @@ def health_range(today: dt.date) -> tuple[str, str]:
     return shift_month(cur, -HEALTH_HISTORY_MONTHS), cur
 
 
+def project_partial_month(month: dict[str, Any], today: dt.date) -> dict[str, Any]:
+    """Turn the current, partial month into a full-month estimate for health scoring.
+
+    Expenses accrue roughly daily, so they are projected by elapsed days (day 9 of 30 ->
+    x 30/9); otherwise 9 days of spending would read as a month's and inflate the emergency
+    fund ~3x. Income is lumpy (a salary lands once) and is NOT projected: it stays at what has
+    actually arrived. Both choices err on the cautious side (lower savings rate, higher DTI).
+    """
+    days = calendar.monthrange(today.year, today.month)[1]
+    expense = round_half_up(month["expenseFils"] * days / today.day)
+    return {**month, "expenseFils": expense, "netFils": month["incomeFils"] - expense}
+
+
 def compute_health(
     txns: list[dict[str, Any]],
     accounts: list[Account],
@@ -118,7 +133,7 @@ def compute_health(
     last_full = shift_month(cur, -1)
     monthly = monthly_series(txns, last_full, HEALTH_HISTORY_MONTHS)
     if not any(m["incomeFils"] or m["expenseFils"] for m in monthly):
-        monthly = monthly_series(txns, cur, 1)
+        monthly = [project_partial_month(m, today) for m in monthly_series(txns, cur, 1)]
     liquid = sum(
         balances[str(a.id)] for a in accounts if a.type in LIQUID_ACCOUNT_TYPES and a.currency == "AED"
     )

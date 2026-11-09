@@ -24,7 +24,7 @@ export const qk = {
   insights: {
     all: ["insights"] as const,
     summary: (month: string) => ["insights", "summary", month] as const,
-    trends: (months: number) => ["insights", "trends", months] as const,
+    trends: (months: number, end?: string) => ["insights", "trends", months, end ?? "current"] as const,
     forecast: ["insights", "forecast"] as const,
     anomalies: (month: string) => ["insights", "anomalies", month] as const,
     health: ["insights", "health"] as const,

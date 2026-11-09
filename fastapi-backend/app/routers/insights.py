@@ -31,10 +31,11 @@ async def summary(
 @router.get("/trends")
 async def trends(
     months: int = Query(12, ge=1, le=60),
+    end: str | None = Query(None, description="last month of the series (YYYY-MM); default: current month"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
-    end = month_str(today)
+    end = parse_month(end) if end else month_str(today)
     txns = await load_months(current.household_id, shift_month(end, -(months - 1)), end)
     items = monthly_series(txns, end, months)
     return {"items": items, "total": len(items)}

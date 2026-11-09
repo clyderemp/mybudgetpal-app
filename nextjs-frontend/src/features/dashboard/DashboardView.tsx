@@ -16,7 +16,7 @@ export function DashboardView() {
   const { month, isCurrent, range } = usePeriod();
   const dash = useDashboard();
   const summary = useInsightsSummary(month);
-  const trends = useInsightsTrends(12);
+  const trends = useInsightsTrends(12, month);
   const budget = useBudget(month);
   const categories = useCategories();
   // The dashboard endpoint returns the latest 10 overall; for a past month list that month's latest.

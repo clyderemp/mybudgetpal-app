@@ -2,9 +2,10 @@
 
 Method (per expense category, and for income):
   * Window = the ``history_months`` full calendar months before ``today``'s month.
-  * Data months ``n`` = months from the first month in the window that has any
-    income/expense transaction up to the last full month (zero months inside that
-    span count as genuine zeros; months before the household started are dropped).
+  * Data months ``n`` = months from the first to the last month in the window that has any
+    income/expense transaction (zero months inside that span count as genuine zeros;
+    empty months before the household started, or after recording stopped, are dropped,
+    so a gap in record-keeping never reads as "spending fell to zero").
   * EWMA with alpha = 0.5, normalised weights: w_age = (1 - alpha) ** age, age 0 = most
     recent month; ewma = sum(w * x) / sum(w).
   * When n >= 4: fit sklearn LinearRegression on (0..n-1, x), predict x at n, and
@@ -16,7 +17,8 @@ Method (per expense category, and for income):
     The regression slope is NOT used for the trend (a long-run decline can coexist with
     a forecast above last month, e.g. after a one-month dip).
   * totalExpenseFils = sum of category forecasts (keeps UI totals consistent).
-  * confidence: n < 3 -> "low", 3..5 -> "medium", >= 6 -> "high".
+  * confidence: n < 3 -> "low", 3..5 -> "medium", >= 6 -> "high"; always "low" when the
+    most recent full month has no data (the forecast then rests on stale history).
 
 The forecast month is the calendar month after ``today``'s month.
 """
@@ -114,8 +116,9 @@ def forecast_next_month(txns: Iterable[Any], today: date, history_months: int = 
             "confidence": "low",
         }
 
-    span = window[window.index(min(active)):]
+    span = window[window.index(min(active)) : window.index(max(active)) + 1]
     n = len(span)
+    stale = max(active) != window[-1]
 
     rows = []
     for cid, per_month in by_cat.items():
@@ -129,5 +132,5 @@ def forecast_next_month(txns: Iterable[Any], today: date, history_months: int = 
         "totalExpenseFils": sum(r["forecastFils"] for r in rows),
         "totalIncomeFils": income_fc,
         "byCategory": rows,
-        "confidence": _confidence(n),
+        "confidence": "low" if stale else _confidence(n),
     }

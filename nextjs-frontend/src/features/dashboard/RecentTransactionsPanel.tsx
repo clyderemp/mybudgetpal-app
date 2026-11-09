@@ -1,10 +1,11 @@
 "use client";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
 import { DesktopOnly } from "@/components/ui/DesktopOnly";
 import Link from "next/link";
 import { Plus, Receipt } from "lucide-react";
 import { useMemo } from "react";
 import type { GridColDef } from "@mui/x-data-grid";
-import { Avatar, Button, DataTable, EmptyState, InlineError, Money, Panel, SkeletonList, buttonClasses, numericColumn } from "@/components/ui";
+import { Button, DataTable, EmptyState, InlineError, Money, Panel, SkeletonList, buttonClasses, numericColumn } from "@/components/ui";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
 import { useElementWidth } from "@/features/common/useElementWidth";
 import { formatDate, formatDayLabel, todayISO } from "@/lib/dates";
@@ -18,6 +19,7 @@ interface Row {
   category: string;
   account: string;
   addedBy: string;
+  addedById: string;
   amount: number;
   type: Transaction["type"];
   currency: string;
@@ -39,6 +41,7 @@ function toRows(items: Transaction[], categories: Category[], accounts: Account[
       category,
       account: account?.name ?? "—",
       addedBy: t.createdByName ?? "",
+      addedById: t.createdBy,
       amount: t.amountFils,
       type: t.type,
       currency: account?.currency ?? "AED",
@@ -143,7 +146,7 @@ export function RecentTransactionsPanel({
         renderCell: ({ row }) =>
           row.addedBy ? (
             <span className="flex h-full items-center">
-              <Avatar name={row.addedBy} size="sm" title={`Added by ${row.addedBy}`} />
+              <MemberAvatar userId={row.addedById} name={row.addedBy} size="sm" title={`Added by ${row.addedBy}`} />
             </span>
           ) : (
             <span className="text-ink-2">—</span>

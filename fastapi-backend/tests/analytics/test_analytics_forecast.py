@@ -124,3 +124,11 @@ def test_trend_flat_band_edges():
     assert trend_vs_last(1, 0) == "up"
     assert trend_vs_last(0, 0) == "flat"
     assert trend_vs_last(0, 50_000) == "down"
+
+
+def test_history_that_stopped_is_not_read_as_zero_and_is_low_confidence():
+    # Recorded May..Jul (100000/month), nothing Aug..Oct: the forecast uses May..Jul, not
+    # [x, x, x, 0, 0, 0] (which used to clamp to 0 with "high" confidence).
+    f = forecast_next_month(series([100000, 100000, 100000], end=(2026, 7)), TODAY)
+    assert f["byCategory"][0]["forecastFils"] == 100000
+    assert f["confidence"] == "low"

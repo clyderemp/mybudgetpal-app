@@ -44,16 +44,18 @@ export function signedAed(fils: number | null | undefined) {
   return formatFils(fils, "AED", { noDecimals: true, signed: true }).replace(/^-/, "−");
 }
 
-/** `count` trend points ending at `month` (inclusive), oldest → newest. */
+/** `count` trend points ending at `month` (inclusive), oldest → newest. Empty when `month`
+ *  isn't in the series (never substitutes other months). Request trends with `end: month`. */
 export function seriesEndingAt(points: MonthlySeriesPoint[] | undefined, month: string, count = 6) {
   if (!points?.length) return [];
   const end = points.findIndex((p) => p.month === month);
-  const stop = end === -1 ? points.length : end + 1;
-  return points.slice(Math.max(0, stop - count), stop);
+  if (end === -1) return [];
+  return points.slice(Math.max(0, end + 1 - count), end + 1);
 }
 
+/** Savings rate per month, clamped to 0–100% like the tile (backend analytics/summary.py). */
 export function savingsRateSeries(points: MonthlySeriesPoint[]) {
-  return points.map((p) => (p.incomeFils > 0 ? Math.max(-1, p.netFils / p.incomeFils) : 0));
+  return points.map((p) => (p.incomeFils > 0 ? Math.max(0, Math.min(1, p.netFils / p.incomeFils)) : 0));
 }
 
 /** Calendar days from `a` to `b` (both YYYY-MM-DD). */
@@ -89,8 +91,9 @@ export interface HealthComponent {
 
 /**
  * Component points, mirroring backend analytics/health.py (savings 35, emergency fund 35,
- * debt-to-income 30). When a metric is null the backend may award full or zero points; if only
- * one component is unknown it's derived from the total score.
+ * debt-to-income 30). A null metric is scored all-or-nothing by the backend (emergency fund:
+ * full if there is liquid money; DTI: full if there is no debt), so each unknown component is
+ * either 0 or its full weight: pick the combination whose total matches the score.
  */
 export function healthComponents(h: FinancialHealth): HealthComponent[] {
   const clamp = (x: number) => Math.max(0, Math.min(1, x));
@@ -124,9 +127,16 @@ export function healthComponents(h: FinancialHealth): HealthComponent[] {
     },
   ];
   const unknown = rows.filter((r) => r.points === null);
-  if (unknown.length === 1) {
-    const known = rows.reduce((s, r) => s + (r.points ?? 0), 0);
-    unknown[0].points = Math.max(0, Math.min(unknown[0].weight, h.score - known));
+  if (unknown.length > 0) {
+    const rest = h.score - rows.reduce((s, r) => s + (r.points ?? 0), 0);
+    let best = 0;
+    let bestGap = Infinity;
+    for (let mask = 0; mask < 1 << unknown.length; mask++) {
+      const total = unknown.reduce((s, r, i) => s + (mask & (1 << i) ? r.weight : 0), 0);
+      const gap = Math.abs(total - rest);
+      if (gap < bestGap) [best, bestGap] = [mask, gap];
+    }
+    unknown.forEach((r, i) => (r.points = best & (1 << i) ? r.weight : 0));
   }
   return rows;
 }

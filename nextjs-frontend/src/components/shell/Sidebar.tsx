@@ -40,6 +40,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const me = useMe();
   const household = me.data?.household;
   const members = household?.members.map((m) => m.name) ?? [];
+  const memberAvatars = household?.members.map((m) => ({ style: m.avatarStyle, seed: m.avatarSeed })) ?? [];
 
   return (
     <aside
@@ -65,7 +66,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           ) : null}
         </Link>
         {!collapsed && members.length > 0 ? (
-          <AvatarStack names={members} size="xs" ringClassName="ring-sidebar" className="shrink-0" />
+          <AvatarStack names={members} avatars={memberAvatars} size="xs" ringClassName="ring-sidebar" className="shrink-0" />
         ) : null}
       </div>
 

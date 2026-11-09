@@ -1,9 +1,9 @@
 "use client";
+import { MemberAvatar } from "@/components/members/MemberAvatar";
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLogout, useMe } from "@/lib/queries";
 import { cn } from "@/lib/utils";
-import { Avatar } from "@/components/ui/Avatar";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/Dropdown";
 
 function MenuBody({ align, side }: { align: "start" | "end"; side?: "top" | "bottom" | "right" }) {
@@ -13,10 +13,10 @@ function MenuBody({ align, side }: { align: "start" | "end"; side?: "top" | "bot
   return (
     <MenuContent align={align} side={side} className="w-60">
       <div className="flex items-center gap-2.5 px-2 py-2">
-        <Avatar name={me.data?.user.name} size="md" />
+        <MemberAvatar userId={me.data?.user.id} name={me.data?.user.name} size="md" />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ink">{me.data?.user.name}</p>
-          <p className="truncate text-xs text-ink-2">{me.data?.user.email}</p>
+          <p className="truncate text-xs text-ink-2">{me.data?.user.username ? `@${me.data.user.username}` : me.data?.user.email}</p>
         </div>
       </div>
       <MenuSeparator />
@@ -45,7 +45,7 @@ export function UserMenu() {
         aria-label={`Account menu for ${me.data?.user.name ?? "you"}`}
         className="inline-flex size-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
-        <Avatar name={me.data?.user.name} size="md" title="" />
+        <MemberAvatar userId={me.data?.user.id} name={me.data?.user.name} size="md" title="" />
       </MenuTrigger>
       <MenuBody align="end" />
     </Menu>
@@ -65,7 +65,7 @@ export function SidebarUserMenu({ collapsed }: { collapsed: boolean }) {
           collapsed ? "justify-center px-0" : "px-2",
         )}
       >
-        <Avatar name={me.data?.user.name} size="sm" title="" />
+        <MemberAvatar userId={me.data?.user.id} name={me.data?.user.name} size="sm" title="" />
         {!collapsed ? (
           <>
             <span className="min-w-0 flex-1">
