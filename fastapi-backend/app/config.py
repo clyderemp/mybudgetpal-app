@@ -37,6 +37,18 @@ def database_for(app_env: str, host_env: Mapping[str, str]) -> Database:
     return "development"
 
 
+# Ordered by a receipt benchmark (10 Nov 2026): openrouter/free 19 s, dots 20 s, nemotron-ultra 24 s
+# all correct; super-vl 69 s and lightning 55 s; both gemmas rate-limited (429) at the time.
+DEFAULT_FREE_MODELS = (
+    "openrouter/free,dots-studio/dots-3-note-preview:free,nvidia/nemotron-3-ultra-550b-a55b:free,"
+    "google/gemma-4-31b-it:free,google/gemma-4-26b-a4b-it:free,nvidia/nemotron-3.5-super-vl:free"
+)
+
+
+def is_free_model(model: str) -> bool:
+    return model == "openrouter/free" or re.fullmatch(r"[\w.-]+/[\w.-]+:free", model) is not None
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore")
 
@@ -72,6 +84,15 @@ class Settings(BaseSettings):
     auth_cache_ttl_seconds: float = 10.0
     # One shared Motor client per process. min pool keeps a few warm connections so
     # concurrent (asyncio.gather) queries don't each pay a TLS + auth handshake.
+    # Receipt reading (POST /receipts/read). OCR runs in the browser; only redacted text reaches
+    # OpenRouter. Free models only, tried in order (the SESSIONS approach; see DEFAULT_FREE_MODELS).
+    # Empty key = the local parser alone fills the form. The deadline stays under the Next.js
+    # rewrite's proxy timeout (next.config.ts) so a slow AI still returns the local reading.
+    openrouter_api_key: str = ""
+    openrouter_model: str = DEFAULT_FREE_MODELS
+    receipt_ai_deadline_seconds: float = 28.0
+    receipt_ai_model_timeout_seconds: float = 18.0
+    rate_limit_receipts_per_min: int = 20
     mongodb_max_pool_size: int = 50
     mongodb_min_pool_size: int = 4
 
@@ -81,6 +102,18 @@ class Settings(BaseSettings):
         if len(v.encode("utf-8")) < 32:
             raise ValueError("JWT_SECRET must be at least 32 bytes")
         return v
+
+    @field_validator("openrouter_model")
+    @classmethod
+    def _free_models_only(cls, v: str) -> str:
+        models = [m.strip() for m in v.split(",") if m.strip()]
+        if not models or not all(is_free_model(m) for m in models):
+            raise ValueError("OPENROUTER_MODEL must list only free OpenRouter models (ids ending in :free)")
+        return ",".join(models)
+
+    @property
+    def openrouter_models(self) -> list[str]:
+        return self.openrouter_model.split(",")
 
     @field_validator("app_origin")
     @classmethod

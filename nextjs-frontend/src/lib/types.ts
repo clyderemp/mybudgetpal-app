@@ -451,3 +451,18 @@ export interface Dashboard {
   recentTransactions: Transaction[];
   accounts: Account[];
 }
+
+/** POST /receipts/read: fields read from a receipt's OCR text. Prefill only; nothing is saved. */
+export interface ReceiptReading {
+  merchant: string | null;
+  amountFils: number | null;
+  currency: string | null;
+  date: ISODate | null;
+  categoryId: ID | null;
+  accountId: ID | null;
+  cardLast4: string | null;
+  vatFils: number | null;
+  items: { name: string; amountFils: number | null }[];
+  source: "ai" | "text";
+  aiUnavailable: boolean;
+}

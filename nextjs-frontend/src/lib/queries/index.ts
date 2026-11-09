@@ -10,3 +10,4 @@ export * from "./goals";
 export * from "./plan";
 export * from "./insights";
 export * from "./dashboard";
+export * from "./receipts";

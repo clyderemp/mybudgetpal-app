@@ -123,6 +123,8 @@ Insights:
 - `GET /insights/health` → `financial_health`
 - `GET /dashboard` → `{summary, health, budget (current month), upcomingDebtPayments: [{debtId, name, dueDate, minPaymentFils}], recentTransactions (10), accounts}`
 
+- `POST /receipts/read` `{text}` (OCR text, 1–8000 chars; the image never reaches the server) → `{merchant, amountFils, currency, date, categoryId, accountId (card last 4 matched to an account), cardLast4, vatFils, items: [{name, amountFils}], source: "ai"|"text", aiUnavailable}`. Long numbers are redacted to their last 4 digits before the text goes to OpenRouter (free models only, `OPENROUTER_MODEL`, tried in order with a per-model time limit); a local parser fills missing fields, and a date printed on the receipt beats the AI's. Without `OPENROUTER_API_KEY` only the local parser runs. Saves nothing. Rate limit `RATE_LIMIT_RECEIPTS_PER_MIN` (20) per IP.
+
 Health check: `GET /api/health` → `{ok: true}` (no auth).
 
 ## 5. Frontend
@@ -138,6 +140,7 @@ Next.js (latest stable, App Router, TypeScript strict, `src/` dir), Tailwind CSS
   - `/login`, `/join` (invite code), `/setup` (first-run register, only if `registrationOpen`)
   - `/` Dashboard
   - `/transactions` (filters, table on desktop via MUI DataGrid, card list on phones, add/edit in dialog)
+- Receipt scanning (new-transaction dialog, "Scan receipt"): Tesseract (tesseract.js, self-hosted in `public/ocr/<version>/` by `scripts/copy-ocr-assets.mjs` on install/dev/build) reads the photo in a Web Worker on the device after canvas preprocessing (EXIF rotation, rescale, grayscale, contrast); the text goes to `POST /receipts/read` and the reply prefills an expense for review.
   - `/accounts` (cards with balances, add/edit dialog, archive)
   - `/budget` (month switcher, per-category progress bars, edit limits, copy last month)
   - `/plan` (tabs: Debts | Savings goals | Payoff plan — strategy toggle, monthly budget input, debt-free date, timeline chart, avalanche vs snowball comparison)

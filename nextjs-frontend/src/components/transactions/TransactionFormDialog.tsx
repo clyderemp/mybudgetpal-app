@@ -7,7 +7,8 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { todayISO } from "@/lib/dates";
 import { useAccounts, useCategories, useCreateTransaction, useDeleteTransaction, useUpdateTransaction } from "@/lib/queries";
-import type { CategoryGroup, Transaction, TransactionCreate, TransactionType } from "@/lib/types";
+import { formatFils } from "@/lib/money";
+import type { CategoryGroup, ReceiptReading, Transaction, TransactionCreate, TransactionType } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { DateField } from "@/components/ui/DateField";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
@@ -16,6 +17,7 @@ import { FormDialog, FormGrid } from "@/components/ui/FormDialog";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { notify } from "@/components/ui/notify";
+import { ReceiptScanner } from "./ReceiptScanner";
 
 const schema = z
   .object({
@@ -115,6 +117,7 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
     register,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<FormInput, unknown, FormOutput>({ resolver: zodResolver(schema), defaultValues: initial });
 
@@ -140,6 +143,46 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
     .map((c) => ({ value: c.id, label: c.name, group: GROUP_LABEL[c.group] ?? c.group }));
 
   const saving = createM.isPending || updateM.isPending;
+  const accountCurrency = accounts.find((a) => a.id === accountId)?.currency ?? "AED";
+
+  // A scanned receipt is always an expense. Only fields it found are written. On the AI pass
+  // (`prev` = the first, text-only reading), a field the user has changed since is left alone.
+  function applyReceipt(r: ReceiptReading, prev: ReceiptReading | null) {
+    const opts = { shouldValidate: true, shouldDirty: true } as const;
+    const fill = <K extends "amountFils" | "date" | "merchant" | "categoryId" | "accountId" | "note">(
+      name: K,
+      value: FormInput[K] | null | undefined,
+      before: FormInput[K] | null | undefined,
+    ) => {
+      if (value == null || value === "") return;
+      if (prev && (getValues(name) ?? null) !== (before ?? null) && getValues(name)) return;
+      setValue(name, value as never, opts);
+    };
+    const note = (x: ReceiptReading) => {
+      const c = x.currency ?? accountCurrency;
+      return [
+        x.items.length
+          ? x.items.map((i) => (i.amountFils != null ? `${i.name} ${formatFils(i.amountFils, c, { hideCurrency: true })}` : i.name)).join(", ")
+          : null,
+        x.vatFils ? `VAT ${formatFils(x.vatFils, c)}` : null,
+        x.currency && x.currency !== accountCurrency && x.amountFils != null ? `Receipt total ${formatFils(x.amountFils, x.currency)}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ")
+        .slice(0, 500);
+    };
+    if (!prev) {
+      setValue("type", "expense", opts);
+      setValue("toAccountId", undefined);
+    }
+    if (getValues("type") !== "expense") return;
+    fill("amountFils", r.amountFils && r.amountFils > 0 ? r.amountFils : null, prev?.amountFils);
+    fill("date", r.date, prev?.date);
+    fill("merchant", r.merchant, prev?.merchant);
+    fill("categoryId", r.categoryId, prev?.categoryId);
+    fill("accountId", r.accountId, prev?.accountId);
+    fill("note", note(r) || null, prev ? note(prev) : null);
+  }
 
   const onSubmit = handleSubmit(async (v) => {
     const body: TransactionCreate = {
@@ -214,6 +257,7 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
           </Link>
         </div>
       ) : null}
+      {!isEdit && !noAccounts ? <ReceiptScanner onRead={applyReceipt} expectedCurrency={accountCurrency} /> : null}
       <FormGrid>
         <Controller
           control={control}

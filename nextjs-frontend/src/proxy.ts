@@ -19,6 +19,8 @@ function buildCsp(nonce: string) {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+    // Receipt OCR runs in a same-origin Web Worker (self-hosted under /ocr).
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -60,5 +62,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Skip API proxying, Next internals and static files.
-  matcher: ["/((?!api/|_next/|favicon.ico|robots.txt|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|txt|xml|json|webmanifest)$).*)"],
+  matcher: ["/((?!api/|_next/|ocr/|favicon.ico|robots.txt|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|txt|xml|json|webmanifest)$).*)"],
 };

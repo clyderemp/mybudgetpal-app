@@ -21,6 +21,12 @@ const csp = [
   "frame-ancestors 'none'",
 ].join("; ");
 
+// Receipt OCR worker (public/ocr/<version>/): the worker gets its own policy from its response.
+// It loads the engine with importScripts and compiles WebAssembly (needs 'wasm-unsafe-eval',
+// which allows wasm compilation only, not JS eval), and fetches the language data. Versioned
+// paths, so the files are cached for a year.
+const ocrCsp = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -46,6 +52,9 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // The /api rewrite gives up after 30 s by default; receipt reading can take up to ~30 s
+  // (backend RECEIPT_AI_DEADLINE_SECONDS=28) before falling back to its local parser.
+  experimental: { proxyTimeout: 60_000 },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
   },
@@ -55,6 +64,13 @@ const nextConfig: NextConfig = {
       // Fallback CSP only where proxy.ts doesn't set the nonce policy (two CSP headers on
       // one response would be intersected, which is safe but noisy).
       { source: "/_next/:path*", headers: [{ key: "Content-Security-Policy", value: csp }] },
+      {
+        source: "/ocr/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: ocrCsp },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
     ];
   },
 };
