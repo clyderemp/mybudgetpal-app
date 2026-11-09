@@ -145,9 +145,9 @@ export function ForecastPanel({
               { label: "Spending", node: <Money fils={forecast!.totalExpenseFils} noDecimals /> },
               { label: "Net", node: <Money fils={net} noDecimals tone={net < 0 ? "danger" : undefined} /> },
             ].map((x) => (
-              <div key={x.label} className="min-w-0 px-4 py-3 md:px-5">
+              <div key={x.label} className="min-w-0 px-3 py-3 sm:px-4 md:px-5">
                 <dt className="text-xs text-ink-2">{x.label}</dt>
-                <dd className="truncate text-sm font-semibold">{x.node}</dd>
+                <dd className="text-sm leading-tight font-semibold">{x.node}</dd>
               </div>
             ))}
           </dl>
@@ -159,11 +159,11 @@ export function ForecastPanel({
               <thead className="border-b border-line bg-surface-2 text-xs text-ink-2">
                 <tr className="h-9">
                   <th scope="col" className="px-4 text-left font-medium md:px-5">Category</th>
-                  <th scope="col" className="w-20 px-2 text-right font-medium sm:w-28">
+                  <th scope="col" className="w-16 px-2 text-right font-medium sm:w-28">
                     {lastMonth ? formatMonth(lastMonth.month).split(" ")[0] : "Last month"}
                   </th>
-                  <th scope="col" className="w-20 px-2 text-right font-medium sm:w-28">Forecast</th>
-                  <th scope="col" className="w-16 pr-4 pl-2 text-center font-medium md:pr-5">Trend</th>
+                  <th scope="col" className="w-16 px-2 text-right font-medium sm:w-28">Forecast</th>
+                  <th scope="col" className="w-12 pr-3 pl-1 text-center font-medium sm:w-16 sm:pr-4 sm:pl-2 md:pr-5">Trend</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -178,7 +178,7 @@ export function ForecastPanel({
                     <td className="px-2 text-right">
                       <Money fils={r.forecastFils} noDecimals hideCurrency className="font-medium" />
                     </td>
-                    <td className="pr-4 pl-2 md:pr-5">
+                    <td className="pr-3 pl-1 sm:pr-4 sm:pl-2 md:pr-5">
                       <span className="flex justify-center">
                         <TrendIcon trend={r.trend} />
                       </span>

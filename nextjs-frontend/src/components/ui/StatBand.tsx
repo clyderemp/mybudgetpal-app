@@ -51,12 +51,12 @@ export function StatBandItem({
   loading?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 px-4 py-3 sm:px-5 sm:py-4">
+    <div className="flex min-w-0 flex-col gap-1 px-3 py-3 min-[400px]:px-4 sm:px-5 sm:py-4">
       <p className="truncate text-meta font-medium text-ink-2">{label}</p>
       {loading ? (
         <Skeleton className="my-1 h-7 w-36" />
       ) : (
-        <p className={cn("tabular truncate text-xl font-semibold sm:text-kpi", tone === "neutral" ? "text-ink" : toneText[tone])}>{value}</p>
+        <p className={cn("tabular text-lg leading-tight font-semibold min-[400px]:text-xl sm:text-kpi", tone === "neutral" ? "text-ink" : toneText[tone])}>{value}</p>
       )}
       <div className="flex min-h-8 flex-col items-stretch gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div className="min-w-0 pb-0.5">

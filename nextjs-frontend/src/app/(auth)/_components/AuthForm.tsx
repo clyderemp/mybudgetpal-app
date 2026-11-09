@@ -22,4 +22,5 @@ export function FormError({ message }: { message?: string | null }) {
   );
 }
 
-export const authLinkClass = "font-medium text-accent underline-offset-2 hover:underline";
+export const authLinkClass =
+  "font-medium text-accent underline-offset-2 hover:underline pointer-coarse:inline-flex pointer-coarse:min-h-10 pointer-coarse:items-center";

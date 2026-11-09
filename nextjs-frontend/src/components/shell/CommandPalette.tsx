@@ -43,7 +43,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 const itemCls =
-  "flex h-9 cursor-pointer select-none items-center gap-2.5 rounded-control px-2.5 text-sm text-ink outline-none " +
+  "flex h-9 pointer-coarse:h-11 cursor-pointer select-none items-center gap-2.5 rounded-control px-2.5 text-sm text-ink outline-none " +
   "data-[selected=true]:bg-surface-2 data-[disabled=true]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-ink-2";
 const groupCls =
   "px-1.5 pb-1 [&_[cmdk-group-heading]]:px-1.5 [&_[cmdk-group-heading]]:pt-2.5 [&_[cmdk-group-heading]]:pb-1 " +

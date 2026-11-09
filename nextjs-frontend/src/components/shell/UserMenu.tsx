@@ -43,7 +43,7 @@ export function UserMenu() {
     <Menu>
       <MenuTrigger
         aria-label={`Account menu for ${me.data?.user.name ?? "you"}`}
-        className="inline-flex size-8 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="inline-flex size-8 pointer-coarse:size-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <MemberAvatar userId={me.data?.user.id} name={me.data?.user.name} size="md" title="" />
       </MenuTrigger>

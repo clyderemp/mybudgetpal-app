@@ -13,7 +13,7 @@ export function BottomTabBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreActive = MORE_ITEMS.some((i) => isActive(pathname, i.href));
   const tab =
-    "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-xs font-medium " +
+    "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium min-[360px]:text-xs " +
     "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent";
   const indicator = "before:absolute before:top-0 before:inset-x-4 before:h-0.5 before:rounded-b before:bg-ink";
 

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /** Shared control look: 36px, 6px radius, strong line border, accent focus ring. 16px text on phones (no iOS zoom). */
 export const inputClasses =
-  "h-9 w-full min-w-0 rounded-control border border-line-strong bg-surface px-3 text-base text-ink placeholder:text-ink-3 " +
+  "h-9 w-full min-w-0 rounded-control border border-line-strong bg-surface px-3 text-base pointer-coarse:h-11 text-ink placeholder:text-ink-3 " +
   "transition-colors hover:border-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/25 " +
   "disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-70 " +
   "aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/25 md:text-sm";

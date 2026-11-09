@@ -27,12 +27,12 @@ export interface Delta {
 export function DeltaText({ delta, className }: { delta: Delta; className?: string }) {
   const Arrow = delta.direction === "up" ? ArrowUpRight : delta.direction === "down" ? ArrowDownRight : delta.direction === "flat" ? Minus : null;
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-1 text-xs", className)}>
-      <span className={cn("tabular inline-flex items-center gap-0.5 font-medium", toneText[delta.tone ?? "neutral"])}>
+    <span className={cn("inline-flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-xs", className)}>
+      <span className={cn("tabular inline-flex items-center gap-0.5 font-medium whitespace-nowrap", toneText[delta.tone ?? "neutral"])}>
         {Arrow ? <Arrow className="size-3.5" aria-hidden /> : null}
         {delta.label}
       </span>
-      {delta.context ? <span className="truncate text-ink-2">{delta.context}</span> : null}
+      {delta.context ? <span className="min-w-0 truncate text-ink-2">{delta.context}</span> : null}
     </span>
   );
 }

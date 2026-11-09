@@ -69,7 +69,7 @@ export function SegmentedControl<T extends string>({
               fullWidth ? "flex-1" : "flex-none",
               " font-medium transition-colors disabled:opacity-50",
               "focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-accent",
-              size === "sm" ? "h-6 px-2 text-xs" : "h-7 px-3 text-meta",
+              size === "sm" ? "h-6 px-2 text-xs pointer-coarse:h-10" : "h-7 px-3 text-meta pointer-coarse:h-10",
               active ? "bg-surface text-ink ring-1 ring-line-strong" : "text-ink-2 hover:text-ink",
             )}
           >

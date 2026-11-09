@@ -38,9 +38,9 @@ export function SettingsView() {
   return (
     <>
       <PageHeader title="Settings" description="Your profile and password, household members, invites, categories and appearance." />
-      <div className="grid min-w-0 gap-5 md:grid-cols-[208px_minmax(0,1fr)] md:gap-8">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[208px_minmax(0,1fr)] lg:gap-8">
         <nav aria-label="Settings sections" className="min-w-0">
-          <ul className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:border-b-0 md:px-0">
+          <ul className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:border-b-0 lg:px-0">
             {SECTIONS.map((s) => {
               const active = s.value === section;
               return (
@@ -50,14 +50,14 @@ export function SettingsView() {
                     onClick={() => go(s.value)}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-10 items-center gap-2 px-2 text-sm whitespace-nowrap transition-colors md:h-9 md:w-full md:rounded-control md:px-2.5",
-                      "border-b-2 md:border-b-0 focus-visible:-outline-offset-2",
+                      "flex h-10 items-center gap-2 px-2 text-sm whitespace-nowrap transition-colors lg:h-9 lg:pointer-coarse:h-11 lg:w-full lg:rounded-control lg:px-2.5",
+                      "border-b-2 lg:border-b-0 focus-visible:-outline-offset-2",
                       active
-                        ? "border-ink font-semibold text-ink md:bg-surface-2"
-                        : "border-transparent text-ink-2 hover:text-ink md:hover:bg-surface-2",
+                        ? "border-ink font-semibold text-ink lg:bg-surface-2"
+                        : "border-transparent text-ink-2 hover:text-ink lg:hover:bg-surface-2",
                     )}
                   >
-                    <s.icon className={cn("hidden size-4 shrink-0 md:block", active ? "text-ink" : "text-ink-3")} aria-hidden />
+                    <s.icon className={cn("hidden size-4 shrink-0 lg:block", active ? "text-ink" : "text-ink-3")} aria-hidden />
                     {s.label}
                   </button>
                 </li>

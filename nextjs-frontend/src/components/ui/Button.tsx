@@ -29,11 +29,11 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-2.5 text-meta gap-1.5 [&_svg]:size-3.5",
-  md: "h-9 px-3.5 text-sm gap-2 [&_svg]:size-4",
-  lg: "h-10 px-4 text-sm gap-2 [&_svg]:size-4",
-  icon: "size-9 [&_svg]:size-4",
-  "icon-sm": "size-8 [&_svg]:size-4",
+  sm: "h-8 px-2.5 text-meta gap-1.5 [&_svg]:size-3.5 pointer-coarse:h-10",
+  md: "h-9 px-3.5 text-sm gap-2 [&_svg]:size-4 pointer-coarse:h-11",
+  lg: "h-10 px-4 text-sm gap-2 [&_svg]:size-4 pointer-coarse:h-11",
+  icon: "size-9 [&_svg]:size-4 pointer-coarse:size-11",
+  "icon-sm": "size-8 [&_svg]:size-4 pointer-coarse:size-10",
 };
 
 export function buttonClasses(variant: ButtonVariant = "primary", size: ButtonSize = "md", extra?: string) {

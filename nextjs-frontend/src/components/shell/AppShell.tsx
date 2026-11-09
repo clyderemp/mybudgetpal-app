@@ -8,14 +8,19 @@ import { CommandPaletteProvider } from "./CommandPalette";
 import { CreateProvider } from "./CreateProvider";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { useMediaQuery } from "@/features/transactions/useMediaQuery";
 import { useSidebarCollapsed } from "./useSidebarCollapsed";
 
 /**
  * Desktop: dark sidebar (248px / 64px rail) + 56px top bar + content (24px gutter).
+ * Tablet (768–1023px): the sidebar stays the 64px rail so the top bar and content keep their room.
  * Phone (<768px): compact top bar + bottom tabs + FAB (16px gutter).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useSidebarCollapsed();
+  // false during SSR, so desktop renders expanded first and only tablets switch to the rail.
+  const isTablet = useMediaQuery("(max-width: 1023.98px)");
+  const rail = collapsed || isTablet;
   return (
     <PeriodProvider>
       <TransactionDialogProvider>
@@ -27,9 +32,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               Skip to content
             </a>
-            <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+            <Sidebar collapsed={rail} canToggle={!isTablet} onToggle={() => setCollapsed(!collapsed)} />
             <div
-              style={{ "--sidebar-w": collapsed ? "4rem" : "15.5rem" } as CSSProperties}
+              style={{ "--sidebar-w": rail ? "4rem" : "15.5rem" } as CSSProperties}
               className="min-h-dvh min-w-0 transition-[padding] duration-200 md:pl-[var(--sidebar-w)]"
             >
               <TopBar />

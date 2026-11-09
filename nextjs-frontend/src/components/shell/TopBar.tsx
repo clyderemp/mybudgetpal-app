@@ -93,7 +93,7 @@ export function TopBar() {
 
       {/* Phone */}
       <div className="flex h-14 items-center gap-2 px-4 md:hidden">
-        <Link href="/" aria-label="Dashboard" className="shrink-0 rounded-control focus-visible:outline-2 focus-visible:outline-accent">
+        <Link href="/" aria-label="Dashboard" className="flex size-10 shrink-0 items-center justify-center rounded-control focus-visible:outline-2 focus-visible:outline-accent">
           <LogoMark className="size-7" />
         </Link>
         <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{titleFor(pathname)}</h1>

@@ -98,7 +98,7 @@ export function BudgetView() {
 
         {b.unbudgetedSpentFils > 0 && hasLines ? (
           <div role="note" className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 rounded-container border border-line bg-surface px-4 py-2.5">
-            <p className="min-w-0 flex-1 text-meta text-ink">
+            <p className="min-w-0 flex-1 basis-60 text-meta text-ink">
               <Money fils={b.unbudgetedSpentFils} className="font-semibold" /> was spent in categories without a budget. Add budgets for them to keep the
               plan complete.
             </p>

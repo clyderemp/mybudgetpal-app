@@ -9,7 +9,7 @@ import { menuContentClass } from "@/components/ui/Dropdown";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const seg =
-  "inline-flex h-8 items-center justify-center text-ink-2 hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-40 " +
+  "inline-flex h-8 pointer-coarse:h-10 items-center justify-center text-ink-2 hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-40 " +
   "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent";
 
 /** Global month selector (prev | month picker | next). Reads/writes ?month= via usePeriod(). */
@@ -23,9 +23,9 @@ export function PeriodSelector({ className }: { className?: string }) {
     <div
       role="group"
       aria-label="Period"
-      className={cn("inline-flex h-8 items-stretch overflow-hidden rounded-control border border-line-strong bg-surface", className)}
+      className={cn("inline-flex h-8 pointer-coarse:h-10 items-stretch overflow-hidden rounded-control border border-line-strong bg-surface", className)}
     >
-      <button type="button" className={cn(seg, "w-8 border-r border-line")} onClick={p.prev} aria-label="Previous month">
+      <button type="button" className={cn(seg, "w-8 shrink-0 pointer-coarse:w-10 border-r border-line")} onClick={p.prev} aria-label="Previous month">
         <ChevronLeft className="size-4" aria-hidden />
       </button>
       <Popover.Root
@@ -48,7 +48,7 @@ export function PeriodSelector({ className }: { className?: string }) {
         <Popover.Portal>
           <Popover.Content align="center" sideOffset={6} collisionPadding={8} className={cn(menuContentClass, "w-64 p-3")}>
             <div className="mb-2 flex items-center justify-between">
-              <button type="button" className={cn(seg, "w-8 rounded-control")} onClick={() => setYear((y) => y - 1)} aria-label="Previous year">
+              <button type="button" className={cn(seg, "w-8 pointer-coarse:w-10 rounded-control")} onClick={() => setYear((y) => y - 1)} aria-label="Previous year">
                 <ChevronLeft className="size-4" aria-hidden />
               </button>
               <span className="tabular text-sm font-semibold" aria-live="polite">
@@ -56,7 +56,7 @@ export function PeriodSelector({ className }: { className?: string }) {
               </span>
               <button
                 type="button"
-                className={cn(seg, "w-8 rounded-control")}
+                className={cn(seg, "w-8 pointer-coarse:w-10 rounded-control")}
                 onClick={() => setYear((y) => y + 1)}
                 disabled={year >= thisYear}
                 aria-label="Next year"
@@ -80,7 +80,7 @@ export function PeriodSelector({ className }: { className?: string }) {
                       setOpen(false);
                     }}
                     className={cn(
-                      "h-8 rounded-control text-meta font-medium disabled:opacity-35",
+                      "h-8 pointer-coarse:h-10 rounded-control text-meta font-medium disabled:opacity-35",
                       "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
                       selected ? "bg-ink text-ink-fg" : value === p.thisMonth ? "text-accent hover:bg-surface-2" : "text-ink hover:bg-surface-2",
                     )}
@@ -93,7 +93,7 @@ export function PeriodSelector({ className }: { className?: string }) {
             {!p.isCurrent ? (
               <button
                 type="button"
-                className="mt-2 h-8 w-full rounded-control border border-line text-meta font-medium text-ink hover:bg-surface-2"
+                className="mt-2 h-8 pointer-coarse:h-10 w-full rounded-control border border-line text-meta font-medium text-ink hover:bg-surface-2"
                 onClick={() => {
                   p.setMonth(p.thisMonth);
                   setOpen(false);
@@ -105,7 +105,7 @@ export function PeriodSelector({ className }: { className?: string }) {
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
-      <button type="button" className={cn(seg, "w-8 border-l border-line")} onClick={p.next} disabled={!p.canNext} aria-label="Next month">
+      <button type="button" className={cn(seg, "w-8 shrink-0 pointer-coarse:w-10 border-l border-line")} onClick={p.next} disabled={!p.canNext} aria-label="Next month">
         <ChevronRight className="size-4" aria-hidden />
       </button>
     </div>

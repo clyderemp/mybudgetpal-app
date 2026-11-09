@@ -19,7 +19,7 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
         aria-current={active ? "page" : undefined}
         aria-label={collapsed ? item.label : undefined}
         className={cn(
-          "relative flex h-9 items-center gap-3 rounded-control text-sm font-medium transition-colors",
+          "relative flex h-9 pointer-coarse:h-11 items-center gap-3 rounded-control text-sm font-medium transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent",
           collapsed ? "justify-center px-0" : "px-3",
           active
@@ -35,7 +35,7 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
 }
 
 /** Desktop (≥768px) dark navy sidebar: 248px, collapsible to a 64px icon rail. */
-export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function Sidebar({ collapsed, canToggle = true, onToggle }: { collapsed: boolean; canToggle?: boolean; onToggle: () => void }) {
   const pathname = usePathname();
   const me = useMe();
   const household = me.data?.household;
@@ -91,22 +91,24 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
       <div className={cn("flex shrink-0 flex-col gap-0.5 border-t border-sidebar-line py-3", collapsed ? "px-2" : "px-3")}>
         <NavLink item={SETTINGS_ITEM} collapsed={collapsed} active={isActive(pathname, SETTINGS_ITEM.href)} />
-        <Tip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-expanded={!collapsed}
-            className={cn(
-              "flex h-9 items-center gap-3 rounded-control text-sm font-medium text-sidebar-ink hover:bg-sidebar-active-bg/60 hover:text-sidebar-active",
-              "focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent",
-              collapsed ? "justify-center" : "px-3",
-            )}
-          >
-            {collapsed ? <PanelLeftOpen className="size-4" aria-hidden /> : <PanelLeftClose className="size-4 text-sidebar-ink/80" aria-hidden />}
-            {!collapsed ? "Collapse" : null}
-          </button>
-        </Tip>
+        {canToggle ? (
+          <Tip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+              className={cn(
+                "flex h-9 pointer-coarse:h-11 items-center gap-3 rounded-control text-sm font-medium text-sidebar-ink hover:bg-sidebar-active-bg/60 hover:text-sidebar-active",
+                "focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent",
+                collapsed ? "justify-center" : "px-3",
+              )}
+            >
+              {collapsed ? <PanelLeftOpen className="size-4" aria-hidden /> : <PanelLeftClose className="size-4 text-sidebar-ink/80" aria-hidden />}
+              {!collapsed ? "Collapse" : null}
+            </button>
+          </Tip>
+        ) : null}
         <div className="mt-2 border-t border-sidebar-line pt-2">
           <SidebarUserMenu collapsed={collapsed} />
         </div>

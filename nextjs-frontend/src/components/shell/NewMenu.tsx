@@ -17,7 +17,7 @@ export function NewMenu() {
   return (
     <Menu>
       <MenuTrigger asChild>
-        <Button size="sm" className="h-8 pr-2">
+        <Button size="sm" className="h-8 pr-2 pointer-coarse:h-10">
           <Plus /> New
           <ChevronDown className="opacity-70" />
         </Button>

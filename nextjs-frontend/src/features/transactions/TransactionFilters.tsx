@@ -169,7 +169,7 @@ export function TransactionFilters({
             placeholder="Search merchant or note"
             value={text}
             onChange={(e) => onSearch(e.target.value)}
-            className={cn(inputClasses, "h-8 pl-8")}
+            className={cn(inputClasses, "h-8 pl-8 pointer-coarse:h-11")}
           />
         </div>
         <Dropdown

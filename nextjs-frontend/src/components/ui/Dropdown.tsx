@@ -130,7 +130,7 @@ export function Dropdown(props: DropdownProps) {
             appearance === "field"
               ? cn(inputClasses, "flex items-center justify-between gap-2 text-left")
               : cn(
-                  "inline-flex h-8 max-w-full items-center gap-1.5 rounded-control border bg-surface px-2.5 text-meta font-medium text-ink hover:bg-surface-2 disabled:opacity-60",
+                  "inline-flex h-8 max-w-full items-center gap-1.5 rounded-control border bg-surface px-2.5 pointer-coarse:h-10 text-meta font-medium text-ink hover:bg-surface-2 disabled:opacity-60",
                   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent data-[state=open]:bg-surface-2",
                   display ? "border-ink-3" : "border-line-strong",
                 ),
@@ -177,7 +177,7 @@ export const menuContentClass =
 export const menuLabelClass = "px-2 pt-2 pb-1 text-xs font-medium text-ink-2";
 export const menuSeparatorClass = "-mx-1 my-1 h-px bg-line";
 export const itemClass =
-  "relative flex min-h-8 cursor-pointer select-none items-center justify-between gap-2 rounded-chip px-2 py-1.5 text-sm outline-none " +
+  "relative flex min-h-8 pointer-coarse:min-h-11 cursor-pointer select-none items-center justify-between gap-2 rounded-chip px-2 py-1.5 text-sm outline-none " +
   "data-[highlighted]:bg-surface-2 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0";
 
 function ItemBody({ option }: { option: DropdownOption }) {
