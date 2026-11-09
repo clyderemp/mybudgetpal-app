@@ -100,4 +100,4 @@ def goal_out(g: Goal) -> GoalOut:
 
 
 async def member_names(household_id) -> dict[str, str]:  # type: ignore[no-untyped-def]
-    return {str(u.id): u.name async for u in User.find({"household_id": household_id})}
+    return {str(u.id): u.name for u in await User.find({"household_id": household_id}).to_list()}

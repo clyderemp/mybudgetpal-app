@@ -6,6 +6,7 @@ and passed down; analytics functions stay pure.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from typing import Any
 
@@ -14,7 +15,7 @@ from beanie import PydanticObjectId
 from app.analytics import financial_health, monthly_series, monthly_summary
 from app.models import Account, Debt, Plan
 from app.services.analytics_data import load_analytics_txns
-from app.services.balances import account_balances
+from app.services.balances import apply_balances, transaction_deltas
 from app.services.months import month_bounds
 
 try:
@@ -91,27 +92,50 @@ async def get_plan(household_id: PydanticObjectId) -> Plan | None:
 
 
 async def active_accounts(household_id: PydanticObjectId) -> tuple[list[Account], dict[str, int]]:
-    accounts = await Account.find({"household_id": household_id, "archived": False}).sort("+created_at").to_list()
-    return accounts, await account_balances(household_id, accounts)
+    # Household-wide deltas don't depend on the account list: one concurrent round trip.
+    accounts, deltas = await asyncio.gather(
+        Account.find({"household_id": household_id, "archived": False}).sort("+created_at").to_list(),
+        transaction_deltas(household_id),
+    )
+    return accounts, apply_balances(accounts, deltas)
+
+
+def health_range(today: dt.date) -> tuple[str, str]:
+    """(first, last) month of transactions health needs: the last 6 full months + current."""
+    cur = month_str(today)
+    return shift_month(cur, -HEALTH_HISTORY_MONTHS), cur
+
+
+def compute_health(
+    txns: list[dict[str, Any]],
+    accounts: list[Account],
+    balances: dict[str, int],
+    debts: list[Debt],
+    today: dt.date,
+) -> dict[str, Any]:
+    """Pure part of health_for. ``txns`` must cover at least ``health_range(today)``."""
+    cur = month_str(today)
+    last_full = shift_month(cur, -1)
+    monthly = monthly_series(txns, last_full, HEALTH_HISTORY_MONTHS)
+    if not any(m["incomeFils"] or m["expenseFils"] for m in monthly):
+        monthly = monthly_series(txns, cur, 1)
+    liquid = sum(
+        balances[str(a.id)] for a in accounts if a.type in LIQUID_ACCOUNT_TYPES and a.currency == "AED"
+    )
+    total_debt = sum(max(0, d.balance_fils) for d in debts)
+    return financial_health(monthly, liquid, total_debt, sum_minimums(debts))
 
 
 async def health_for(household_id: PydanticObjectId, today: dt.date) -> dict[str, Any]:
     """financial_health over the last 6 full months (falls back to the current month when
     there is no history). Liquid = AED bank/savings/cash accounts; debt = non-archived debts."""
-    cur = month_str(today)
-    last_full = shift_month(cur, -1)
-    first = shift_month(cur, -HEALTH_HISTORY_MONTHS)
-    txns = await load_months(household_id, first, cur)
-    monthly = monthly_series(txns, last_full, HEALTH_HISTORY_MONTHS)
-    if not any(m["incomeFils"] or m["expenseFils"] for m in monthly):
-        monthly = monthly_series(txns, cur, 1)
-    accounts, balances = await active_accounts(household_id)
-    liquid = sum(
-        balances[str(a.id)] for a in accounts if a.type in LIQUID_ACCOUNT_TYPES and a.currency == "AED"
+    first, last = health_range(today)
+    txns, (accounts, balances), debts = await asyncio.gather(
+        load_months(household_id, first, last),
+        active_accounts(household_id),
+        active_debts(household_id),
     )
-    debts = await active_debts(household_id)
-    total_debt = sum(max(0, d.balance_fils) for d in debts)
-    return financial_health(monthly, liquid, total_debt, sum_minimums(debts))
+    return compute_health(txns, accounts, balances, debts, today)
 
 
 def next_due_date(due_day: int, today: dt.date) -> dt.date:

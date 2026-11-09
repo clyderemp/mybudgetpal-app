@@ -48,6 +48,8 @@ class DebtOut(ApiModel):
     archived: bool
     created_at: datetime
     updated_at: datetime
+    # Current balance of the linked account (e.g. the credit card account), null when unlinked.
+    linked_account_balance_fils: int | None = None
 
 
 class DebtPaymentOut(ApiModel):

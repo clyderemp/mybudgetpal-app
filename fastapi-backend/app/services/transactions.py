@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from beanie import PydanticObjectId
 
 from app.errors import validation_error
@@ -11,15 +13,24 @@ async def _owned(model: type, raw: str, household_id: PydanticObjectId):  # type
     return await model.find_one({"_id": PydanticObjectId(raw), "household_id": household_id})  # type: ignore[attr-defined]
 
 
+async def _none() -> None:
+    return None
+
+
 async def validate_refs(data: TransactionCreate, household_id: PydanticObjectId) -> None:
     """All referenced ids must belong to the household; category kind must match type."""
+    # Independent lookups: one concurrent round trip.
+    account, to_account, cat = await asyncio.gather(
+        _owned(Account, data.account_id, household_id),
+        _owned(Account, data.to_account_id, household_id) if data.to_account_id else _none(),
+        _owned(Category, data.category_id, household_id) if data.category_id else _none(),
+    )
     fields: dict[str, str] = {}
-    if await _owned(Account, data.account_id, household_id) is None:
+    if account is None:
         fields["accountId"] = "account not found"
-    if data.to_account_id and await _owned(Account, data.to_account_id, household_id) is None:
+    if data.to_account_id and to_account is None:
         fields["toAccountId"] = "account not found"
     if data.category_id:
-        cat = await _owned(Category, data.category_id, household_id)
         if cat is None:
             fields["categoryId"] = "category not found"
         elif cat.kind != data.type:

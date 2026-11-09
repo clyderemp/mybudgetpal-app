@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.analytics.forecast import forecast_next_month
+from app.analytics.forecast import forecast_next_month, trend_vs_last
 
 TODAY = date(2026, 11, 8)  # full months before today: 2026-05 .. 2026-10
 
@@ -32,9 +32,9 @@ def test_only_current_month_and_transfers_is_zero_data():
 
 def test_two_months_ewma_only_low_confidence():
     # Sep 100000, Oct 200000. Weights: Oct 1, Sep 0.5 -> (200000 + 50000) / 1.5 = 166666.67 -> 166667.
-    # n = 2 < 4 so no trend blend; slope 100000 >= 5% of mean 150000 -> "up".
+    # n = 2 < 4 so no trend blend; trend = forecast vs last month: 166667 vs 200000 (-16.7%) -> "down".
     f = forecast_next_month(series([100000, 200000]), TODAY)
-    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 166667, "trend": "up"}]
+    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 166667, "trend": "down"}]
     assert f["totalExpenseFils"] == 166667
     assert f["confidence"] == "low"
 
@@ -49,15 +49,17 @@ def test_six_months_linear_blend_high():
     # 10000..60000. EWMA weights (newest first) 1, .5, .25, .125, .0625, .03125 (sum 1.96875):
     # 60000 + 25000 + 10000 + 3750 + 1250 + 312.5 = 100312.5 -> / 1.96875 = 50952.381
     # Linear fit is exact: prediction at x=6 = 70000. Blend (50952.381 + 70000) / 2 = 60476.19 -> 60476.
+    # Trend: 60476 vs last month 60000 = +0.8% -> inside the 5% band -> "flat".
     f = forecast_next_month(series([10000, 20000, 30000, 40000, 50000, 60000]), TODAY)
     assert f["confidence"] == "high"
-    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 60476, "trend": "up"}]
+    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 60476, "trend": "flat"}]
 
 
 def test_downtrend_clamped_at_zero():
     # EWMA = 17812.5 / 1.96875 = 9047.62; prediction = -10000; blend = -476 -> clamp 0.
+    # Trend: forecast 0 vs last month 0 -> "flat".
     f = forecast_next_month(series([50000, 40000, 30000, 20000, 10000, 0]), TODAY)
-    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 0, "trend": "down"}]
+    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 0, "trend": "flat"}]
     assert f["totalExpenseFils"] == 0
 
 
@@ -94,3 +96,31 @@ def test_december_rolls_to_next_year():
     f = forecast_next_month(series([1000], end=(2026, 11)), date(2026, 12, 31))
     assert f["month"] == "2027-01"
     assert f["byCategory"][0]["forecastFils"] == 1000
+
+
+def test_trend_up_vs_last_month_despite_negative_slope():
+    # Seeded "Shopping" shape: forecast above last month while the long-run slope is negative.
+    # [200000 x5, 100000]: EWMA = (100000 + 200000 * 0.96875) / 1.96875 = 149206.35.
+    # Fit: mean 183333.33, slope = -250000 / 17.5 = -14285.71, pred(6) = 183333.33 - 3.5 * 14285.71
+    # = 133333.33. Blend = 141269.84 -> 141270 vs last 100000 (+41%) -> "up" (slope said "down").
+    f = forecast_next_month(series([200000, 200000, 200000, 200000, 200000, 100000]), TODAY)
+    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 141270, "trend": "up"}]
+
+
+def test_trend_down_vs_last_month_despite_positive_slope():
+    # [100000 x5, 300000]: EWMA = (300000 + 96875) / 1.96875 = 201587.30; slope = 500000 / 17.5
+    # = 28571.43, pred(6) = 133333.33 + 3.5 * 28571.43 = 233333.33 -> blend 217460.32 -> 217460
+    # vs last 300000 (-27.5%) -> "down".
+    f = forecast_next_month(series([100000, 100000, 100000, 100000, 100000, 300000]), TODAY)
+    assert f["byCategory"] == [{"categoryId": "groceries", "forecastFils": 217460, "trend": "down"}]
+
+
+def test_trend_flat_band_edges():
+    assert trend_vs_last(104_999, 100_000) == "flat"
+    assert trend_vs_last(95_001, 100_000) == "flat"
+    assert trend_vs_last(105_000, 100_000) == "up"
+    assert trend_vs_last(95_000, 100_000) == "down"
+    assert trend_vs_last(136_400, 103_800) == "up"  # AED 1,364 vs 1,038
+    assert trend_vs_last(1, 0) == "up"
+    assert trend_vs_last(0, 0) == "flat"
+    assert trend_vs_last(0, 50_000) == "down"

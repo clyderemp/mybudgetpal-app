@@ -6,6 +6,7 @@ from fastapi import Request, Response
 
 from app.config import Settings
 from app.models import Session, User, utcnow
+from app.security.auth_cache import AuthCache
 from app.security.csrf import CSRF_COOKIE, new_csrf_token
 from app.security.tokens import (
     ACCESS_COOKIE,
@@ -74,7 +75,11 @@ def clear_auth_cookies(response: Response, settings: Settings) -> None:
         )
 
 
-async def revoke_all_sessions(user_id) -> None:  # type: ignore[no-untyped-def]
+async def revoke_all_sessions(user_id, cache: AuthCache | None = None) -> None:  # type: ignore[no-untyped-def]
+    if cache is not None:
+        cache.invalidate_user(str(user_id))
     await Session.find({"user_id": user_id, "revoked_at": None}).update(
         {"$set": {"revoked_at": utcnow()}}
     )
+    if cache is not None:  # drop anything cached by a request racing the update
+        cache.invalidate_user(str(user_id))

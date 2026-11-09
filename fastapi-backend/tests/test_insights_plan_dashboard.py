@@ -229,7 +229,7 @@ async def test_seed_demo_script(app, client):
         r = await client.post("/api/v1/auth/login", json={"email": mod.DEMO_EMAIL, "password": "demo-password-123"})
         assert r.status_code == 200, r.text
         d = (await client.get("/api/v1/dashboard")).json()
-        assert {a["name"] for a in d["accounts"]} == {"Mashreq Neo", "Emirates NBD", "Cash"}
+        assert {a["name"] for a in d["accounts"]} == {"Mashreq Neo", "Emirates NBD", "Cash", "Mashreq Credit Card"}
         assert len(d["upcomingDebtPayments"]) == 2 and len(d["recentTransactions"]) == 10
         assert d["budget"]["lines"] and d["summary"]["incomeFils"] == 3_850_000
         assert (await client.get("/api/v1/goals")).json()["total"] == 1

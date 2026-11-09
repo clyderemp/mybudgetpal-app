@@ -40,7 +40,14 @@ def make_client(settings: Settings) -> Any:
         from mongomock_motor import AsyncMongoMockClient
 
         return AsyncMongoMockClient()
-    return AsyncIOMotorClient(settings.mongodb_uri, uuidRepresentation="standard")
+    return AsyncIOMotorClient(
+        settings.mongodb_uri,
+        uuidRepresentation="standard",
+        maxPoolSize=settings.mongodb_max_pool_size,
+        minPoolSize=settings.mongodb_min_pool_size,
+        retryReads=True,
+        retryWrites=True,
+    )
 
 
 async def init_db(settings: Settings) -> Any:

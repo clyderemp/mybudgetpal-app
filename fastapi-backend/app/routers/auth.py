@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 
 from beanie import PydanticObjectId
@@ -18,6 +19,7 @@ from app.schemas.auth import (
     StatusOut,
     UserEnvelope,
 )
+from app.security.auth_cache import get_auth_cache
 from app.security.deps import CurrentUser, get_app_settings, get_current_user
 from app.security.passwords import hash_password, needs_rehash, verify_password
 from app.security.tokens import ACCESS_COOKIE, REFRESH_COOKIE, decode_access_token, hash_token
@@ -155,7 +157,7 @@ async def refresh(
         if in_grace(session):
             return race()  # type: ignore[return-value]
         # Rotated token presented again: assume theft, revoke every session of this user.
-        await revoke_all_sessions(session.user_id)
+        await revoke_all_sessions(session.user_id, get_auth_cache(request.app))
         return fail("refresh_reused", "Session expired, please log in again")  # type: ignore[return-value]
     if session.revoked_at is not None or as_utc(session.expires_at) <= utcnow():
         return fail("unauthorized", "Session expired, please log in again")  # type: ignore[return-value]
@@ -168,12 +170,15 @@ async def refresh(
         {"_id": session.id, "revoked_at": None, "replaced_by": None},
         {"$set": {"revoked_at": utcnow(), "replaced_by": new_session.id, "updated_at": utcnow()}},
     )
+    cache = get_auth_cache(request.app)
+    if cache is not None:
+        cache.invalidate_session(str(session.id))
     if res.modified_count != 1:
         await new_session.delete()
         current = await Session.get(session.id)  # type: ignore[arg-type]
         if current is not None and in_grace(current):
             return race()  # type: ignore[return-value]
-        await revoke_all_sessions(session.user_id)
+        await revoke_all_sessions(session.user_id, get_auth_cache(request.app))
         return fail("refresh_reused", "Session expired, please log in again")  # type: ignore[return-value]
     set_auth_cookies(response, user, new_session, new_token, settings)
     return UserEnvelope(user=user_out(user))
@@ -183,34 +188,65 @@ async def refresh(
 async def logout(request: Request, settings: Settings = Depends(get_app_settings)) -> Response:
     token = request.cookies.get(REFRESH_COOKIE)
     revoke = {"$set": {"revoked_at": utcnow(), "updated_at": utcnow()}}
-    if token:
-        await Session.find({"token_hash": hash_token(token), "revoked_at": None}).update(revoke)
+    cache = get_auth_cache(request.app)
     access = request.cookies.get(ACCESS_COOKIE)
     claims = decode_access_token(access, settings.jwt_secret) if access else None
-    if claims is not None and PydanticObjectId.is_valid(claims.session_id):
-        await Session.find(
-            {"_id": PydanticObjectId(claims.session_id), "user_id": PydanticObjectId(claims.user_id), "revoked_at": None}
-        ).update(revoke)
+    ops = []
+    if token:
+        ops.append(
+            Session.get_motor_collection().find_one_and_update(
+                {"token_hash": hash_token(token), "revoked_at": None}, revoke, projection={"_id": 1}
+            )
+        )
+    if claims is not None and PydanticObjectId.is_valid(claims.session_id) and PydanticObjectId.is_valid(claims.user_id):
+        if cache is not None:
+            cache.invalidate_session(claims.session_id)
+        ops.append(
+            Session.find(
+                {"_id": PydanticObjectId(claims.session_id), "user_id": PydanticObjectId(claims.user_id), "revoked_at": None}
+            ).update(revoke)
+        )
+    results = await asyncio.gather(*ops)
+    if cache is not None:
+        if claims is not None:
+            cache.invalidate_session(claims.session_id)
+        if token and results and isinstance(results[0], dict):
+            cache.invalidate_session(str(results[0].get("_id")))
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     clear_auth_cookies(response, settings)
     return response
 
 
 async def build_household_out(household_id: PydanticObjectId) -> HouseholdOut:
-    household = await Household.get(household_id)
+    out, _ = await _household_and_members(household_id)
+    return out
+
+
+async def _household_and_members(household_id: PydanticObjectId) -> tuple[HouseholdOut, list[User]]:
+    household, members = await asyncio.gather(
+        Household.get(household_id),
+        User.find({"household_id": household_id}).sort("+created_at").to_list(),
+    )
     if household is None:
         raise AppError(404, "not_found", "Household not found")
-    members = await User.find({"household_id": household_id}).sort("+created_at").to_list()
-    return HouseholdOut(
-        id=str(household.id),
-        name=household.name,
-        base_currency=household.base_currency,
-        members=[user_out(m) for m in members],
+    return (
+        HouseholdOut(
+            id=str(household.id),
+            name=household.name,
+            base_currency=household.base_currency,
+            members=[user_out(m) for m in members],
+        ),
+        members,
     )
 
 
 @router.get("/me", response_model=MeOut)
 async def me(current: CurrentUser = Depends(get_current_user)) -> MeOut:
-    user = await User.get(current.user_id)
+    # The current user is always a member of their household (checked by get_current_user),
+    # so the members query doubles as the fresh user lookup: one concurrent round trip.
+    household, members = await _household_and_members(current.household_id)
+    user = next((m for m in members if m.id == current.user_id), None)
+    if user is None:
+        user = await User.get(current.user_id)
     assert user is not None
-    return MeOut(user=user_out(user), household=await build_household_out(current.household_id))
+    return MeOut(user=user_out(user), household=household)

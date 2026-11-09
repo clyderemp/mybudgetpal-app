@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     # Concurrent refresh from two tabs: the loser presents the just-rotated token. Within
     # this window (same user agent) it gets 401 refresh_race instead of revoke-all.
     refresh_reuse_grace_seconds: int = 30
+    # In-process cache of validated (session, user) per access-token sid, saving the auth DB
+    # round trip. Revocations in this process apply immediately; revocations made by other
+    # processes are seen after at most this many seconds (capped at 30). 0 disables it.
+    auth_cache_ttl_seconds: float = 10.0
+    # One shared Motor client per process. min pool keeps a few warm connections so
+    # concurrent (asyncio.gather) queries don't each pay a TLS + auth handshake.
+    mongodb_max_pool_size: int = 50
+    mongodb_min_pool_size: int = 4
 
     @field_validator("jwt_secret")
     @classmethod

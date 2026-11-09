@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Query, status
 
 from app.models import Account
 from app.schemas.accounts import AccountCreate, AccountOut, AccountPatch
 from app.schemas.base import ListResponse
 from app.security.deps import CurrentUser, get_current_user
-from app.services.balances import account_balances
+from app.services.balances import account_balances, apply_balances, transaction_deltas
 from app.services.ids import get_owned
 from app.services.serializers import account_out
 
@@ -26,8 +28,12 @@ async def list_accounts(
     query: dict = {"household_id": current.household_id}
     if not include_archived:
         query["archived"] = False
-    accounts = await Account.find(query).sort("+created_at").to_list()
-    balances = await account_balances(current.household_id, accounts)
+    # Household-wide deltas don't depend on the account list: fetch both concurrently.
+    accounts, deltas = await asyncio.gather(
+        Account.find(query).sort("+created_at").to_list(),
+        transaction_deltas(current.household_id),
+    )
+    balances = apply_balances(accounts, deltas)
     items = [account_out(a, balances[str(a.id)]) for a in accounts]
     return ListResponse[AccountOut](items=items, total=len(items))
 

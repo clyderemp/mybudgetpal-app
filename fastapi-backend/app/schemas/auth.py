@@ -33,7 +33,7 @@ class JoinIn(_EmailLower):
 
 class LoginIn(InputModel):
     # Lenient on purpose: login only looks the address up, so accounts on reserved domains
-    # (e.g. the seeded demo@mybudgetpal.local) can still sign in. Unknown -> generic 401.
+    # (e.g. the seeded demo@mybudgetpal.app) can still sign in. Unknown -> generic 401.
     email: Annotated[str, StringConstraints(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")]
     password: Annotated[str, StringConstraints(min_length=1, max_length=256)]
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from collections import defaultdict
+from typing import Any
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends
@@ -15,12 +17,30 @@ from app.services.months import month_bounds, parse_month
 router = APIRouter(prefix="/budgets", tags=["budgets"])
 
 
+async def load_budget_inputs(
+    household_id: PydanticObjectId, month: str
+) -> tuple[Budget | None, list[dict[str, Any]], dict[str, Category]]:
+    """Budget doc, the month's transactions and the household's categories in one round trip.
+    (All categories, not just budgeted ones, so the lookup needn't wait for the budget.)"""
+    start, end = month_bounds(month)
+    budget, txns, cats = await asyncio.gather(
+        Budget.find_one({"household_id": household_id, "month": month}),
+        load_analytics_txns(household_id, start, end),
+        Category.find({"household_id": household_id}).to_list(),
+    )
+    return budget, txns, {str(c.id): c for c in cats}
+
+
 async def build_budget_out(household_id: PydanticObjectId, month: str) -> BudgetOut:
     """Budget for a month with spent/remaining. totalSpentFils = all expense in the month;
     unbudgetedSpentFils = expense in categories without a budget line."""
-    budget = await Budget.find_one({"household_id": household_id, "month": month})
-    start, end = month_bounds(month)
-    txns = await load_analytics_txns(household_id, start, end)
+    return compose_budget_out(month, *(await load_budget_inputs(household_id, month)))
+
+
+def compose_budget_out(
+    month: str, budget: Budget | None, txns: list[dict[str, Any]], cats: dict[str, Category]
+) -> BudgetOut:
+    """Pure part of build_budget_out. ``txns`` must be exactly the month's transactions."""
     spent: dict[str | None, int] = defaultdict(int)
     income = 0
     total_spent = 0
@@ -33,12 +53,6 @@ async def build_budget_out(household_id: PydanticObjectId, month: str) -> Budget
     lines: list[BudgetLineOut] = []
     budgeted: set[str] = set()
     if budget and budget.lines:
-        cats = {
-            str(c.id): c
-            async for c in Category.find(
-                {"household_id": household_id, "_id": {"$in": [ln.category_id for ln in budget.lines]}}
-            )
-        }
         for ln in budget.lines:
             cid = str(ln.category_id)
             cat = cats.get(cid)
@@ -71,7 +85,9 @@ async def get_budget(month: str, current: CurrentUser = Depends(get_current_user
     return await build_budget_out(current.household_id, parse_month(month))
 
 
-async def _upsert(household_id: PydanticObjectId, month: str, lines: list[BudgetLine], note: str | None) -> None:
+async def _upsert(
+    household_id: PydanticObjectId, month: str, lines: list[BudgetLine], note: str | None
+) -> Budget:
     budget = await Budget.find_one({"household_id": household_id, "month": month})
     if budget is None:
         budget = Budget(household_id=household_id, month=month, lines=lines, note=note)
@@ -81,6 +97,20 @@ async def _upsert(household_id: PydanticObjectId, month: str, lines: list[Budget
         budget.note = note
         budget.touch()
         await budget.save()
+    return budget
+
+
+async def _upsert_and_build(
+    household_id: PydanticObjectId, month: str, lines: list[BudgetLine], note: str | None
+) -> BudgetOut:
+    """Write the budget while the month's transactions / categories load concurrently."""
+    start, end = month_bounds(month)
+    budget, txns, cats = await asyncio.gather(
+        _upsert(household_id, month, lines, note),
+        load_analytics_txns(household_id, start, end),
+        Category.find({"household_id": household_id}).to_list(),
+    )
+    return compose_budget_out(month, budget, txns, {str(c.id): c for c in cats})
 
 
 @router.put("/{month}", response_model=BudgetOut)
@@ -104,8 +134,7 @@ async def put_budget(month: str, body: BudgetPut, current: CurrentUser = Depends
     if fields:
         raise validation_error(fields)
     lines = [BudgetLine(category_id=PydanticObjectId(ln.category_id), limit_fils=ln.limit_fils) for ln in body.lines]
-    await _upsert(current.household_id, month, lines, body.note)
-    return await build_budget_out(current.household_id, month)
+    return await _upsert_and_build(current.household_id, month, lines, body.note)
 
 
 @router.post("/{month}/copy-from/{from_month}", response_model=BudgetOut)
@@ -117,5 +146,4 @@ async def copy_budget(
     source = await Budget.find_one({"household_id": current.household_id, "month": from_month})
     if source is None:
         raise AppError(404, "not_found", f"No budget for {from_month}")
-    await _upsert(current.household_id, month, list(source.lines), source.note)
-    return await build_budget_out(current.household_id, month)
+    return await _upsert_and_build(current.household_id, month, list(source.lines), source.note)

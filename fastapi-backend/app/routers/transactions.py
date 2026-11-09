@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import re
 from typing import Any
@@ -94,15 +95,11 @@ async def list_transactions(
     if and_:
         query["$and"] = and_
 
-    total = await Transaction.find(query).count()
-    txns = (
-        await Transaction.find(query)
-        .sort(_SORTS[sort])
-        .skip((page - 1) * page_size)
-        .limit(page_size)
-        .to_list()
+    total, txns, names = await asyncio.gather(
+        Transaction.find(query).count(),
+        Transaction.find(query).sort(_SORTS[sort]).skip((page - 1) * page_size).limit(page_size).to_list(),
+        member_names(current.household_id),
     )
-    names = await member_names(current.household_id)
     return ListResponse[TransactionOut](items=[transaction_out(t, names) for t in txns], total=total)
 
 
@@ -116,8 +113,8 @@ async def post_transaction(
 
 @router.get("/{txn_id}", response_model=TransactionOut)
 async def get_transaction(txn_id: str, current: CurrentUser = Depends(get_current_user)) -> TransactionOut:
-    txn = await _get_txn(txn_id, current.household_id)
-    return transaction_out(txn, await member_names(current.household_id))
+    txn, names = await asyncio.gather(_get_txn(txn_id, current.household_id), member_names(current.household_id))
+    return transaction_out(txn, names)
 
 
 @router.patch("/{txn_id}", response_model=TransactionOut)
@@ -147,8 +144,8 @@ async def patch_transaction(
     await validate_refs(data, current.household_id)
     apply_to_doc(txn, data)
     txn.touch()
-    await txn.save()
-    return transaction_out(txn, await member_names(current.household_id))
+    _, names = await asyncio.gather(txn.save(), member_names(current.household_id))
+    return transaction_out(txn, names)
 
 
 @router.delete("/{txn_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -10,8 +10,11 @@ Method (per expense category, and for income):
   * When n >= 4: fit sklearn LinearRegression on (0..n-1, x), predict x at n, and
     forecast = 0.5 * ewma + 0.5 * prediction. Otherwise forecast = ewma.
   * Clamp >= 0, round half-up to fils.
-  * trend: slope of the linear fit (n >= 2) compared with the series mean: |slope| < 5%
-    of mean -> "flat", otherwise "up"/"down". n < 2 -> "flat".
+  * trend: direction of the (rounded) forecast vs the most recent full month ``last``
+    (what the UI shows side by side): |forecast - last| < 5% of ``last`` -> "flat",
+    otherwise "up"/"down". If ``last`` is 0: forecast > 0 -> "up", else "flat".
+    The regression slope is NOT used for the trend (a long-run decline can coexist with
+    a forecast above last month, e.g. after a one-month dip).
   * totalExpenseFils = sum of category forecasts (keeps UI totals consistent).
   * confidence: n < 3 -> "low", 3..5 -> "medium", >= 6 -> "high".
 
@@ -50,20 +53,26 @@ def _slope_and_prediction(values: list[int]) -> tuple[float, float]:
     return float(model.coef_[0]), pred
 
 
+def trend_vs_last(forecast: int, last: int) -> str:
+    """"up"/"down"/"flat" of ``forecast`` vs ``last`` with a +/-5% (exclusive) flat band."""
+    if last <= 0:
+        return "up" if forecast > 0 else "flat"
+    diff = forecast - last
+    if abs(diff) < FLAT_THRESHOLD * last:
+        return "flat"
+    return "up" if diff > 0 else "down"
+
+
 def _forecast_series(values: list[int]) -> tuple[int, str]:
     n = len(values)
     if n == 0:
         return 0, "flat"
     value = _ewma(values)
-    trend = "flat"
-    if n >= 2:
-        slope, pred = _slope_and_prediction(values)
-        mean = sum(values) / n
-        if mean > 0 and abs(slope) >= FLAT_THRESHOLD * mean:
-            trend = "up" if slope > 0 else "down"
-        if n >= TREND_MIN_MONTHS:
-            value = 0.5 * value + 0.5 * pred
-    return max(0, round_half_up(max(0.0, value))), trend
+    if n >= TREND_MIN_MONTHS:
+        _, pred = _slope_and_prediction(values)
+        value = 0.5 * value + 0.5 * pred
+    fc = max(0, round_half_up(max(0.0, value)))
+    return fc, trend_vs_last(fc, values[-1])
 
 
 def _confidence(n: int) -> str:

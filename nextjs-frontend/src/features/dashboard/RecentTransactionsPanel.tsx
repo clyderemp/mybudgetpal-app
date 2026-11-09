@@ -4,19 +4,9 @@ import Link from "next/link";
 import { Plus, Receipt } from "lucide-react";
 import { useMemo } from "react";
 import type { GridColDef } from "@mui/x-data-grid";
-import {
-  Avatar,
-  Button,
-  DataTable,
-  EmptyState,
-  InlineError,
-  Money,
-  Panel,
-  SkeletonList,
-  buttonClasses,
-  numericColumn,
-} from "@/components/ui";
+import { Avatar, Button, DataTable, EmptyState, InlineError, Money, Panel, SkeletonList, buttonClasses, numericColumn } from "@/components/ui";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
+import { useElementWidth } from "@/features/common/useElementWidth";
 import { formatDate, formatDayLabel, todayISO } from "@/lib/dates";
 import { formatFils } from "@/lib/money";
 import type { Account, Category, Transaction } from "@/lib/types";
@@ -41,12 +31,7 @@ function toRows(items: Transaction[], categories: Category[], accounts: Account[
     const account = acct.get(t.accountId);
     const category = t.type === "transfer" ? "Transfer" : (t.categoryId && catName.get(t.categoryId)) || "Uncategorised";
     const title =
-      t.merchant ||
-      (t.type === "transfer"
-        ? `Transfer to ${acct.get(t.toAccountId ?? "")?.name ?? "account"}`
-        : t.type === "income"
-          ? "Income"
-          : category);
+      t.merchant || (t.type === "transfer" ? `Transfer to ${acct.get(t.toAccountId ?? "")?.name ?? "account"}` : t.type === "income" ? "Income" : category);
     return {
       id: t.id,
       date: t.date,
@@ -60,6 +45,14 @@ function toRows(items: Transaction[], categories: Category[], accounts: Account[
       txn: t,
     };
   });
+}
+
+function TruncCell({ text, className }: { text: string; className?: string }) {
+  return (
+    <span className={`block truncate ${className ?? ""}`} title={text}>
+      {text}
+    </span>
+  );
 }
 
 function Amount({ row }: { row: Row }) {
@@ -100,16 +93,52 @@ export function RecentTransactionsPanel({
   const rows = useMemo(() => toRows(items, categories, accounts), [items, categories, accounts]);
   const today = todayISO();
 
+  // Fit the table to its panel (2/3 of the row at ≥1280px): fixed date/avatar/amount widths,
+  // text columns flex and ellipsize, and Account drops out when the panel is narrow.
+  const [tableRef, tableWidth] = useElementWidth();
+  const showAccount = tableWidth === 0 || tableWidth >= 640;
   const columns = useMemo<GridColDef<Row>[]>(
     () => [
-      { field: "date", headerName: "Date", width: 92, sortable: false, valueFormatter: (v: string) => formatDate(v, true), cellClassName: "tabular text-ink-2" },
-      { field: "title", headerName: "Merchant", flex: 1.4, minWidth: 140, sortable: false, cellClassName: "font-medium text-ink" },
-      { field: "category", headerName: "Category", flex: 1, minWidth: 110, sortable: false, cellClassName: "text-ink-2" },
-      { field: "account", headerName: "Account", flex: 1, minWidth: 110, sortable: false, cellClassName: "text-ink-2" },
+      {
+        field: "date",
+        headerName: "Date",
+        width: 76,
+        sortable: false,
+        valueFormatter: (v: string) => formatDate(v, true),
+        cellClassName: "tabular text-ink-2",
+      },
+      {
+        field: "title",
+        headerName: "Merchant",
+        flex: 1.4,
+        minWidth: 110,
+        sortable: false,
+        renderCell: ({ row }) => <TruncCell text={row.title} className="font-medium text-ink" />,
+      },
+      {
+        field: "category",
+        headerName: "Category",
+        flex: 1,
+        minWidth: 90,
+        sortable: false,
+        renderCell: ({ row }) => <TruncCell text={row.category} className="text-ink-2" />,
+      },
+      ...(showAccount
+        ? [
+            {
+              field: "account",
+              headerName: "Account",
+              flex: 1,
+              minWidth: 100,
+              sortable: false,
+              renderCell: ({ row }: { row: Row }) => <TruncCell text={row.account} className="text-ink-2" />,
+            } satisfies GridColDef<Row>,
+          ]
+        : []),
       {
         field: "addedBy",
         headerName: "Added by",
-        width: 84,
+        width: 80,
         sortable: false,
         renderCell: ({ row }) =>
           row.addedBy ? (
@@ -124,12 +153,13 @@ export function RecentTransactionsPanel({
         field: "amount",
         headerName: "Amount",
         ...numericColumn,
-        width: 136,
+        width: 132,
+        minWidth: 132,
         sortable: false,
         renderCell: ({ row }) => <Amount row={row} />,
       },
     ],
-    [],
+    [showAccount],
   );
 
   return (
@@ -162,20 +192,22 @@ export function RecentTransactionsPanel({
       ) : (
         <>
           <DesktopOnly className="hidden md:block">
-            <DataTable<Row>
-              rows={rows}
-              columns={columns}
-              autoHeight
-              hideFooter
-              disableColumnResize
-              onRowClick={({ row }) => openEdit(row.txn)}
-              onCellKeyDown={({ row }, e) => {
-                if (e.key === "Enter") openEdit(row.txn);
-              }}
-              getRowClassName={() => "cursor-pointer"}
-              aria-label={title}
-              sx={{ border: 0, borderRadius: 0 }}
-            />
+            <div ref={tableRef} className="min-w-0">
+              <DataTable<Row>
+                rows={rows}
+                columns={columns}
+                autoHeight
+                hideFooter
+                disableColumnResize
+                onRowClick={({ row }) => openEdit(row.txn)}
+                onCellKeyDown={({ row }, e) => {
+                  if (e.key === "Enter") openEdit(row.txn);
+                }}
+                getRowClassName={() => "cursor-pointer"}
+                aria-label={title}
+                sx={{ border: 0, borderRadius: 0 }}
+              />
+            </div>
           </DesktopOnly>
           <ul className="divide-y divide-line md:hidden">
             {rows.map((r) => (

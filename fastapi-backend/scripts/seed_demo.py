@@ -1,14 +1,21 @@
 """Seed a demo household with ~6 months of realistic AED data.
 
 Usage (from fastapi-backend/):
-    MONGODB_URI=mongodb://localhost:27017 .venv/bin/python scripts/seed_demo.py [--reset] [--db NAME]
+    MONGODB_URI=mongodb://localhost:27017 .venv/bin/python scripts/seed_demo.py [--force] [--db NAME]
 
-* Owner login: demo@mybudgetpal.local, with a random password printed ONCE.
-* 3 accounts (Mashreq Neo, Emirates NBD, Cash), 2 debts, 1 savings goal, a plan, budgets for
-  the last two months, and transactions for the 6 full months before this one plus
-  the current month to date (Asia/Dubai).
-* Refuses to run if the demo user already exists unless --reset (which removes only the demo
-  household's documents first).
+* Owner login: demo@mybudgetpal.app, with a random password printed ONCE.
+* 4 accounts (Mashreq Neo = salary, Emirates NBD, Cash, Mashreq Credit Card), 2 debts, 1 savings
+  goal, a plan, budgets for the last two months, and transactions for the 6 full months before
+  this one plus the current month to date (Asia/Dubai).
+* Consistent card data: the credit card account opens at minus the card debt's starting balance,
+  the card debt is linked to it (so payments are transfers, spec §4.2), card purchases are
+  expenses on the card account, and each month a transfer from the salary account pays roughly
+  that month's card spend. The card debt's stored balance is set to minus the card account's
+  final balance, so "card balance" and "debt balance" agree. The car loan is unlinked
+  (payments are "Debt payment" expenses).
+* Refuses to run if the target database already has ANY users unless --force. --force removes
+  only the demo household's documents (if present) and never drops the database or touches
+  other households. --reset is kept as an alias of --force.
 * MONGODB_URI / MONGODB_DB come from the environment (or a local .env); --uri / --db override.
   A mongomock:// URI works but the data lives only inside this process (useful as a smoke test).
 """
@@ -48,8 +55,9 @@ from app.security.passwords import hash_password  # noqa: E402
 from app.services.categories import seed_default_categories  # noqa: E402
 from app.services.insights import get_today, month_str, shift_month  # noqa: E402
 
-DEMO_EMAIL = "demo@mybudgetpal.local"
+DEMO_EMAIL = "demo@mybudgetpal.app"
 MONTHS = 6
+CARD_START_BALANCE = 12_480  # AED owed on the credit card when the seeded history starts
 HOUSEHOLD_MODELS = (Account, Budget, Category, Debt, Goal, Invite, Plan, Session, Transaction)
 
 
@@ -66,12 +74,19 @@ async def _wipe_demo(user: User) -> None:
     await Household.find({"_id": hid}).delete()
 
 
-async def seed(today: dt.date, password: str, reset: bool = False, rng_seed: int = 42) -> dict[str, Any]:
-    """Create the demo household. Beanie must already be initialised. Returns a summary."""
+async def seed(today: dt.date, password: str, force: bool = False, rng_seed: int = 42,
+               reset: bool = False) -> dict[str, Any]:
+    """Create the demo household. Beanie must already be initialised. Returns a summary.
+
+    Refuses (SystemExit) when any user exists unless ``force`` (``reset`` is an alias); with
+    ``force`` only the demo household's documents are removed first.
+    """
+    force = force or reset
+    if await User.find_one({}) is not None and not force:
+        raise SystemExit("Target database already has users; rerun with --force to (re)create the demo "
+                         "household (only the demo household's documents are removed).")
     existing = await User.find_one({"email": DEMO_EMAIL})
     if existing is not None:
-        if not reset:
-            raise SystemExit(f"{DEMO_EMAIL} already exists; rerun with --reset to recreate it.")
         await _wipe_demo(existing)
 
     rng = random.Random(rng_seed)
@@ -94,15 +109,22 @@ async def seed(today: dt.date, password: str, reset: bool = False, rng_seed: int
     enbd = Account(household_id=hid, name="Emirates NBD", institution="Emirates NBD", type="bank",
                    opening_balance_fils=aed(9_200), last4="1937", color="#2563eb")
     cash = Account(household_id=hid, name="Cash", type="cash", opening_balance_fils=aed(650), color="#10b981")
-    for a in (mashreq, enbd, cash):
+    card_start_fils = aed(CARD_START_BALANCE)
+    card_acc = Account(household_id=hid, name="Mashreq Credit Card", institution="Mashreq", type="credit_card",
+                       opening_balance_fils=-card_start_fils, last4="7310", color="#dc2626")
+    for a in (mashreq, enbd, cash, card_acc):
         await a.insert()
 
     txns: list[Transaction] = []
+    card_spend: dict[str, int] = {}
 
     def add(d: dt.date, acc: Account, amount_fils: int, type_: str, category: str | None = None,
             merchant: str | None = None, to: Account | None = None, note: str | None = None) -> None:
         if d > today or d < start:
             return
+        if acc is card_acc and type_ == "expense":
+            key = month_str(d)
+            card_spend[key] = card_spend.get(key, 0) + amount_fils
         txns.append(Transaction(
             household_id=hid, account_id=acc.id, date=d, amount_fils=amount_fils, type=type_,  # type: ignore[arg-type]
             category_id=cat[category] if category else None, to_account_id=to.id if to else None,
@@ -124,13 +146,11 @@ async def seed(today: dt.date, password: str, reset: bool = False, rng_seed: int
         add(day(5), mashreq, aed(rng.uniform(620, 980)), "expense", "Utilities", "DEWA")
         add(day(6), mashreq, aed(399), "expense", "Telecom", "du")
         add(day(6), enbd, aed(249), "expense", "Telecom", "Etisalat e&")
-        add(day(8), mashreq, aed(56), "expense", "Subscriptions", "Netflix")
-        add(day(8), mashreq, aed(22), "expense", "Subscriptions", "Spotify")
+        add(day(8), card_acc, aed(56), "expense", "Subscriptions", "Netflix")
+        add(day(8), card_acc, aed(22), "expense", "Subscriptions", "Spotify")
         add(day(9), enbd, aed(1_850), "expense", "Education", "Nursery fees")
         add(day(3), mashreq, aed(1_000), "transfer", to=cash, note="ATM withdrawal")
         add(day(10), enbd, aed(2_100), "expense", "Debt payment", "ENBD Auto Loan", note="Car loan instalment")
-        add(day(20), mashreq, aed(rng.choice([900, 1_200, 1_500])), "expense", "Debt payment",
-            "Mashreq Credit Card", note="Card payment")
         if m in (1, 7):
             add(day(14), enbd, aed(3_400), "expense", "Insurance", "AXA Motor", note="Car insurance")
         for week_day in (4, 11, 18, 25):
@@ -139,21 +159,26 @@ async def seed(today: dt.date, password: str, reset: bool = False, rng_seed: int
             add(day(week_day + 1), enbd, aed(rng.uniform(150, 240)), "expense", "Fuel", rng.choice(["ENOC", "ADNOC"]))
             add(day(week_day + 2), cash, aed(rng.uniform(15, 60)), "expense", "Groceries", "Corner grocery")
         for _ in range(rng.randint(5, 9)):
-            add(day(rng.randint(1, 28)), mashreq, aed(rng.uniform(45, 380)), "expense", "Dining",
+            add(day(rng.randint(1, 27)), card_acc, aed(rng.uniform(45, 380)), "expense", "Dining",
                 rng.choice(["Talabat", "Deliveroo", "Operation Falafel", "Tim Hortons", "PF Chang's"]))
         for _ in range(rng.randint(3, 6)):
             add(day(rng.randint(1, 28)), mashreq, aed(rng.uniform(12, 90)), "expense", "Transport",
                 rng.choice(["Careem", "RTA Salik", "RTA Nol top-up", "Uber"]))
         for _ in range(rng.randint(1, 3)):
-            add(day(rng.randint(1, 28)), mashreq, aed(rng.uniform(150, 900)), "expense", "Shopping",
+            add(day(rng.randint(1, 27)), card_acc, aed(rng.uniform(150, 900)), "expense", "Shopping",
                 rng.choice(["Amazon.ae", "Noon", "IKEA", "Centrepoint"]))
         if rng.random() < 0.6:
-            add(day(rng.randint(1, 28)), mashreq, aed(rng.uniform(80, 450)), "expense", "Entertainment",
+            add(day(rng.randint(1, 27)), card_acc, aed(rng.uniform(80, 450)), "expense", "Entertainment",
                 rng.choice(["VOX Cinemas", "Dubai Parks", "Ain Dubai"]))
         if rng.random() < 0.4:
             add(day(rng.randint(1, 28)), enbd, aed(rng.uniform(120, 600)), "expense", "Health",
                 rng.choice(["Aster Pharmacy", "Mediclinic"]))
         add(day(15), mashreq, aed(2_000), "transfer", to=enbd, note="Savings top-up")
+        # Card payment on the 28th: that month's card spend rounded to the nearest AED 10.
+        spent = card_spend.get(month, 0)
+        if spent > 0:
+            add(day(28), mashreq, max(1_000, int(round(spent / 1_000)) * 1_000), "transfer", to=card_acc,
+                merchant="Mashreq Credit Card", note="Card payment")
         month = shift_month(month, 1)
 
     # One-off events: a trip two months ago, a gift last month.
@@ -163,10 +188,19 @@ async def seed(today: dt.date, password: str, reset: bool = False, rng_seed: int
     add(dt.date(int(last[:4]), int(last[5:7]), 21), mashreq, aed(650), "expense", "Gifts", "Bloomingdale's")
     await Transaction.insert_many(txns)
 
-    card = Debt(household_id=hid, name="Mashreq Credit Card", kind="credit_card", balance_fils=aed(12_480),
-                apr_bps=3699, min_payment_fils=aed(624), due_day=20, account_id=mashreq.id)
+    # Card debt balance mirrors the card account's balance after the seeded activity.
+    card_delta = 0
+    for t in txns:
+        if t.type == "expense" and t.account_id == card_acc.id:
+            card_delta -= t.amount_fils
+        elif t.type == "transfer" and t.to_account_id == card_acc.id:
+            card_delta += t.amount_fils
+    card_balance_fils = card_acc.opening_balance_fils + card_delta
+    card = Debt(household_id=hid, name="Mashreq Credit Card", kind="credit_card",
+                balance_fils=max(0, -card_balance_fils), apr_bps=3699, min_payment_fils=aed(624), due_day=20,
+                account_id=card_acc.id)
     car = Debt(household_id=hid, name="ENBD Auto Loan", kind="car_loan", balance_fils=aed(64_300),
-               apr_bps=499, min_payment_fils=aed(2_100), due_day=10, account_id=enbd.id)
+               apr_bps=499, min_payment_fils=aed(2_100), due_day=10)
     await card.insert()
     await car.insert()
 
@@ -178,13 +212,15 @@ async def seed(today: dt.date, password: str, reset: bool = False, rng_seed: int
 
     limits = {"Rent": 9_500, "Utilities": 1_000, "Groceries": 2_800, "Fuel": 900, "Telecom": 700,
               "Dining": 1_200, "Transport": 300, "Shopping": 1_000, "Entertainment": 400,
-              "Subscriptions": 100, "Education": 1_850, "Debt payment": 3_600}
+              "Subscriptions": 100, "Education": 1_850, "Debt payment": 2_100}
     for mth in (shift_month(month_str(today), -1), month_str(today)):
         await Budget(household_id=hid, month=mth,
                      lines=[BudgetLine(category_id=cat[n], limit_fils=aed(v)) for n, v in limits.items()]).insert()
 
     return {"household_id": str(hid), "user_id": str(user_id), "transactions": len(txns),
-            "from": start.isoformat(), "to": today.isoformat()}
+            "from": start.isoformat(), "to": today.isoformat(),
+            "card_account_id": str(card_acc.id), "card_debt_id": str(card.id),
+            "card_balance_fils": card_balance_fils, "card_debt_balance_fils": card.balance_fils}
 
 
 def _env(name: str, default: str | None = None) -> str | None:
@@ -203,7 +239,9 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--uri", default=None, help="MongoDB URI (default: $MONGODB_URI)")
     parser.add_argument("--db", default=None, help="database name (default: $MONGODB_DB or mybudgetpal)")
-    parser.add_argument("--reset", action="store_true", help="delete and recreate the demo household")
+    parser.add_argument("--force", action="store_true",
+                        help="seed even if the database already has users; removes only the demo household first")
+    parser.add_argument("--reset", action="store_true", help="alias of --force (kept for compatibility)")
     args = parser.parse_args()
 
     uri = args.uri or _env("MONGODB_URI")
@@ -222,9 +260,9 @@ async def main() -> None:
     await init_beanie(database=client[db_name], document_models=document_models)
 
     password = secrets.token_urlsafe(12)
-    result = await seed(get_today(), password, reset=args.reset)
+    result = await seed(get_today(), password, force=args.force or args.reset)
     print(f"Seeded demo household into database '{db_name}': {result['transactions']} transactions "
-          f"({result['from']} .. {result['to']}), 3 accounts, 2 debts, 1 goal.")
+          f"({result['from']} .. {result['to']}), 4 accounts, 2 debts, 1 goal.")
     print(f"Login: {DEMO_EMAIL}")
     print(f"Password (shown once): {password}")
 

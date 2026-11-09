@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from typing import Any
 
@@ -35,18 +36,18 @@ def _plan_out(plan: Plan | None, minimums: int) -> PlanOut:
 
 @router.get("", response_model=PlanOut)
 async def get_plan_settings(current: CurrentUser = Depends(get_current_user)) -> PlanOut:
-    debts = await active_debts(current.household_id)
-    return _plan_out(await get_plan(current.household_id), sum_minimums(debts))
+    debts, plan = await asyncio.gather(active_debts(current.household_id), get_plan(current.household_id))
+    return _plan_out(plan, sum_minimums(debts))
 
 
 @router.put("", response_model=PlanOut)
 async def put_plan_settings(body: PlanPut, current: CurrentUser = Depends(get_current_user)) -> PlanOut:
-    minimums = sum_minimums(await active_debts(current.household_id))
+    debts, plan = await asyncio.gather(active_debts(current.household_id), get_plan(current.household_id))
+    minimums = sum_minimums(debts)
     if body.monthly_debt_budget_fils < minimums:
         raise validation_error(
             {"monthlyDebtBudgetFils": f"must be at least the sum of minimum payments ({minimums} fils)"}
         )
-    plan = await get_plan(current.household_id)
     data = body.model_dump()
     if plan is None:
         plan = Plan(household_id=current.household_id, **data)
@@ -60,8 +61,7 @@ async def put_plan_settings(body: PlanPut, current: CurrentUser = Depends(get_cu
 
 
 async def _inputs(current: CurrentUser, budget: int | None) -> tuple[list[dict[str, Any]], int, Plan | None]:
-    debts = await active_debts(current.household_id)
-    plan = await get_plan(current.household_id)
+    debts, plan = await asyncio.gather(active_debts(current.household_id), get_plan(current.household_id))
     if budget is None:
         saved = plan.monthly_debt_budget_fils if plan else 0
         budget = saved if saved > 0 else sum_minimums(debts)

@@ -103,7 +103,11 @@ Budgets:
 - `GET /budgets/{month}` → `{month, lines: [{categoryId, categoryName, group, limitFils, spentFils, remainingFils}], totalLimitFils, totalSpentFils, incomeFils, unbudgetedSpentFils}` (404-free: returns empty lines if none)
 - `PUT /budgets/{month}` `{lines: [{categoryId, limitFils}], note?}`
 - `POST /budgets/{month}/copy-from/{fromMonth}`
-Debts: `GET /debts`, `POST /debts`, `PATCH /debts/{id}`, `POST /debts/{id}/archive`, `POST /debts/{id}/payments` `{amountFils, date, accountId}` → creates an expense transaction in category "Debt payment" and reduces `balance_fils`.
+Debts: `GET /debts`, `POST /debts`, `PATCH /debts/{id}`, `POST /debts/{id}/archive`, `POST /debts/{id}/payments` `{amountFils, date, accountId}` → `{debt, transaction}`; reduces `balance_fils` (floored at 0) and records the money movement:
+- Debt linked to a **`credit_card` or `loan` account** (that account is the debt; card purchases are already expenses on it): a **transfer** from `accountId` to the linked account (no category), so spending is not double-counted. Paying from the linked account itself → 422 (`fields.accountId`).
+- Debt **not linked, or linked to any other account type** (e.g. the bank account it is usually paid from): an **expense** in category "Debt payment".
+- `accountId` must belong to the household (422 otherwise).
+- Debt responses include `linkedAccountBalanceFils`: the linked account's current `balanceFils` (same computation as `GET /accounts`), `null` when unlinked — lets the UI show "card balance" next to the debt balance.
 Goals: `GET /goals`, `POST /goals`, `PATCH /goals/{id}`, `POST /goals/{id}/archive`, `POST /goals/{id}/contributions` `{amountFils}` (adjusts `saved_fils`).
 Plan:
 - `GET /plan` → plan settings; `PUT /plan` settings
@@ -149,7 +153,7 @@ Input transactions are plain dicts/dataclasses: `{date: date, amount_fils: int, 
 - `monthly_series(txns, end_month: str, months: int) -> list[dict]`: one entry per month `{month, incomeFils, expenseFils, netFils}` (zero-filled).
 
 `forecast.py`
-- `forecast_next_month(txns, today: date, history_months=6) -> dict`: per expense category and total, forecast next month spending using exponentially weighted mean of the last N full months (alpha 0.5) blended with a linear trend (sklearn LinearRegression) when ≥4 months of data; clamp ≥0. Returns `{month, totalExpenseFils, totalIncomeFils, byCategory: [{categoryId, forecastFils, trend: "up"|"down"|"flat"}], confidence: "low"|"medium"|"high"}` (low < 3 months data, high ≥ 6).
+- `forecast_next_month(txns, today: date, history_months=6) -> dict`: per expense category and total, forecast next month spending using exponentially weighted mean of the last N full months (alpha 0.5) blended with a linear trend (sklearn LinearRegression) when ≥4 months of data; clamp ≥0. Returns `{month, totalExpenseFils, totalIncomeFils, byCategory: [{categoryId, forecastFils, trend: "up"|"down"|"flat"}], confidence: "low"|"medium"|"high"}` (low < 3 months data, high ≥ 6). `trend` = direction of the category's `forecastFils` vs its spend in the most recent full month (`last`): `|forecast − last| < 5% of last` → `"flat"`, else `"up"`/`"down"`; if `last` is 0, `"up"` when forecast > 0 else `"flat"`. (Not the regression slope — a long-run decline can coexist with a forecast above last month.)
 
 `anomalies.py`
 - `detect_anomalies(txns, month: str, lookback_months=6) -> list[dict]`: categories whose month spend exceeds mean + 2·std of lookback (and ≥ 20% above mean and ≥ AED 100), plus single transactions > 3× the category median. Items: `{kind: "category_spike"|"large_transaction", categoryId, transactionId?, amountFils, baselineFils, message}`.

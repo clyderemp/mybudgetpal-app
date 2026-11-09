@@ -28,8 +28,17 @@ export function DebtPaymentDialog({ debt, onClose }: { debt: Debt; onClose: () =
   });
   type F = z.infer<typeof schema>;
 
-  const payFrom = (accounts.data ?? []).filter((a) => a.type !== "loan" && a.id !== debt.accountId);
-  const defaultAccount = payFrom.find((a) => a.type === "bank")?.id ?? payFrom[0]?.id ?? "";
+  // Backend rule: a payment on a debt linked to a credit card or loan account is a transfer into that
+  // account (its purchases already count as spending). Otherwise it's a "Debt payment" expense, and
+  // paying from the linked account itself is allowed.
+  const linked = debt.accountId ? (accounts.data ?? []).find((a) => a.id === debt.accountId) : undefined;
+  const isTransfer = linked?.type === "credit_card" || linked?.type === "loan";
+  const payFrom = (accounts.data ?? []).filter((a) => a.type !== "loan" && !(isTransfer && a.id === linked?.id));
+  const defaultAccount =
+    (linked && !isTransfer && payFrom.some((a) => a.id === linked.id) ? linked.id : undefined) ??
+    payFrom.find((a) => a.type === "bank")?.id ??
+    payFrom[0]?.id ??
+    "";
 
   const {
     control,
@@ -47,6 +56,10 @@ export function DebtPaymentDialog({ debt, onClose }: { debt: Debt; onClose: () =
   });
 
   const chosen = useWatch({ control, name: "accountId" });
+  const payingName = payFrom.find((a) => a.id === chosen)?.name ?? "the paying account";
+  const effect = isTransfer
+    ? `Moves money from ${payingName} to ${linked.name}${linked.type === "credit_card" ? "; card purchases are already counted as spending" : ""}.`
+    : "Records a debt payment expense and reduces the balance.";
   useEffect(() => {
     if (!chosen && defaultAccount) setValue("accountId", defaultAccount);
   }, [chosen, defaultAccount, setValue]);
@@ -67,7 +80,7 @@ export function DebtPaymentDialog({ debt, onClose }: { debt: Debt; onClose: () =
       open
       onOpenChange={(o) => !o && onClose()}
       title="Record payment"
-      description={`${debt.name}, balance ${formatFils(debt.balanceFils)}. Records a debt payment expense and reduces the balance.`}
+      description={`${debt.name}, balance ${formatFils(debt.balanceFils)}. ${effect}`}
       onSubmit={onSubmit}
       submitLabel="Record payment"
       submitting={payM.isPending}
@@ -78,7 +91,15 @@ export function DebtPaymentDialog({ debt, onClose }: { debt: Debt; onClose: () =
           control={control}
           name="amountFils"
           render={({ field }) => (
-            <MoneyInput label="Amount" required autoFocus value={field.value} onChange={field.onChange} onBlur={field.onBlur} error={errors.amountFils?.message} />
+            <MoneyInput
+              label="Amount"
+              required
+              autoFocus
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.amountFils?.message}
+            />
           )}
         />
         <Controller
@@ -92,7 +113,11 @@ export function DebtPaymentDialog({ debt, onClose }: { debt: Debt; onClose: () =
           render={({ field }) => (
             <Dropdown
               label="Paid from"
-              options={payFrom.map((a) => ({ value: a.id, label: a.name, description: a.institution ?? undefined }))}
+              options={payFrom.map((a) => ({
+                value: a.id,
+                label: a.name,
+                description: a.institution ?? undefined,
+              }))}
               value={field.value}
               onChange={field.onChange}
               error={errors.accountId?.message ?? (accounts.isSuccess && payFrom.length === 0 ? "Add a bank or cash account first" : undefined)}

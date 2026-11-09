@@ -19,10 +19,11 @@ import {
   Panel,
   SkeletonList,
 } from "@/components/ui";
+import { useElementWidth } from "@/features/common/useElementWidth";
 import { formatDate, todayISO } from "@/lib/dates";
 import { formatBps } from "@/lib/money";
 import { useAccounts, useArchiveDebt, useDebts } from "@/lib/queries";
-import type { Debt } from "@/lib/types";
+import type { AccountType, Debt } from "@/lib/types";
 import { DebtFormDialog } from "./DebtFormDialog";
 import { DebtPaymentDialog } from "./DebtPaymentDialog";
 import { SummaryStrip } from "./SummaryStrip";
@@ -36,6 +37,15 @@ interface DebtRow extends Debt {
 function DueBadge({ days, settled }: { days: number; settled: boolean }) {
   if (settled || days > 7) return null;
   return <Badge tone="warn">{days === 0 ? "Due today" : days === 1 ? "Due tomorrow" : `Due in ${days} days`}</Badge>;
+}
+
+/** Credit card and loan accounts: payments on debts linked to them are transfers, not expenses. */
+function isDebtAccount(type?: AccountType) {
+  return type === "credit_card" || type === "loan";
+}
+
+function linkedBalanceLabel(type?: AccountType) {
+  return type === "credit_card" ? "Card balance" : type === "loan" ? "Loan account balance" : "Linked account balance";
 }
 
 export function DebtsTab() {
@@ -55,6 +65,7 @@ export function DebtsTab() {
       return { ...d, nextDue, daysToDue: daysBetween(today, nextDue) };
     });
   const viewing = rows.find((r) => r.id === viewingId) ?? null;
+  const viewingLinked = viewing?.accountId ? (accounts.data ?? []).find((a) => a.id === viewing.accountId) : undefined;
   const total = rows.reduce((s, d) => s + d.balanceFils, 0);
   const mins = rows.reduce((s, d) => s + Math.min(d.minPaymentFils, d.balanceFils), 0);
   const weightedApr = total > 0 ? Math.round(rows.reduce((s, d) => s + d.aprBps * d.balanceFils, 0) / total) : 0;
@@ -68,46 +79,128 @@ export function DebtsTab() {
         </Button>
       }
       items={[
-        { label: "Record payment", icon: <HandCoins className="size-4" aria-hidden />, disabled: d.balanceFils <= 0, onSelect: () => setPaying(d) },
-        { label: "Edit debt", icon: <Pencil className="size-4" aria-hidden />, onSelect: () => setEditing(d) },
+        {
+          label: "Record payment",
+          icon: <HandCoins className="size-4" aria-hidden />,
+          disabled: d.balanceFils <= 0,
+          onSelect: () => setPaying(d),
+        },
+        {
+          label: "Edit debt",
+          icon: <Pencil className="size-4" aria-hidden />,
+          onSelect: () => setEditing(d),
+        },
         { separator: true },
-        { label: "Archive debt", icon: <Archive className="size-4" aria-hidden />, danger: true, onSelect: () => setArchiving(d) },
+        {
+          label: "Archive debt",
+          icon: <Archive className="size-4" aria-hidden />,
+          danger: true,
+          onSelect: () => setArchiving(d),
+        },
       ]}
     />
   );
 
+  // Fit the panel: drop the least useful columns as the table narrows (Due day repeats Next due).
+  const [tableRef, tableWidth] = useElementWidth();
+  const fits = (min: number) => tableWidth === 0 || tableWidth >= min;
   const columns: GridColDef<DebtRow>[] = [
     {
       field: "name",
       headerName: "Name",
       flex: 1.4,
-      minWidth: 180,
-      renderCell: ({ row }) => <span className="truncate font-medium text-ink">{row.name}</span>,
+      minWidth: 120,
+      renderCell: ({ row }) => (
+        <span className="block truncate font-medium text-ink" title={row.name}>
+          {row.name}
+        </span>
+      ),
     },
-    { field: "kind", headerName: "Type", flex: 1, minWidth: 130, valueGetter: (_v, row) => DEBT_KIND_LABEL[row.kind] },
+    ...(fits(972)
+      ? [
+          {
+            field: "kind",
+            headerName: "Type",
+            flex: 1,
+            minWidth: 110,
+            valueGetter: (_v: unknown, row: DebtRow) => DEBT_KIND_LABEL[row.kind],
+          } satisfies GridColDef<DebtRow>,
+        ]
+      : []),
+    ...(fits(862)
+      ? [
+          {
+            field: "accountId",
+            headerName: "Linked account",
+            flex: 1,
+            minWidth: 120,
+            sortable: false,
+            renderCell: ({ row }: { row: DebtRow }) => {
+              const name = accountName(row.accountId);
+              return name ? (
+                <span className="block truncate text-ink-2" title={name}>
+                  {name}
+                </span>
+              ) : (
+                <span className="text-ink-2">—</span>
+              );
+            },
+          } satisfies GridColDef<DebtRow>,
+        ]
+      : []),
     {
       field: "balanceFils",
       headerName: "Balance",
-      width: 150,
+      width: 136,
       ...numericColumn,
       renderCell: ({ row }) => <Money fils={row.balanceFils} tone={row.balanceFils > 0 ? "danger" : undefined} />,
     },
-    { field: "aprBps", headerName: "APR", width: 96, ...numericColumn, renderCell: ({ row }) => <span className="tabular">{formatBps(row.aprBps)}</span> },
-    { field: "minPaymentFils", headerName: "Min payment", width: 140, ...numericColumn, renderCell: ({ row }) => <Money fils={row.minPaymentFils} /> },
-    { field: "dueDay", headerName: "Due day", width: 90, ...numericColumn, renderCell: ({ row }) => <span className="tabular">{ordinal(row.dueDay)}</span> },
+    {
+      field: "aprBps",
+      headerName: "APR",
+      width: 88,
+      ...numericColumn,
+      renderCell: ({ row }) => <span className="tabular">{formatBps(row.aprBps)}</span>,
+    },
+    {
+      field: "minPaymentFils",
+      headerName: "Min payment",
+      width: 124,
+      ...numericColumn,
+      renderCell: ({ row }) => <Money fils={row.minPaymentFils} />,
+    },
+    ...(fits(1052)
+      ? [
+          {
+            field: "dueDay",
+            headerName: "Due day",
+            width: 80,
+            ...numericColumn,
+            renderCell: ({ row }: { row: DebtRow }) => <span className="tabular">{ordinal(row.dueDay)}</span>,
+          } satisfies GridColDef<DebtRow>,
+        ]
+      : []),
     {
       field: "nextDue",
       headerName: "Next due",
-      width: 220,
+      width: 208,
       display: "flex",
       renderCell: ({ row }) => (
-        <span className="flex items-center gap-2">
+        <span className="flex min-w-0 items-center gap-2">
           <span className="tabular">{formatDate(row.nextDue)}</span>
           <DueBadge days={row.daysToDue} settled={row.balanceFils <= 0} />
         </span>
       ),
     },
-    { field: "actions", headerName: "", width: 56, sortable: false, align: "right", display: "flex", renderCell: ({ row }) => rowMenu(row) },
+    {
+      field: "actions",
+      headerName: "",
+      width: 56,
+      sortable: false,
+      align: "right",
+      display: "flex",
+      renderCell: ({ row }) => rowMenu(row),
+    },
   ];
 
   return (
@@ -136,9 +229,19 @@ export function DebtsTab() {
           <SummaryStrip
             label="Debt summary"
             items={[
-              { label: "Total debt", value: <Money fils={total} noDecimals tone="danger" /> },
-              { label: "Monthly minimums", value: <Money fils={mins} noDecimals /> },
-              { label: "Average APR", value: formatBps(weightedApr), hint: "Weighted by balance" },
+              {
+                label: "Total debt",
+                value: <Money fils={total} noDecimals tone="danger" />,
+              },
+              {
+                label: "Monthly minimums",
+                value: <Money fils={mins} noDecimals />,
+              },
+              {
+                label: "Average APR",
+                value: formatBps(weightedApr),
+                hint: "Weighted by balance",
+              },
             ]}
           />
           <Panel
@@ -152,18 +255,20 @@ export function DebtsTab() {
             flush
           >
             <DesktopOnly className="hidden md:block">
-              <DataTable<DebtRow>
-                rows={rows}
-                columns={columns}
-                autoHeight
-                hideFooter
-                aria-label="Debts"
-                onRowClick={({ row }) => setViewingId(row.id)}
-                onCellKeyDown={(params, e) => {
-                  if (e.key === "Enter" && params.field !== "actions") setViewingId(params.row.id);
-                }}
-                sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
-              />
+              <div ref={tableRef} className="min-w-0">
+                <DataTable<DebtRow>
+                  rows={rows}
+                  columns={columns}
+                  autoHeight
+                  hideFooter
+                  aria-label="Debts"
+                  onRowClick={({ row }) => setViewingId(row.id)}
+                  onCellKeyDown={(params, e) => {
+                    if (e.key === "Enter" && params.field !== "actions") setViewingId(params.row.id);
+                  }}
+                  sx={{ "& .MuiDataGrid-row": { cursor: "pointer" } }}
+                />
+              </div>
             </DesktopOnly>
             <ul className="divide-y divide-line md:hidden">
               {rows.map((d) => (
@@ -222,28 +327,44 @@ export function DebtsTab() {
         }
       >
         {viewing ? (
-          <dl>
-            <DetailRow label="Balance">
-              <Money fils={viewing.balanceFils} tone={viewing.balanceFils > 0 ? "danger" : undefined} />
-            </DetailRow>
-            <DetailRow label="Interest rate (APR)">
-              <span className="tabular">{formatBps(viewing.aprBps)}</span>
-            </DetailRow>
-            <DetailRow label="Interest this month (estimate)">
-              <Money fils={monthlyInterestFils(viewing.balanceFils, viewing.aprBps)} />
-            </DetailRow>
-            <DetailRow label="Minimum payment">
-              <Money fils={viewing.minPaymentFils} />
-            </DetailRow>
-            <DetailRow label="Due day">{ordinal(viewing.dueDay)} of each month</DetailRow>
-            <DetailRow label="Next due">
-              <span className="inline-flex flex-wrap items-center justify-end gap-2">
-                <span className="tabular">{formatDate(viewing.nextDue)}</span>
-                <DueBadge days={viewing.daysToDue} settled={viewing.balanceFils <= 0} />
-              </span>
-            </DetailRow>
-            <DetailRow label="Linked account">{accountName(viewing.accountId) ?? "None"}</DetailRow>
-          </dl>
+          <>
+            <dl>
+              <DetailRow label="Balance">
+                <Money fils={viewing.balanceFils} tone={viewing.balanceFils > 0 ? "danger" : undefined} />
+              </DetailRow>
+              <DetailRow label="Interest rate (APR)">
+                <span className="tabular">{formatBps(viewing.aprBps)}</span>
+              </DetailRow>
+              <DetailRow label="Interest this month (estimate)">
+                <Money fils={monthlyInterestFils(viewing.balanceFils, viewing.aprBps)} />
+              </DetailRow>
+              <DetailRow label="Minimum payment">
+                <Money fils={viewing.minPaymentFils} />
+              </DetailRow>
+              <DetailRow label="Due day">{ordinal(viewing.dueDay)} of each month</DetailRow>
+              <DetailRow label="Next due">
+                <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                  <span className="tabular">{formatDate(viewing.nextDue)}</span>
+                  <DueBadge days={viewing.daysToDue} settled={viewing.balanceFils <= 0} />
+                </span>
+              </DetailRow>
+              <DetailRow label="Linked account">{viewing.accountId ? (accountName(viewing.accountId) ?? "Archived account") : "None"}</DetailRow>
+              {viewing.accountId && viewing.linkedAccountBalanceFils != null ? (
+                <DetailRow label={linkedBalanceLabel(viewingLinked?.type)}>
+                  <Money
+                    fils={viewing.linkedAccountBalanceFils}
+                    tone={isDebtAccount(viewingLinked?.type) && viewing.linkedAccountBalanceFils < 0 ? "danger" : undefined}
+                  />
+                </DetailRow>
+              ) : null}
+            </dl>
+            {viewingLinked && isDebtAccount(viewingLinked.type) ? (
+              <p className="pt-3 text-meta text-ink-2">
+                Payments move money from the paying account to {viewingLinked.name}.
+                {viewingLinked.type === "credit_card" ? " Card purchases already count as spending." : ""}
+              </p>
+            ) : null}
+          </>
         ) : null}
       </DetailDrawer>
 

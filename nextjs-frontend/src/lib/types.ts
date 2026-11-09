@@ -241,6 +241,8 @@ export interface Debt {
   minPaymentFils: number;
   dueDay: number;
   accountId?: ID | null;
+  /** Current balance of the linked account (e.g. the credit card), when accountId is set. */
+  linkedAccountBalanceFils?: number | null;
   archived: boolean;
   createdAt?: ISODateTime;
   updatedAt?: ISODateTime;

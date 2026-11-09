@@ -36,7 +36,10 @@ export function useArchiveDebt() {
   });
 }
 
-/** Records a payment: creates a "Debt payment" expense transaction and reduces the balance. */
+/**
+ * Records a payment and reduces the balance. For a debt linked to an account the backend records a
+ * transfer from the paying account to the linked account; otherwise a "Debt payment" expense.
+ */
 export function useDebtPayment() {
   const qc = useQueryClient();
   return useMutation({

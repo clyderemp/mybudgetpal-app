@@ -33,6 +33,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Off: bottom-left covers the sidebar user menu and phone tab bar, top-right covers the
+  // avatar menu and bottom-right covers the phone add button.
+  devIndicators: false,
   turbopack: {
     // Pin root to this app (a stray lockfile in $HOME otherwise confuses root detection).
     root: path.join(__dirname),

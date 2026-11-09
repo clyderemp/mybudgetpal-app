@@ -12,6 +12,7 @@ from starlette.responses import Response
 from app.config import Settings, get_settings
 from app.db import init_db
 from app.errors import install_error_handlers
+from app.security.auth_cache import AuthCache
 from app.ratelimit import LoginFailureTracker, RateLimitMiddleware
 from app.routers import (
     accounts,
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.login_failures = LoginFailureTracker(
         settings.login_max_failures, settings.login_failure_window_minutes * 60
     )
+    app.state.auth_cache = AuthCache(settings.auth_cache_ttl_seconds)
     install_error_handlers(app)
 
     # Middleware: last added runs first (outermost).
