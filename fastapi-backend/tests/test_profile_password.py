@@ -63,3 +63,19 @@ async def test_change_password_signs_out_other_devices(new_client, owner):
     async with new_client() as c:
         assert (await c.post("/api/v1/auth/login", json={"email": "clyde@example.com", "password": PASSWORD})).status_code == 401
         assert (await c.post("/api/v1/auth/login", json={"email": "clyde@example.com", "password": "brand-new-pass-1"})).status_code == 200
+
+
+@pytest.mark.parametrize("settings_overrides", [{"allow_registration": True, "rate_limit_enabled": False}])
+async def test_lockout_is_per_account_not_per_name(new_client, app):
+    async with new_client() as c:
+        await c.post("/api/v1/auth/register", json={
+            "name": "Clyde", "email": "c@example.com", "username": "clyde", "password": PASSWORD,
+            "householdName": "Home"})
+    limit = app.state.login_failures.max_failures
+    async with new_client() as c:
+        for i in range(limit):  # alternate the two names for the same account
+            name = "clyde" if i % 2 else "c@example.com"
+            await c.post("/api/v1/auth/login", json={"username": name, "password": "wrong"})
+        for name in ("clyde", "c@example.com"):
+            r = await c.post("/api/v1/auth/login", json={"username": name, "password": PASSWORD})
+            assert r.status_code == 429 and r.json()["error"]["code"] == "too_many_attempts", (name, r.text)

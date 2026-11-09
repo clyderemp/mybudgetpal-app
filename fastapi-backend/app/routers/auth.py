@@ -128,14 +128,16 @@ async def login(
 ) -> UserEnvelope:
     failures = request.app.state.login_failures
     ident = body.identifier
-    if failures.is_locked(ident):
-        raise AppError(429, "too_many_attempts", "Too many failed sign-in attempts. Try again in a few minutes.")
     user = await find_login_user(ident)
+    # Lock per account, not per typed name: username and email share one failure budget.
+    key = f"user:{user.id}" if user is not None else f"unknown:{ident}"
+    if failures.is_locked(key):
+        raise AppError(429, "too_many_attempts", "Too many failed sign-in attempts. Try again in a few minutes.")
     ok = verify_password(user.password_hash if user else None, body.password)
     if user is None or not ok:
-        failures.record_failure(ident)
+        failures.record_failure(key)
         raise AppError(401, "invalid_credentials", "Invalid username or password")
-    failures.reset(ident)
+    failures.reset(key)
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
         user.touch()
