@@ -17,6 +17,7 @@ Usage (from fastapi-backend/):
   only the demo household's documents (if present) and never drops the database or touches
   other households. --reset is kept as an alias of --force.
 * MONGODB_URI / MONGODB_DB come from the environment (or a local .env); --uri / --db override.
+  Real MongoDB targets must be the ``development`` database; production is always refused.
   A mongomock:// URI works but the data lives only inside this process (useful as a smoke test).
 """
 
@@ -30,12 +31,14 @@ import random
 import secrets
 import sys
 from pathlib import Path
+from collections.abc import Mapping
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from beanie import PydanticObjectId, init_beanie  # noqa: E402
 
+from app.config import database_for  # noqa: E402
 from app.db import document_models  # noqa: E402
 from app.models import (  # noqa: E402
     Account,
@@ -223,6 +226,16 @@ async def seed(today: dt.date, password: str, force: bool = False, rng_seed: int
             "card_balance_fils": card_balance_fils, "card_debt_balance_fils": card.balance_fils}
 
 
+def target_development(uri: str, db_name: str, app_env: str, host_env: Mapping[str, str]) -> None:
+    """Demo data only ever goes to ``development`` (or an in-memory mongomock database)."""
+    if uri.startswith("mongomock://"):
+        return
+    if app_env != "development" or database_for(app_env, host_env) != "development":
+        raise ValueError("this process is routed to production")
+    if db_name != "development":
+        raise ValueError(f"database must be 'development', got {db_name!r}")
+
+
 def _env(name: str, default: str | None = None) -> str | None:
     if name in os.environ:
         return os.environ[name]
@@ -238,7 +251,7 @@ def _env(name: str, default: str | None = None) -> str | None:
 async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--uri", default=None, help="MongoDB URI (default: $MONGODB_URI)")
-    parser.add_argument("--db", default=None, help="database name (default: $MONGODB_DB or mybudgetpal)")
+    parser.add_argument("--db", default=None, help="database name (default: $MONGODB_DB or development; anything else is refused)")
     parser.add_argument("--force", action="store_true",
                         help="seed even if the database already has users; removes only the demo household first")
     parser.add_argument("--reset", action="store_true", help="alias of --force (kept for compatibility)")
@@ -247,7 +260,11 @@ async def main() -> None:
     uri = args.uri or _env("MONGODB_URI")
     if not uri:
         raise SystemExit("Set MONGODB_URI (or pass --uri).")
-    db_name = args.db or _env("MONGODB_DB", "mybudgetpal")
+    db_name = args.db or _env("MONGODB_DB") or "development"
+    try:
+        target_development(uri, db_name, _env("APP_ENV") or "development", os.environ)
+    except ValueError as exc:
+        raise SystemExit(f"refusing to seed: {exc}") from None
     if uri.startswith("mongomock://"):
         from mongomock_motor import AsyncMongoMockClient
 

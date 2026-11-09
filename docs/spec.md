@@ -40,7 +40,7 @@ mybudgetpal-app/
 
 Python 3.14, FastAPI, Uvicorn, Beanie 1.30 (Motor; venv already at `fastapi-backend/.venv`, deps in requirements.txt — do not recreate it), pydantic-settings, argon2-cffi, PyJWT, numpy, pandas, scikit-learn. Tests: pytest + pytest-asyncio + httpx `AsyncClient`, against **mongomock-motor** or a real Mongo at `MONGODB_URI_TEST` if reachable (local mongod may not be running — tests must pass with the mock).
 
-Env (`fastapi-backend/.env.example`): `MONGODB_URI`, `MONGODB_DB=mybudgetpal`, `JWT_SECRET`, `APP_ORIGIN=http://localhost:3000`, `COOKIE_SECURE=false`, `ALLOW_REGISTRATION=false`. If `MONGODB_URI` starts with `mongomock://` use `mongomock_motor.AsyncMongoMockClient` (local dev/e2e only; refuse at startup when `COOKIE_SECURE=true`).
+Env (`fastapi-backend/.env.example`): `APP_ENV=development`, `MONGODB_URI`, `MONGODB_DB` (optional, derived; see Dev/prod database separation in `fastapi-backend/README.md`), `JWT_SECRET`, `APP_ORIGIN=http://localhost:3000`, `COOKIE_SECURE=false`, `ALLOW_REGISTRATION=false`. If `MONGODB_URI` starts with `mongomock://` use `mongomock_motor.AsyncMongoMockClient` (local dev/e2e only; refuse at startup when `COOKIE_SECURE=true`).
 
 Package layout:
 ```

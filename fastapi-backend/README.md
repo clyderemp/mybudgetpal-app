@@ -6,7 +6,7 @@ Contract: `../docs/spec.md`.
 
 ```bash
 cd fastapi-backend
-cp .env.example .env            # then set JWT_SECRET (>= 32 bytes)
+cp .env.example .env            # then set MONGODB_URI and JWT_SECRET (>= 32 bytes)
 .venv/bin/python -m uvicorn app.main:app --reload --port 8000 --no-proxy-headers
 # production-style (proxy headers off, 127.0.0.1:8000; HOST/PORT env override):
 .venv/bin/python -m app
@@ -21,6 +21,34 @@ client-supplied XFF untouched, so trusting it lets anyone dodge the per-IP rate 
 - No local Mongo? Set `MONGODB_URI=mongomock://local` (in-memory, data lost on restart).
 - First run: `GET /api/v1/auth/status` returns `registrationOpen: true` until the first user registers
   via `POST /api/v1/auth/register`. Further members join with an invite code (`POST /api/v1/household/invites`).
+
+## Dev / prod database separation
+
+One Atlas cluster (`mybudgetpal.nilbypg`) and one `MONGODB_URI` serve two databases,
+`development` and `production`. Atlas does not separate them; `app/config.py` does
+(`database_for` + `check_environment`, covered by `tests/test_environment.py`).
+
+| Where it runs | `APP_ENV` | Host marker | Database |
+|---|---|---|---|
+| Laptop (`python -m app`, `.env`) | development | none | `development` |
+| Laptop with `APP_ENV=production` in the shell | production | none | **refused** |
+| Vercel Preview | any | `VERCEL_ENV=preview` | `development` |
+| Vercel Production | production | `VERCEL=1` + `VERCEL_ENV=production` | `production` |
+| Other server | production | `MYBUDGETPAL_PRODUCTION_HOST=true` | `production` |
+
+Guards (startup refuses rather than guessing):
+- `MONGODB_DB`, if set, must equal the routed database; it never switches silently.
+- `APP_ENV=production` needs a host marker; `VERCEL_ENV=production` needs `VERCEL=1`; a production
+  marker with `APP_ENV=development` is refused ("refusing to mix environments").
+- Production must not read routing keys (`APP_ENV`, `VERCEL*`, the host marker, `MONGODB_URI`,
+  `MONGODB_DB`) from the repo `.env`, so a laptop with the dev `.env` can't reach production.
+- Production also requires `COOKIE_SECURE=true`, an `https://` `APP_ORIGIN`, real Mongo (no
+  mongomock) and `ALLOW_REGISTRATION=false`.
+- `scripts/seed_demo.py` only writes to `development` (or mongomock).
+
+Never set `MONGODB_DB=production`, `APP_ENV=production` or a host marker locally. Residual risk:
+the shared URI can still write to `production` outside this app (Compass, a script, a leak);
+treat it as a production secret, or give production its own Atlas user later.
 
 ## Test
 
