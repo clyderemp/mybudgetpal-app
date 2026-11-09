@@ -51,6 +51,8 @@ async def get_current_user(
         if str(cached.user_id) != claims.user_id or str(cached.household_id) != claims.household_id:
             raise _unauthorized()
         return cached
+    # Taken BEFORE the DB read so a revocation that lands mid-read stops us caching a stale result.
+    cache_token = cache.begin() if cache is not None else 0
     # Both ids come from the signed JWT, so load session and user in one concurrent round trip.
     session, user = await asyncio.gather(
         Session.get(PydanticObjectId(claims.session_id)),
@@ -68,5 +70,5 @@ async def get_current_user(
         role=user.role,
     )
     if cache is not None:
-        cache.put(claims.session_id, claims.user_id, current)
+        cache.put(claims.session_id, claims.user_id, current, cache_token)
     return current
