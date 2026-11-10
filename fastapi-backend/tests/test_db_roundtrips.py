@@ -102,6 +102,10 @@ async def seeded(app, owner):  # type: ignore[no-untyped-def]
         ("/api/v1/plan/payoff", 1),
         ("/api/v1/plan", 1),
         ("/api/v1/auth/me", 1),
+        ("/api/v1/bills", 1),
+        ("/api/v1/bills/month/2026-11", 1),
+        ("/api/v1/bills/overview", 1),
+        ("/api/v1/income-streams", 1),
     ],
 )
 async def test_reads_use_one_db_round(seeded, db_rounds, path, max_rounds):  # type: ignore[no-untyped-def]

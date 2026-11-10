@@ -253,6 +253,8 @@ export interface Budget {
   incomeFils: number;
   unbudgetedSpentFils: number;
   note?: string | null;
+  /** Zero-based plan (budget endpoint only; null on the dashboard's budget). */
+  plan?: ZeroBasedPlan | null;
 }
 
 export interface BudgetLineInput {
@@ -581,4 +583,252 @@ export interface ExploreResult {
     projectedFils: number;
     forecastFils: number | null;
   } | null;
+}
+
+/* ---------------- Bills and expected income (/bills, /income-streams) ---------------- */
+
+export type BillKind = "bill" | "subscription" | "loan" | "bnpl" | "debt_payment" | "savings" | "other";
+export type BillCadence = "monthly" | "quarterly" | "yearly";
+/** estimate: expect the average of the last 3 payments (amountFils until there are any). */
+export type AmountMode = "fixed" | "estimate";
+
+export interface Bill {
+  id: ID;
+  name: string;
+  kind: BillKind;
+  amountFils: number;
+  amountMode: AmountMode;
+  cadence: BillCadence;
+  dueDayFrom: number;
+  dueDayTo: number;
+  accountId: ID | null;
+  categoryId: ID | null;
+  matchText: string[];
+  amountTolerancePct: number;
+  startMonth: Month;
+  endMonth: Month | null;
+  instalmentsTotal: number | null;
+  instalmentsPaid: number;
+  debtId: ID | null;
+  purpose: AccountPurpose;
+  active: boolean;
+  notes: string | null;
+  skippedMonths: Month[];
+  archived: boolean;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+  /** What to set aside each month (amount / months in the cadence). */
+  monthlyFils: number;
+  lastMonth: Month | null;
+  instalmentsRemaining: number | null;
+  remainingFils: number | null;
+  completed: boolean;
+}
+
+export interface BillCreate {
+  name: string;
+  kind: BillKind;
+  amountFils: number;
+  amountMode?: AmountMode;
+  cadence?: BillCadence;
+  dueDayFrom: number;
+  dueDayTo?: number | null;
+  accountId?: ID | null;
+  categoryId?: ID | null;
+  matchText?: string[];
+  amountTolerancePct?: number;
+  startMonth: Month;
+  endMonth?: Month | null;
+  instalmentsTotal?: number | null;
+  instalmentsPaid?: number;
+  debtId?: ID | null;
+  purpose?: AccountPurpose;
+  active?: boolean;
+  notes?: string | null;
+}
+
+export type BillUpdate = Partial<BillCreate>;
+
+export type BillStatus = "paid" | "skipped" | "overdue" | "due_soon" | "upcoming";
+export type IncomeStatus = "received" | "overdue" | "due_soon" | "upcoming";
+
+export interface BillMatch {
+  transactionId: ID;
+  date: ISODate;
+  amountFils: number;
+  merchant: string | null;
+  accountId: ID;
+  /** linked: set by hand or stored earlier; high: rules within tolerance; medium: rules, amount off. */
+  confidence: "linked" | "high" | "medium";
+}
+
+export interface BillMonthItem {
+  billId: ID;
+  name: string;
+  kind: BillKind;
+  purpose: AccountPurpose;
+  cadence: BillCadence;
+  accountId: ID | null;
+  categoryId: ID | null;
+  amountMode: AmountMode;
+  dueFrom: ISODate;
+  dueTo: ISODate;
+  expectedFils: number;
+  paidFils: number;
+  differenceFils: number;
+  status: BillStatus;
+  priceChanged: boolean;
+  needsConfirmation: boolean;
+  instalmentNumber: number | null;
+  instalmentsTotal: number | null;
+  matches: BillMatch[];
+}
+
+export type IncomeKind = "salary" | "cash_deposit" | "transfer" | "other";
+
+export interface IncomeMonthItem {
+  streamId: ID;
+  partId: string;
+  streamName: string;
+  memberId: ID | null;
+  label: string;
+  kind: IncomeKind;
+  accountId: ID | null;
+  dueFrom: ISODate;
+  dueTo: ISODate;
+  expectedFils: number;
+  minFils: number | null;
+  maxFils: number | null;
+  receivedFils: number;
+  status: IncomeStatus;
+  needsConfirmation: boolean;
+  matches: BillMatch[];
+}
+
+export interface BillsMonthTotals {
+  billsExpectedFils: number;
+  billsPaidFils: number;
+  billsRemainingFils: number;
+  billsCount: number;
+  billsPaidCount: number;
+  incomeExpectedFils: number;
+  incomeReceivedFils: number;
+  incomeWaitingFils: number;
+}
+
+export interface BillsMonth {
+  month: Month;
+  today: ISODate;
+  items: BillMonthItem[];
+  income: IncomeMonthItem[];
+  totals: BillsMonthTotals;
+}
+
+export interface SafeToSpend {
+  cashFils: number;
+  billsDueFils: number;
+  incomeExpectedFils: number;
+  safeToSpendFils: number;
+  until: ISODate;
+  nextSalary: { streamName: string; label: string; dueFrom: ISODate; dueTo: ISODate } | null;
+  bills: { billId: ID; name: string; dueFrom: ISODate; amountFils: number }[];
+  income: { streamName: string; label: string; dueFrom: ISODate; amountFils: number }[];
+  accounts: { accountId: ID; name: string; balanceFils: number }[];
+}
+
+export interface BillsOverview {
+  month: Month;
+  today: ISODate;
+  safeToSpend: SafeToSpend;
+  waitingFor: IncomeMonthItem[];
+  upcomingBills: BillMonthItem[];
+  totals: BillsMonthTotals;
+  hasBills: boolean;
+  hasIncome: boolean;
+}
+
+export interface BillSuggestion {
+  key: string;
+  name: string;
+  kind: BillKind;
+  amountFils: number;
+  amountMode: AmountMode;
+  dueDayFrom: number;
+  dueDayTo: number;
+  accountId: ID | null;
+  categoryId: ID | null;
+  matchText: string[];
+  occurrences: number;
+  months: number;
+  lastDate: ISODate;
+  lastAmountFils: number;
+  confidence: "high" | "medium";
+  transactionIds: ID[];
+}
+
+export interface IncomePart {
+  id: string;
+  label: string;
+  kind: IncomeKind;
+  amountFils: number;
+  amountMinFils: number | null;
+  amountMaxFils: number | null;
+  dayFrom: number;
+  dayTo: number;
+  matchText: string[];
+}
+
+export interface IncomeStream {
+  id: ID;
+  name: string;
+  memberId: ID | null;
+  accountId: ID | null;
+  parts: IncomePart[];
+  active: boolean;
+  notes: string | null;
+  archived: boolean;
+  monthlyFils: number;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface IncomePartInput {
+  id?: string;
+  label: string;
+  kind: IncomeKind;
+  amountFils: number;
+  amountMinFils?: number | null;
+  amountMaxFils?: number | null;
+  dayFrom: number;
+  dayTo?: number | null;
+  matchText?: string[];
+}
+
+export interface IncomeStreamCreate {
+  name: string;
+  memberId?: ID | null;
+  accountId?: ID | null;
+  parts: IncomePartInput[];
+  active?: boolean;
+  notes?: string | null;
+}
+
+export type IncomeStreamUpdate = Partial<IncomeStreamCreate>;
+
+/** Zero-based plan on GET/PUT /budgets/{month}: income - commitments - sinking funds - savings - flexible. */
+export interface ZeroBasedPlan {
+  month: Month;
+  expectedIncomeFils: number;
+  commitmentsFils: number;
+  commitmentsByKind: { kind: BillKind; amountFils: number }[];
+  sinkingFundsFils: number;
+  sinkingFunds: { billId: ID; name: string; monthlyFils: number; amountFils: number; cadence: BillCadence; dueThisMonth: boolean }[];
+  savingsFils: number;
+  flexibleFils: number;
+  leftToAssignFils: number;
+  committedShare: number | null;
+  overlapCategoryIds: ID[];
+  suggestedGoal: { id: ID; name: string } | null;
+  hasBills: boolean;
+  hasIncome: boolean;
 }

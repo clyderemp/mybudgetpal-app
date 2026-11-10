@@ -1,5 +1,6 @@
 from app.models.accounts import Account
 from app.models.base import as_utc, utcnow
+from app.models.bills import Bill, IncomePart, IncomeStream
 from app.models.budgets import Budget, BudgetLine
 from app.models.categories import Category
 from app.models.debts import Debt
@@ -13,6 +14,9 @@ from app.models.users import User
 
 __all__ = [
     "Account",
+    "Bill",
+    "IncomePart",
+    "IncomeStream",
     "Budget",
     "BudgetLine",
     "Category",
