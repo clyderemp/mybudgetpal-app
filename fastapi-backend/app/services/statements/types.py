@@ -11,6 +11,10 @@ class StatementError(ValueError):
     """The file is not a statement we can read (wrong bank/format, encrypted, empty)."""
 
 
+class StatementTooComplex(StatementError):
+    """The PDF exceeds the per-page / total object caps or the parsing time budget."""
+
+
 @dataclass
 class StatementRow:
     date: dt.date

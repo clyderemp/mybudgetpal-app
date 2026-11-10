@@ -3,10 +3,11 @@ import datetime as dt
 
 import pytest
 
-from app.services.statements import StatementError, parse_statement
+import app.services.statements as statements
+from app.services.statements import StatementError, StatementTooComplex, parse_statement
 from app.services.statements.classify import classify_row, holder_names, same_person
 from app.services.statements.types import mask_numbers
-from tests.statement_fixtures import csv_bytes, enbd_pdf, mashreq_account_pdf, mashreq_consolidated_pdf
+from tests.statement_fixtures import Page, build_pdf, csv_bytes, enbd_pdf, mashreq_account_pdf, mashreq_consolidated_pdf
 
 ENBD_ROWS = [
     ("01/07/2026", ["CARD NO.443913XXXXXX3686 DUBAI ELECTRICITY", "DUBAI:AE 484018 01-07-2026 2155.00,AED"], 215500, None),
@@ -137,3 +138,31 @@ def test_classification_of_row_kinds():
 def test_mask_numbers():
     assert mask_numbers("TO AE07 0260 0000 0000 0001 002 ref 0123456789012") == "TO AE..1002 ref ..9012"
     assert mask_numbers("CARD NO.443913XXXXXX3686") == "CARD NO.XXXX3686"
+
+
+def test_decompression_bomb_page_is_refused():
+    p = Page(612, 792)
+    p.text(20, 100, "Emirates NBD")
+    data = build_pdf([p], padding=5 * 1024 * 1024)  # 5 MB of inflated content in a few KB
+    assert len(data) < 20_000
+    with pytest.raises(StatementTooComplex):
+        parse_statement(data)
+
+
+def test_too_many_objects_per_page_is_refused():
+    p = Page(612, 792)
+    for i in range(240):  # ~21,600 glyphs on one page
+        p.text(10, 10 + i * 3, "X" * 90, size=3)
+    with pytest.raises(StatementTooComplex):
+        parse_statement(build_pdf([p]))
+
+
+def test_total_object_cap_and_time_budget(monkeypatch):
+    data = enbd_statement(rows_per_page=3)
+    monkeypatch.setattr(statements, "MAX_TOTAL_OBJECTS", 500)
+    with pytest.raises(StatementTooComplex):
+        parse_statement(data)
+    monkeypatch.undo()
+    with pytest.raises(StatementTooComplex):
+        parse_statement(data, time_budget=0)
+    assert parse_statement(data).sections[0].rows  # normal budget still fine

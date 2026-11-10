@@ -14,7 +14,7 @@ import datetime as dt
 import re
 from typing import Any
 
-from app.services.statements.pdfutil import clean_text, page_lines, xc
+from app.services.statements.pdfutil import check_deadline, clean_text, page_lines, xc
 from app.services.statements.types import (
     AMOUNT_RE,
     StatementRow,
@@ -187,6 +187,7 @@ def _group_lines(words: list[dict], tol: float = 1.5) -> list[tuple[float, list[
 
 
 def _page_words(page: Any) -> list[dict]:
+    check_deadline()
     out = []
     for w in page.extract_words(x_tolerance=1.5, y_tolerance=1):
         t = clean_text(w["text"]).strip()

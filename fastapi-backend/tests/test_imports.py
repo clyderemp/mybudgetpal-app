@@ -1,8 +1,12 @@
 """Staged statement import: proposals (matching, transfers, review flags), commit, idempotency, rollback, rules."""
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
+
+from app.models import Transaction
 
 from tests.conftest import first_category, make_account, register
 from tests.statement_fixtures import csv_bytes, enbd_pdf, mashreq_consolidated_pdf
@@ -262,3 +266,49 @@ async def test_upload_rate_limited(owner: httpx.AsyncClient):
     assert (await upload(owner, b"hello", "a.csv")).status_code == 422
     r = await upload(owner, b"hello", "a.csv")
     assert r.status_code == 429
+
+
+async def test_concurrent_commits_record_rows_once(owner: httpx.AsyncClient):
+    await household_accounts(owner)
+    imp = (await upload(owner, enbd_bytes())).json()
+    twin = (await upload(owner, enbd_bytes())).json()  # same statement uploaded twice, both still drafts
+    r1, r2, r3 = await asyncio.gather(
+        owner.post(f"{API}/imports/{imp['id']}/commit"),
+        owner.post(f"{API}/imports/{imp['id']}/commit"),
+        owner.post(f"{API}/imports/{twin['id']}/commit"),
+    )
+    assert sorted([r1.status_code, r2.status_code]) == [200, 409]
+    assert r3.status_code == 200
+    created = [r.json()["commitResult"]["createdCount"] for r in (r1, r2, r3) if r.status_code == 200]
+    assert sum(created) == 11
+    assert (await owner.get(f"{API}/transactions", params={"pageSize": 100})).json()["total"] == 11
+    # edits after the commit can't overwrite it
+    r = await owner.patch(f"{API}/imports/{imp['id']}/rows", json={"rows": [{"id": "0-0", "action": "skip"}]})
+    assert r.status_code == 409
+
+
+async def test_rollback_frees_rows_and_deleted_rows_stay_out(owner: httpx.AsyncClient):
+    await household_accounts(owner)
+    first = (await upload(owner, enbd_bytes())).json()
+    await owner.post(f"{API}/imports/{first['id']}/commit")
+    await owner.post(f"{API}/imports/{first['id']}/rollback")
+    gone = await Transaction.find({"import_batch": first["id"]}).to_list()
+    assert gone and all(t.deleted_at and t.source_ref is None and t.rolled_back_source_ref for t in gone)
+    second = (await upload(owner, enbd_bytes())).json()
+    done = (await owner.post(f"{API}/imports/{second['id']}/commit")).json()
+    assert done["commitResult"]["createdCount"] == 11
+    # a person deletes one imported transaction: re-uploading doesn't bring it back
+    txn = (await owner.get(f"{API}/transactions", params={"pageSize": 1})).json()["items"][0]
+    await owner.delete(f"{API}/transactions/{txn['id']}")
+    third = (await upload(owner, enbd_bytes())).json()
+    assert third["counts"]["toImport"] == 0
+    assert any("deleted in the app" in r["reason"] for r in third["rows"])
+
+
+async def test_too_complex_pdf_is_refused(owner: httpx.AsyncClient):
+    from tests.statement_fixtures import Page, build_pdf
+
+    p = Page(612, 792)
+    p.text(20, 100, "Emirates NBD")
+    r = await upload(owner, build_pdf([p], padding=5 * 1024 * 1024))
+    assert r.status_code == 422 and r.json()["error"]["code"] == "statement_too_complex"

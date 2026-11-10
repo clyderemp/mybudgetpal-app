@@ -2,7 +2,24 @@
 from __future__ import annotations
 
 import re
+import threading
+import time
 from typing import Any
+
+from app.services.statements.types import StatementTooComplex
+
+_budget = threading.local()
+
+
+def set_deadline(seconds: float | None) -> None:
+    """Wall-clock budget for the parse running in this thread (None clears it)."""
+    _budget.deadline = time.monotonic() + seconds if seconds is not None else None
+
+
+def check_deadline() -> None:
+    deadline = getattr(_budget, "deadline", None)
+    if deadline is not None and time.monotonic() > deadline:
+        raise StatementTooComplex("the statement took too long to read")
 
 ARABIC = re.compile(r"[؀-ۿﭐ-﷿ﹰ-﻿]")
 
@@ -14,6 +31,7 @@ def clean_text(text: str) -> str:
 
 def page_lines(page: Any, x_tolerance: float = 1.5, y_tolerance: float = 2, gap: float = 2.5) -> list[dict]:
     """Group words into visual lines by 'top'. Arabic words are dropped; ``arabic`` flags such lines."""
+    check_deadline()
     words = page.extract_words(x_tolerance=x_tolerance, y_tolerance=y_tolerance)
     lines: list[dict] = []
     for w in sorted(words, key=lambda w: (w["top"], w["x0"])):

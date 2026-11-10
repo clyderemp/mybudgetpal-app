@@ -7,9 +7,10 @@ and generic CSV exports. Matching against the household's data lives in ``matchi
 from __future__ import annotations
 
 import io
+import zlib
 
 from app.services.statements import csvfile, enbd, mashreq
-from app.services.statements.pdfutil import first_page_text
+from app.services.statements.pdfutil import check_deadline, first_page_text, set_deadline
 from app.services.statements.reconcile import reconcile
 from app.services.statements.types import (
     ParsedStatement,
@@ -17,9 +18,15 @@ from app.services.statements.types import (
     StatementError,
     StatementRow,
     StatementSection,
+    StatementTooComplex,
 )
 
+# Untrusted uploads: besides the byte cap at the route, bound the work pdfminer can be made to do.
 MAX_PAGES = 80
+MAX_PAGE_OBJECTS = 20_000    # chars + lines + rects on one page (real statements: < 4,000)
+MAX_TOTAL_OBJECTS = 300_000  # across the document
+PARSE_SECONDS = 20.0         # wall-clock budget, checked between pages
+MAX_PAGE_CONTENT_BYTES = 2 * 1024 * 1024  # decompressed content stream per page (real statements: < 100 KB)
 
 __all__ = [
     "ParsedStatement",
@@ -27,8 +34,49 @@ __all__ = [
     "StatementError",
     "StatementRow",
     "StatementSection",
+    "StatementTooComplex",
     "parse_statement",
 ]
+
+
+def _content_too_big(page: object) -> bool:
+    """Inflate each page content stream ourselves with an output cap (a zip bomb stops at the cap)
+    before pdfminer decompresses it without one."""
+    from pdfminer.pdftypes import resolve1
+
+    size = 0
+    for stream in getattr(page.page_obj, "contents", None) or []:  # type: ignore[attr-defined]
+        stream = resolve1(stream)
+        raw = getattr(stream, "rawdata", None)
+        if raw is None:
+            continue
+        filters = [getattr(f, "name", str(f)) for f in stream.get_filters()] if hasattr(stream, "get_filters") else []
+        filters = [f[0] if isinstance(f, tuple) else f for f in filters]
+        if any("Flate" in str(f) for f in filters):
+            try:
+                out = zlib.decompressobj().decompress(raw, MAX_PAGE_CONTENT_BYTES + 1 - size)
+            except zlib.error:
+                return False  # let pdfminer report the malformed stream
+            size += len(out)
+        else:
+            size += len(raw)
+        if size > MAX_PAGE_CONTENT_BYTES:
+            return True
+    return False
+
+
+def _check_size(pdf: object) -> None:
+    """Lay out each page once (pdfplumber caches it) and stop as soon as a cap or the deadline is hit."""
+    total = 0
+    for page in pdf.pages:  # type: ignore[attr-defined]
+        check_deadline()
+        if _content_too_big(page):
+            raise StatementTooComplex("a page of the statement is too large to read")
+        n = len(page.chars) + len(page.lines) + len(page.rects)
+        total += n
+        if n > MAX_PAGE_OBJECTS or total > MAX_TOTAL_OBJECTS:
+            raise StatementTooComplex("the statement is too large or complex to read")
+    check_deadline()
 
 
 def _parse_pdf(data: bytes) -> ParsedStatement:
@@ -46,6 +94,7 @@ def _parse_pdf(data: bytes) -> ParsedStatement:
             raise StatementError("the PDF has no pages")
         if len(pdf.pages) > MAX_PAGES:
             raise StatementError(f"the PDF has more than {MAX_PAGES} pages")
+        _check_size(pdf)
         first = first_page_text(pdf)
         try:
             if mashreq.detect_consolidated(first):
@@ -56,14 +105,20 @@ def _parse_pdf(data: bytes) -> ParsedStatement:
                 return ParsedStatement("Emirates NBD", "enbd_account", enbd.parse(pdf))
         except StatementError:
             raise
+        except RecursionError as exc:
+            raise StatementTooComplex("the statement is too large or complex to read") from exc
         except Exception as exc:
             raise StatementError("the statement layout was not recognised") from exc
     raise StatementError("not a supported statement (Emirates NBD or Mashreq NEO PDF, or CSV)")
 
 
-def parse_statement(data: bytes, filename: str = "") -> ParsedStatement:
+def parse_statement(data: bytes, filename: str = "", time_budget: float | None = PARSE_SECONDS) -> ParsedStatement:
     if data[:5] == b"%PDF-":
-        parsed = _parse_pdf(data)
+        set_deadline(time_budget)
+        try:
+            parsed = _parse_pdf(data)
+        finally:
+            set_deadline(None)
     elif csvfile.looks_like_csv(data):
         parsed = ParsedStatement("CSV", "csv", csvfile.parse(data))
     else:

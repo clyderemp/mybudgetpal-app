@@ -12,7 +12,7 @@ from app.schemas.base import ApiModel, InputModel, LongText, ObjectIdStr, ShortT
 
 RowStatus = Literal["new", "recorded", "transfer", "review"]
 RowAction = Literal["import", "skip"]
-ImportStatus = Literal["draft", "committed", "rolled_back"]
+ImportStatus = Literal["draft", "committing", "committed", "rolling_back", "rolled_back"]
 RowId = Annotated[str, StringConstraints(pattern=r"^\d{1,3}-\d{1,5}$")]
 Pattern = Annotated[str, StringConstraints(min_length=2, max_length=100)]
 

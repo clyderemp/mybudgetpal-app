@@ -33,7 +33,7 @@ from app.services import imports as svc
 from app.services.ids import parse_path_id
 from app.services.merchant_rules import ensure_default_rules
 from app.services.serializers import member_names
-from app.services.statements import StatementError, parse_statement
+from app.services.statements import StatementError, StatementTooComplex, parse_statement
 from app.services.statements.matching import counts
 
 router = APIRouter(tags=["imports"])
@@ -126,6 +126,8 @@ async def upload(
         raise AppError(422, "unsupported_file", "The file is empty")
     try:
         parsed = await run_in_threadpool(parse_statement, data, name)
+    except StatementTooComplex as exc:
+        raise AppError(422, "statement_too_complex", f"This statement is too large or complex to read: {exc}") from exc
     except StatementError as exc:
         raise AppError(422, "unreadable_statement", f"Couldn't read this statement: {exc}") from exc
     if not parsed.sections:
@@ -171,8 +173,7 @@ async def patch_import(import_id: str, body: ImportPatch, current: CurrentUser =
         for s in body.sections:
             by_index[s.index].account_id = PydanticObjectId(s.account_id) if s.account_id else None
     await svc.rematch(imp)
-    imp.touch()
-    await imp.save()
+    await svc.save_draft(imp)
     return await _out(imp, current)
 
 
@@ -182,8 +183,7 @@ async def patch_rows(import_id: str, body: ImportRowsPatch, current: CurrentUser
     svc.require_draft(imp)
     edits = [e.model_dump(exclude_unset=True) for e in body.rows]
     await svc.apply_row_edits(imp, edits, current.household_id)
-    imp.touch()
-    await imp.save()
+    await svc.save_draft(imp)
     return await _out(imp, current)
 
 

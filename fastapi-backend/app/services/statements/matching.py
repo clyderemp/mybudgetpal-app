@@ -287,7 +287,8 @@ def _match_recorded(imp: StatementImport, ctx: MatchContext, facts_by_id: dict[s
         if t is not None:
             r.status, r.action, r.matched_transaction_id = "recorded", "skip", t.id
             r.needs_review, r.review_reason = False, None
-            r.reason = "already imported (same statement row)"
+            r.reason = ("imported earlier and then deleted in the app" if t.deleted_at else
+                        "already imported (same statement row)")
             claimed.add(str(t.id))
             continue
         if r.source_ref in ctx.skipped_refs:

@@ -587,7 +587,7 @@ export interface ExploreResult {
 
 export type ImportRowStatus = "new" | "recorded" | "transfer" | "review";
 export type ImportRowAction = "import" | "skip";
-export type ImportStatus = "draft" | "committed" | "rolled_back";
+export type ImportStatus = "draft" | "committing" | "committed" | "rolling_back" | "rolled_back";
 
 export interface ImportReconciliation {
   ok: boolean;

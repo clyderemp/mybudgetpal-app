@@ -28,7 +28,11 @@ def _esc(s: str) -> str:
     return s.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-def build_pdf(pages: list[Page]) -> bytes:
+def build_pdf(pages: list[Page], padding: int = 0) -> bytes:
+    """``padding``: append that many bytes of PDF comment to each content stream, Flate-compressed
+    (a decompression-bomb shape: tiny on disk, huge once inflated)."""
+    import zlib
+
     objs: list[bytes] = []
 
     def add(body: bytes) -> int:
@@ -47,7 +51,11 @@ def build_pdf(pages: list[Page]) -> bytes:
             y = p.height - top
             ops.append(f"0.5 w {x0:.2f} {y:.2f} m {x1:.2f} {y:.2f} l S")
         stream = "\n".join(ops).encode("cp1252")
-        content = add(b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream")
+        if padding:
+            stream = zlib.compress(stream + b"\n%" + b" " * padding + b"\n", 9)
+            content = add(b"<< /Length %d /Filter /FlateDecode >>\nstream\n" % len(stream) + stream + b"\nendstream")
+        else:
+            content = add(b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream")
         kids.append(add(
             b"<< /Type /Page /Parent %d 0 R /MediaBox [0 0 %g %g] /Resources << /Font << /F1 %d 0 R >> >> /Contents %d 0 R >>"
             % (pages_id, p.width, p.height, font, content)))

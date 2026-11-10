@@ -29,7 +29,9 @@ export function checkFile(file: File): string | null {
 
 export const IMPORT_STATUS: Record<ImportStatus, { label: string; tone: BadgeTone }> = {
   draft: { label: "Draft", tone: "warn" },
+  committing: { label: "Importing…", tone: "warn" },
   committed: { label: "Imported", tone: "accent" },
+  rolling_back: { label: "Rolling back…", tone: "warn" },
   rolled_back: { label: "Rolled back", tone: "neutral" },
 };
 

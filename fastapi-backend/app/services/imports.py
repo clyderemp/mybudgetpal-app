@@ -6,6 +6,8 @@ import hashlib
 from typing import Any
 
 from beanie import PydanticObjectId
+from beanie.odm.utils.encoder import Encoder
+from pymongo.errors import BulkWriteError
 
 from app.errors import AppError, validation_error
 from app.models import Account, Category, Transaction, utcnow
@@ -81,7 +83,8 @@ async def load_context(imp: StatementImport) -> MatchContext:
 
         assign_source_refs(imp)
         refs = [r.source_ref for r in imp.rows]
-        for t in await Transaction.find({"household_id": hid, "deleted_at": None, "source_ref": {"$in": refs}}).to_list():
+        # deleted ones too: the unique index keeps a statement row from coming back after a manual delete
+        for t in await Transaction.find({"household_id": hid, "source_ref": {"$in": refs}}).to_list():
             by_ref[t.source_ref or ""] = t
         prior = await StatementImport.find({"household_id": hid, "status": "committed", "_id": {"$ne": imp.id},
                                             "rows.source_ref": {"$in": refs}}).to_list()
@@ -236,63 +239,120 @@ def _validate_commit(imp: StatementImport, cats: dict[str, Category], accounts: 
     return todo
 
 
+async def _claim(imp: StatementImport, frm: str, to: str, message: str) -> None:
+    """Atomically move the import from one status to another; 409 when someone else got there first."""
+    res = await StatementImport.get_motor_collection().find_one_and_update(
+        {"_id": imp.id, "household_id": imp.household_id, "status": frm}, {"$set": {"status": to}})
+    if res is None:
+        raise AppError(409, "import_busy", message)
+    imp.status = to  # type: ignore[assignment]
+
+
+async def _release(imp: StatementImport, frm: str, to: str) -> None:
+    await StatementImport.get_motor_collection().update_one(
+        {"_id": imp.id, "household_id": imp.household_id, "status": frm}, {"$set": {"status": to}})
+    imp.status = to  # type: ignore[assignment]
+
+
+async def save_draft(imp: StatementImport) -> None:
+    """Save review edits only while the import is still a draft (a commit may have claimed it meanwhile)."""
+    imp.touch()
+    res = await StatementImport.get_motor_collection().replace_one(
+        {"_id": imp.id, "household_id": imp.household_id, "status": "draft"}, Encoder(to_db=True).encode(imp))
+    if res.matched_count == 0:
+        raise AppError(409, "import_not_draft", "This import is being committed or was already committed")
+
+
+async def _insert(docs: list[tuple[ImportRow, Transaction]]) -> int:
+    """Insert unordered; a duplicate (household, source_ref) means another commit already recorded the
+    row, so that row counts as recorded instead of failing the import. Returns how many were inserted."""
+    for _, t in docs:
+        t.id = PydanticObjectId()
+    inserted = 0
+    for i in range(0, len(docs), INSERT_CHUNK):
+        chunk = docs[i:i + INSERT_CHUNK]
+        failed: set[int] = set()
+        try:
+            await Transaction.insert_many([t for _, t in chunk], ordered=False)
+        except BulkWriteError as exc:
+            errors = exc.details.get("writeErrors", [])
+            if any(e.get("code") != 11000 for e in errors):
+                raise
+            failed = {e["index"] for e in errors}
+        for k, (row, t) in enumerate(chunk):
+            if k in failed:
+                row.status, row.action, row.transaction_id = "recorded", "skip", None
+                row.reason = "recorded by another import at the same time"
+            else:
+                row.transaction_id = t.id
+                inserted += 1
+    return inserted
+
+
 async def commit(imp: StatementImport, user_id: PydanticObjectId) -> StatementImport:
     require_draft(imp)
     hid = imp.household_id
     cats = {str(c.id): c for c in await Category.find({"household_id": hid}).to_list()}
     accounts = {str(a.id): a for a in await Account.find({"household_id": hid}).to_list()}
     todo = _validate_commit(imp, cats, accounts)
-    secs = {s.index: s for s in imp.sections}
-    existing = {t.source_ref for t in await Transaction.find(
-        {"household_id": hid, "deleted_at": None, "source_ref": {"$in": [r.source_ref for r in todo]}}).to_list()}
-    batch = str(imp.id)
-    docs: list[tuple[ImportRow, Transaction]] = []
-    skipped = 0
-    for r in todo:
-        if r.source_ref in existing:  # idempotent: never insert the same statement row twice
-            r.status, r.action = "recorded", "skip"
-            skipped += 1
-            continue
-        own = secs[r.section_index].account_id
-        if r.type == "transfer":
-            src, dst = (own, r.counter_account_id) if r.debit_fils else (r.counter_account_id, own)
-        else:
-            src, dst = own, None
-        note = r.note
-        if r.original_currency and r.original_amount and r.original_amount not in (note or ""):
-            note = f"{note + ' · ' if note else ''}{r.original_amount} {r.original_currency}"
-        docs.append((r, Transaction(
-            household_id=hid, account_id=src, date=r.date, amount_fils=r.amount_fils, type=r.type,  # type: ignore[arg-type]
-            category_id=r.category_id if r.type != "transfer" else None, to_account_id=dst,
-            merchant=(r.merchant or None), note=(note[:1000] if note else None), created_by=user_id, source="import",
-            needs_review=r.needs_review, review_reason=r.review_reason if r.needs_review else None,
-            source_ref=r.source_ref, import_batch=batch,
-        )))
-    for i in range(0, len(docs), INSERT_CHUNK):
-        chunk = [t for _, t in docs[i:i + INSERT_CHUNK]]
-        res = await Transaction.insert_many(chunk)
-        for (row, _), oid in zip(docs[i:i + INSERT_CHUNK], res.inserted_ids):
-            row.transaction_id = PydanticObjectId(oid)
-    imp.status = "committed"
-    imp.committed_at = utcnow()
-    imp.committed_by = user_id
-    imp.commit_result = CommitResult(created_count=len(docs), skipped_count=len(imp.rows) - len(docs))
-    imp.commit_result.accounts = await account_checks(imp)
-    imp.touch()
-    await imp.save()
+    await _claim(imp, "draft", "committing", "This import is already being committed or was committed")
+    try:
+        secs = {s.index: s for s in imp.sections}
+        existing = {t.source_ref for t in await Transaction.find(
+            {"household_id": hid, "source_ref": {"$in": [r.source_ref for r in todo]}}).to_list()}
+        batch = str(imp.id)
+        docs: list[tuple[ImportRow, Transaction]] = []
+        for r in todo:
+            if r.source_ref in existing:  # idempotent: never insert the same statement row twice
+                r.status, r.action = "recorded", "skip"
+                continue
+            own = secs[r.section_index].account_id
+            if r.type == "transfer":
+                src, dst = (own, r.counter_account_id) if r.debit_fils else (r.counter_account_id, own)
+            else:
+                src, dst = own, None
+            note = r.note
+            if r.original_currency and r.original_amount and r.original_amount not in (note or ""):
+                note = f"{note + ' · ' if note else ''}{r.original_amount} {r.original_currency}"
+            docs.append((r, Transaction(
+                household_id=hid, account_id=src, date=r.date, amount_fils=r.amount_fils, type=r.type,  # type: ignore[arg-type]
+                category_id=r.category_id if r.type != "transfer" else None, to_account_id=dst,
+                merchant=(r.merchant or None), note=(note[:1000] if note else None), created_by=user_id,
+                source="import", needs_review=r.needs_review, review_reason=r.review_reason if r.needs_review else None,
+                source_ref=r.source_ref, import_batch=batch,
+            )))
+        created = await _insert(docs)
+        imp.status = "committed"
+        imp.committed_at = utcnow()
+        imp.committed_by = user_id
+        imp.commit_result = CommitResult(created_count=created, skipped_count=len(imp.rows) - created)
+        imp.commit_result.accounts = await account_checks(imp)
+        imp.touch()
+        await imp.save()
+    except BaseException:
+        # nothing committed as a whole: undo partial inserts and hand the draft back for a retry
+        await Transaction.get_motor_collection().delete_many(
+            {"household_id": hid, "import_batch": str(imp.id), "deleted_at": None})
+        await _release(imp, "committing", "draft")
+        raise
     return imp
 
 
 async def rollback(imp: StatementImport) -> StatementImport:
-    if imp.status == "rolled_back":
-        raise AppError(409, "import_not_committed", "This import was already rolled back")
-    if imp.status == "committed":
+    if imp.status == "draft":  # discard
+        await _claim(imp, "draft", "rolled_back", "This import is being committed")
+    else:
+        await _claim(imp, "committed", "rolling_back", "This import is not committed (or is being rolled back)")
         now = utcnow()
-        await Transaction.get_motor_collection().update_many(
-            {"household_id": imp.household_id, "import_batch": str(imp.id), "deleted_at": None},
-            {"$set": {"deleted_at": now, "updated_at": now}},
-        )
-    imp.status = "rolled_back"
+        coll = Transaction.get_motor_collection()
+        docs = await coll.find({"household_id": imp.household_id, "import_batch": str(imp.id), "deleted_at": None},
+                               {"_id": 1, "source_ref": 1}).to_list(None)
+        # free the source_ref so the same statement rows can be imported again later
+        for d in docs:
+            await coll.update_one({"_id": d["_id"]}, {"$set": {
+                "deleted_at": now, "updated_at": now, "source_ref": None,
+                "rolled_back_source_ref": d.get("source_ref")}})
+        imp.status = "rolled_back"
     imp.rolled_back_at = utcnow()
     imp.touch()
     await imp.save()

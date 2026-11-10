@@ -115,7 +115,8 @@ class StatementImport(HouseholdDocument):
     file_sha256: str
     bank: str
     format: str
-    status: Literal["draft", "committed", "rolled_back"] = "draft"
+    # committing / rolling_back are short-lived claims taken atomically (no double commit)
+    status: Literal["draft", "committing", "committed", "rolling_back", "rolled_back"] = "draft"
     sections: list[ImportSection] = Field(default_factory=list)
     rows: list[ImportRow] = Field(default_factory=list)
     issues: list[str] = Field(default_factory=list)
