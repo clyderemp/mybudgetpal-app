@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     receipt_ai_deadline_seconds: float = 28.0
     receipt_ai_model_timeout_seconds: float = 18.0
     rate_limit_receipts_per_min: int = 20
+    # Statement import uploads (POST /imports): PDF parsing is CPU-heavy; Vercel caps bodies at 4.5 MB.
+    rate_limit_imports_per_min: int = 10
+    import_max_bytes: int = 4 * 1024 * 1024
     mongodb_max_pool_size: int = 50
     mongodb_min_pool_size: int = 4
 

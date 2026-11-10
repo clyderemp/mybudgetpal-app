@@ -23,6 +23,7 @@ from app.routers import (
     debts,
     goals,
     household,
+    imports,
     insights,
     plan,
     receipts,
@@ -43,7 +44,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 def build_api_router() -> APIRouter:
     api = APIRouter(prefix="/api/v1")
     routers = (auth, household, accounts, categories, transactions, budgets, debts, goals, plan, insights, dashboard)
-    for mod in (*routers, receipts):
+    for mod in (*routers, receipts, imports):
         api.include_router(mod.router)
     return api
 
@@ -86,6 +87,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             generic_per_min=settings.rate_limit_generic_per_min,
             client_ip_header=settings.rate_limit_client_ip_header,
             receipts_per_min=settings.rate_limit_receipts_per_min,
+            imports_per_min=settings.rate_limit_imports_per_min,
         )
     app.add_middleware(
         CORSMiddleware,

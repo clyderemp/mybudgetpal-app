@@ -16,6 +16,8 @@ from app.models import (
     Invite,
     Plan,
     Session,
+    StatementImport,
+    MerchantRule,
     Transaction,
     User,
 )
@@ -32,6 +34,8 @@ document_models: list[type] = [
     Debt,
     Goal,
     Plan,
+    StatementImport,
+    MerchantRule,
 ]
 
 

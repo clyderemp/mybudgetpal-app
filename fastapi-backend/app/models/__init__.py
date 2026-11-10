@@ -5,6 +5,7 @@ from app.models.categories import Category
 from app.models.debts import Debt
 from app.models.goals import Goal
 from app.models.households import Household
+from app.models.imports import MerchantRule, StatementImport
 from app.models.invites import Invite
 from app.models.plans import Plan
 from app.models.sessions import Session
@@ -20,8 +21,10 @@ __all__ = [
     "Goal",
     "Household",
     "Invite",
+    "MerchantRule",
     "Plan",
     "Session",
+    "StatementImport",
     "Transaction",
     "User",
     "as_utc",
