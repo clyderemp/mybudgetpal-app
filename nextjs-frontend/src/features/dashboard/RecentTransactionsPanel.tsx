@@ -11,6 +11,7 @@ import { useElementWidth } from "@/features/common/useElementWidth";
 import { formatDate, formatDayLabel, todayISO } from "@/lib/dates";
 import { formatFils } from "@/lib/money";
 import type { Account, Category, Transaction } from "@/lib/types";
+import { ItemsHint, ReviewBadge } from "@/features/transactions/review";
 
 interface Row {
   id: string;
@@ -116,7 +117,13 @@ export function RecentTransactionsPanel({
         flex: 1.4,
         minWidth: 110,
         sortable: false,
-        renderCell: ({ row }) => <TruncCell text={row.title} className="font-medium text-ink" />,
+        renderCell: ({ row }) => (
+          <span className="flex h-full min-w-0 items-center gap-1.5">
+            <TruncCell text={row.title} className="min-w-0 font-medium text-ink" />
+            <ReviewBadge t={row.txn} compact />
+            <ItemsHint t={row.txn} />
+          </span>
+        ),
       },
       {
         field: "category",
@@ -222,10 +229,14 @@ export function RecentTransactionsPanel({
                   aria-label={`Edit ${r.title}, ${formatFils(r.amount, r.currency)}`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">{r.title}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-sm font-medium text-ink">{r.title}</span>
+                      <ReviewBadge t={r.txn} compact />
+                    </span>
                     <span className="flex min-w-0 gap-2 text-xs text-ink-2">
                       <span className="shrink-0">{formatDayLabel(r.date, today)}</span>
                       <span className="min-w-0 truncate">{r.category}</span>
+                      <ItemsHint t={r.txn} />
                     </span>
                   </span>
                   <Amount row={r} />

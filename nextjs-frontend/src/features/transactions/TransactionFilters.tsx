@@ -1,11 +1,12 @@
 "use client";
-import { Search, X } from "lucide-react";
+import { Flag, Search, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Button, DateField, Dropdown, type DropdownOption } from "@/components/ui";
 import { inputClasses } from "@/components/ui/Field";
 import { formatDate } from "@/lib/dates";
 import type { Account, Category, CategoryGroup, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { accountPickerGroup, householdFirst } from "@/features/accounts/accountMeta";
 import { useCategoryColor } from "./CategoryDot";
 
 /** Date range mode. "month" follows the global period selector. */
@@ -20,9 +21,11 @@ export interface TxnFilterValues {
   categoryId?: string;
   type?: TransactionType;
   q?: string;
+  /** Only transactions flagged for review. */
+  review?: boolean;
 }
 
-export type TxnFilterPatch = Partial<Record<"range" | "from" | "to" | "accountId" | "categoryId" | "type" | "q", string | null>>;
+export type TxnFilterPatch = Partial<Record<"range" | "from" | "to" | "accountId" | "categoryId" | "type" | "q" | "review", string | null>>;
 
 const TYPE_OPTIONS: DropdownOption[] = [
   { value: "expense", label: "Expenses" },
@@ -39,7 +42,7 @@ const GROUP_LABEL: Record<CategoryGroup, string> = {
   other: "Other",
 };
 
-export const CLEAR_ALL: TxnFilterPatch = { range: null, from: null, to: null, accountId: null, categoryId: null, type: null, q: null };
+export const CLEAR_ALL: TxnFilterPatch = { range: null, from: null, to: null, accountId: null, categoryId: null, type: null, q: null, review: null };
 
 export function rangeLabel(v: TxnFilterValues, monthLabel: string): string {
   switch (v.range) {
@@ -69,6 +72,7 @@ export function TransactionFilters({
   categories,
   monthLabel,
   resultCount,
+  reviewCount = 0,
   onChange,
 }: {
   values: TxnFilterValues;
@@ -76,6 +80,8 @@ export function TransactionFilters({
   categories: Category[];
   monthLabel: string;
   resultCount: number | null;
+  /** Transactions flagged for review (household-wide); the chip shows when > 0 or active. */
+  reviewCount?: number;
   onChange: (patch: TxnFilterPatch) => void;
 }) {
   const color = useCategoryColor();
@@ -117,10 +123,11 @@ export function TransactionFilters({
 
   const accountOptions = useMemo<DropdownOption[]>(
     () =>
-      accounts.map((a) => ({
+      householdFirst(accounts).map((a) => ({
         value: a.id,
         label: a.name,
         description: [a.institution, a.last4 ? `ending ${a.last4}` : null].filter(Boolean).join(", ") || undefined,
+        group: accountPickerGroup(a, accounts),
       })),
     [accounts],
   );
@@ -152,13 +159,14 @@ export function TransactionFilters({
       clear: { categoryId: null },
     });
   if (values.type) chips.push({ key: "type", label: `Type: ${TYPE_OPTIONS.find((o) => o.value === values.type)?.label}`, clear: { type: null } });
+  if (values.review) chips.push({ key: "review", label: "Needs review", clear: { review: null, range: null, from: null, to: null } });
 
   return (
     <div className="mb-4 flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2" role="search" aria-label="Filter transactions">
         <div className="relative w-full min-w-0 sm:w-64">
           <label htmlFor="txn-search" className="sr-only">
-            Search merchant or note
+            Search merchant, note or item
           </label>
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
           <input
@@ -166,7 +174,7 @@ export function TransactionFilters({
             type="search"
             inputMode="search"
             autoComplete="off"
-            placeholder="Search merchant or note"
+            placeholder="Search merchant, note or item"
             value={text}
             onChange={(e) => onSearch(e.target.value)}
             className={cn(inputClasses, "h-8 pl-8 pointer-coarse:h-11")}
@@ -215,6 +223,26 @@ export function TransactionFilters({
             onChange({ type: v || null, ...(dropCat ? { categoryId: null } : {}) });
           }}
         />
+        {reviewCount > 0 || values.review ? (
+          <button
+            type="button"
+            aria-pressed={Boolean(values.review)}
+            onClick={() =>
+              // The flagged list is short: show it across all dates.
+              onChange(values.review ? { review: null, range: null, from: null, to: null } : { review: "1", range: "all", from: null, to: null })
+            }
+            className={cn(
+              "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-chip border px-2.5 text-meta font-medium pointer-coarse:h-11",
+              "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+              values.review
+                ? "border-warn bg-warn-soft text-warn"
+                : "border-line-strong bg-surface text-ink hover:bg-surface-2",
+            )}
+          >
+            <Flag className="size-3.5" aria-hidden />
+            Needs review <span className="tabular">({reviewCount})</span>
+          </button>
+        ) : null}
         {resultCount !== null ? (
           <p className="tabular ml-auto hidden text-meta text-ink-2 md:block" aria-live="polite">
             {resultCount.toLocaleString("en-US")} {resultCount === 1 ? "result" : "results"}

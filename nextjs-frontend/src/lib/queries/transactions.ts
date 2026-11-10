@@ -15,6 +15,16 @@ export function useTransactions(query: TransactionQuery = {}, options: { enabled
   });
 }
 
+/** Number of transactions flagged for review (nav badges, "Needs review" chip). */
+export function useReviewCount() {
+  return useQuery({
+    queryKey: qk.transactions.reviewCount,
+    queryFn: ({ signal }) => api.get<{ count: number }>("/transactions/review-count", undefined, { signal }),
+    select: (d) => d.count,
+    staleTime: 30_000,
+  });
+}
+
 export function useCreateTransaction() {
   const qc = useQueryClient();
   return useMutation({

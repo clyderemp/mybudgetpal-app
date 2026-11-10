@@ -2,7 +2,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMe } from "@/lib/queries";
+import { useMe, useReviewCount } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { Tip } from "@/components/ui/Tooltip";
@@ -10,14 +10,15 @@ import { LogoMark } from "./Logo";
 import { NAV_GROUPS, SETTINGS_ITEM, isActive, type NavItem } from "./nav";
 import { SidebarUserMenu } from "./UserMenu";
 
-function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
+function NavLink({ item, collapsed, active, badge = 0 }: { item: NavItem; collapsed: boolean; active: boolean; badge?: number }) {
   const Icon = item.icon;
+  const badgeLabel = badge > 0 ? `${badge} to review` : null;
   return (
-    <Tip content={item.label} side="right" disabled={!collapsed}>
+    <Tip content={badgeLabel ? `${item.label}, ${badgeLabel}` : item.label} side="right" disabled={!collapsed}>
       <Link
         href={item.href}
         aria-current={active ? "page" : undefined}
-        aria-label={collapsed ? item.label : undefined}
+        aria-label={collapsed ? [item.label, badgeLabel].filter(Boolean).join(", ") : undefined}
         className={cn(
           "relative flex h-9 pointer-coarse:h-11 items-center gap-3 rounded-control text-sm font-medium transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-accent",
@@ -29,6 +30,16 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
       >
         <Icon className={cn("size-4 shrink-0", active ? "text-sidebar-active" : "text-sidebar-ink/80")} aria-hidden />
         {!collapsed ? <span className="truncate">{item.label}</span> : null}
+        {badge > 0 ? (
+          collapsed ? (
+            <span aria-hidden className="absolute top-1.5 right-2.5 size-2 rounded-full bg-warn ring-2 ring-sidebar" />
+          ) : (
+            <span className="tabular ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-warn px-1.5 text-xs font-semibold text-surface">
+              {badge > 99 ? "99+" : badge}
+              <span className="sr-only"> to review</span>
+            </span>
+          )
+        ) : null}
       </Link>
     </Tip>
   );
@@ -38,6 +49,7 @@ function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolea
 export function Sidebar({ collapsed, canToggle = true, onToggle }: { collapsed: boolean; canToggle?: boolean; onToggle: () => void }) {
   const pathname = usePathname();
   const me = useMe();
+  const { data: reviewCount } = useReviewCount();
   const household = me.data?.household;
   const members = household?.members.map((m) => m.name) ?? [];
   const memberAvatars = household?.members.map((m) => ({ style: m.avatarStyle, seed: m.avatarSeed })) ?? [];
@@ -81,7 +93,12 @@ export function Sidebar({ collapsed, canToggle = true, onToggle }: { collapsed: 
             <ul className="flex flex-col gap-0.5" aria-label={collapsed ? g.label : undefined}>
               {g.items.map((item) => (
                 <li key={item.href}>
-                  <NavLink item={item} collapsed={collapsed} active={isActive(pathname, item.href)} />
+                  <NavLink
+                    item={item}
+                    collapsed={collapsed}
+                    active={isActive(pathname, item.href)}
+                    badge={item.href === "/transactions" ? (reviewCount ?? 0) : 0}
+                  />
                 </li>
               ))}
             </ul>

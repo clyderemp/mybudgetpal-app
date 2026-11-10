@@ -232,6 +232,8 @@ export interface TransactionQuery {
   page?: number;
   pageSize?: number;
   sort?: TransactionSort;
+  /** true = only rows flagged for review; false = only unflagged. */
+  needsReview?: boolean;
 }
 
 /* ---------------- Budgets ---------------- */
@@ -503,6 +505,8 @@ export interface ExploreParams {
   members?: ID[];
   merchant?: string;
   horizon?: number;
+  /** Count business accounts as household money (default: kept out). */
+  includeBusiness?: boolean;
 }
 
 export interface ExploreTotals {

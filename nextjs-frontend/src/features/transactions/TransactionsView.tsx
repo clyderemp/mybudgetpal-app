@@ -5,10 +5,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PeriodSelector } from "@/components/shell/PeriodSelector";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
 import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
-import { Button, EmptyState, InlineError, Money, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
+import { Button, EmptyState, InlineError, Money, notify, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
 import { todayISO } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
-import { useTransactions } from "@/lib/queries";
+import { useReviewCount, useTransactions } from "@/lib/queries";
 import type { Transaction, TransactionQuery, TransactionSort, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { txnTotals } from "./format";
@@ -52,8 +52,10 @@ export function TransactionsView() {
       categoryId: params.get("categoryId") || undefined,
       type: type && TYPES.includes(type) ? type : undefined,
       q: params.get("q") || undefined,
+      review: params.get("review") === "1" || undefined,
     };
   }, [params]);
+  const reviewCountQ = useReviewCount();
 
   // Picking a month in the period selector means "show that month".
   const lastMonth = useRef(period.month);
@@ -93,6 +95,7 @@ export function TransactionsView() {
     if (filters.categoryId) q.categoryId = filters.categoryId;
     if (filters.type) q.type = filters.type;
     if (filters.q) q.q = filters.q;
+    if (filters.review) q.needsReview = true;
     return q;
   }, [from, to, filters]);
 
@@ -110,10 +113,19 @@ export function TransactionsView() {
     return { ...txnTotals(totalsQ.data.items, lookups), partial: totalsQ.data.total > totalsQ.data.items.length };
   }, [txQ.data, needTotalsQuery, rows, totalsQ.data, lookups]);
 
-  const hasFilters = filters.range !== "month" || Boolean(filters.accountId || filters.categoryId || filters.type || filters.q);
+  const hasFilters =
+    filters.range !== "month" || Boolean(filters.accountId || filters.categoryId || filters.type || filters.q || filters.review);
 
   // Keep the drawer showing fresh data after an edit elsewhere.
   const selectedFresh = selected ? (rows.find((r) => r.id === selected.id) ?? selected) : null;
+
+  // Review flow: the next flagged row on this page after the open one (wrapping to the start).
+  const nextFlagged = useMemo(() => {
+    if (!selected) return null;
+    const flagged = rows.filter((r) => r.needsReview && r.id !== selected.id);
+    const idx = rows.findIndex((r) => r.id === selected.id);
+    return flagged.find((r) => rows.indexOf(r) > idx) ?? flagged[0] ?? null;
+  }, [rows, selected]);
 
   const changeFilters = (patch: TxnFilterPatch) => set({ ...patch, page: null });
 
@@ -213,13 +225,26 @@ export function TransactionsView() {
         categories={categoriesQ.data ?? []}
         monthLabel={period.label}
         resultCount={txQ.data ? total : null}
+        reviewCount={reviewCountQ.data}
         onChange={changeFilters}
       />
       {txQ.isError && txQ.data ? (
         <InlineError className="mb-4" error={txQ.error} onRetry={() => void txQ.refetch()} title="Couldn't refresh transactions" />
       ) : null}
       {body}
-      <TransactionDetailDrawer transaction={selectedFresh} lookups={lookups} onClose={() => setSelected(null)} />
+      <TransactionDetailDrawer
+        transaction={selectedFresh}
+        lookups={lookups}
+        onClose={() => setSelected(null)}
+        onNext={nextFlagged ? () => setSelected(nextFlagged) : undefined}
+        onReviewed={() => {
+          if (nextFlagged) setSelected(nextFlagged);
+          else {
+            setSelected(null);
+            if (filters.review) notify.success("All caught up: nothing left to review");
+          }
+        }}
+      />
     </>
   );
 }
