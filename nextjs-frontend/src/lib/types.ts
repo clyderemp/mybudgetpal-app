@@ -792,6 +792,151 @@ export interface IncomeStream {
   notes: string | null;
   archived: boolean;
   monthlyFils: number;
+/* ---------------- Statement import (/imports, /merchant-rules) ---------------- */
+
+export type ImportRowStatus = "new" | "recorded" | "transfer" | "review";
+export type ImportRowAction = "import" | "skip";
+export type ImportStatus = "draft" | "committing" | "committed" | "rolling_back" | "rolled_back";
+
+export interface ImportReconciliation {
+  ok: boolean;
+  arithmeticOk: boolean;
+  runningBalanceOk: boolean;
+  messages: string[];
+}
+
+export interface ImportCounts {
+  total: number;
+  new: number;
+  recorded: number;
+  transfer: number;
+  review: number;
+  toImport: number;
+  skipped: number;
+}
+
+/** One bank account (statement section) inside an uploaded statement. */
+export interface ImportSection {
+  index: number;
+  bank: string;
+  product: string;
+  accountType: string;
+  last4: string | null;
+  currency: string;
+  periodFrom: ISODate | null;
+  periodTo: ISODate | null;
+  openingFils: number | null;
+  closingFils: number | null;
+  totalDebitFils: number;
+  totalCreditFils: number;
+  rowCount: number;
+  /** null = no matching app account yet; the user picks or creates one. */
+  accountId: ID | null;
+  accountName: string | null;
+  suggestedAccountName: string;
+  reconciliation: ImportReconciliation;
+  counts: ImportCounts;
+}
+
+export interface ImportRow {
+  /** "<section>-<row>" */
+  id: string;
+  sectionIndex: number;
+  date: ISODate;
+  description: string;
+  debitFils: number | null;
+  creditFils: number | null;
+  balanceFils: number | null;
+  amountFils: number;
+  direction: "in" | "out";
+  ref: string | null;
+  cardLast4: string | null;
+  counterpartyLast4: string | null;
+  originalAmount: string | null;
+  originalCurrency: string | null;
+  sourceRef: string;
+  status: ImportRowStatus;
+  action: ImportRowAction;
+  type: TransactionType;
+  categoryId: ID | null;
+  merchant: string | null;
+  note: string | null;
+  /** Transfers: the other own account (money goes to it on a debit, comes from it on a credit). */
+  counterAccountId: ID | null;
+  needsReview: boolean;
+  reviewReason: string | null;
+  matchedTransactionId: ID | null;
+  pairedRowId: string | null;
+  /** Human explanation of the proposal. */
+  reason: string;
+  edited: boolean;
+}
+
+export interface ImportAccountCheck {
+  sectionIndex: number;
+  accountId: ID;
+  accountName: string;
+  periodTo: ISODate | null;
+  statementClosingFils: number | null;
+  /** App balance counting transactions dated on or before the statement end. */
+  appBalanceFils: number;
+  differenceFils: number | null;
+  currentBalanceFils: number;
+}
+
+export interface ImportCommitResult {
+  createdCount: number;
+  skippedCount: number;
+  accounts: ImportAccountCheck[];
+}
+
+export interface ImportSummary {
+  id: ID;
+  filename: string;
+  bank: string;
+  format: string;
+  status: ImportStatus;
+  createdAt: ISODateTime;
+  createdByName: string | null;
+  committedAt: ISODateTime | null;
+  rolledBackAt: ISODateTime | null;
+  periodFrom: ISODate | null;
+  periodTo: ISODate | null;
+  sections: ImportSection[];
+  counts: ImportCounts;
+  issues: string[];
+  commitResult: ImportCommitResult | null;
+}
+
+export interface StatementImport extends ImportSummary {
+  rows: ImportRow[];
+}
+
+export interface ImportPatch {
+  sections?: { index: number; accountId: ID | null }[];
+  rematch?: boolean;
+}
+
+export interface ImportRowPatch {
+  id: string;
+  action?: ImportRowAction;
+  type?: TransactionType;
+  categoryId?: ID;
+  merchant?: string;
+  note?: string;
+  counterAccountId?: ID;
+  needsReview?: boolean;
+}
+
+export interface MerchantRule {
+  id: ID;
+  pattern: string;
+  merchant: string | null;
+  categoryId: ID | null;
+  categoryName: string | null;
+  kind: string | null;
+  source: string;
+  archived: boolean;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -836,3 +981,10 @@ export interface ZeroBasedPlan {
   hasBills: boolean;
   hasIncome: boolean;
 }
+export interface MerchantRuleCreate {
+  pattern: string;
+  categoryId: ID;
+  merchant?: string | null;
+}
+
+export type MerchantRuleUpdate = Partial<MerchantRuleCreate>;

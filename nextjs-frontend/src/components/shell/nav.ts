@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   CalendarClock,
+  FileUp,
   Landmark,
   LayoutDashboard,
   LineChart,
@@ -37,6 +38,7 @@ export const NAV_GROUPS: { label: Exclude<NavGroupLabel, "Settings">; items: Nav
       { href: "/accounts", label: "Accounts", icon: Landmark, group: "Money" },
       { href: "/budget", label: "Budget", icon: PieChart, group: "Money", period: true },
       { href: "/bills", label: "Bills", icon: CalendarClock, group: "Money", period: true },
+      { href: "/import", label: "Import statement", icon: FileUp, group: "Money" },
     ],
   },
   {

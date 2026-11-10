@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 RECEIPT_PATH = "/api/v1/receipts/read"
+IMPORT_PATH = "/api/v1/imports"
 AUTH_LIMITED_PATHS = {
     "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/join", "/api/v1/auth/password",
 }
@@ -94,13 +95,14 @@ class LoginFailureTracker:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(  # type: ignore[no-untyped-def]
         self, app, auth_per_min: int, generic_per_min: int, client_ip_header: str = "",
-        receipts_per_min: int = 20,
+        receipts_per_min: int = 20, imports_per_min: int = 10,
     ) -> None:
         super().__init__(app)
         self.limiter = FixedWindowLimiter()
         self.auth_per_min = auth_per_min
         self.generic_per_min = generic_per_min
         self.receipts_per_min = receipts_per_min
+        self.imports_per_min = imports_per_min
         self.client_ip_header = client_ip_header
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -112,6 +114,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 ok = self.limiter.hit("auth", ip, self.auth_per_min)
             if ok and request.method == "POST" and path == RECEIPT_PATH:
                 ok = self.limiter.hit("receipts", ip, self.receipts_per_min)
+            if ok and request.method == "POST" and path == IMPORT_PATH:
+                ok = self.limiter.hit("imports", ip, self.imports_per_min)
             if not ok:
                 return JSONResponse(
                     status_code=429,

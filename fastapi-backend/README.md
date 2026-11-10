@@ -69,6 +69,8 @@ Tests run against mongomock (no Mongo needed).
   (insights, plan, dashboard are auto-included when their modules exist)
 - `app/services/` - DB glue (`load_analytics_txns`, balances, sessions, category seeding)
 - `app/analytics/` - pure functions (no I/O)
+- `app/services/statements/` - statement PDF/CSV parsing (pdfplumber, pure Python; imported lazily by the
+  upload route), reconciliation, row classification and matching (`matching.propose`, pure given a context)
 
 ## Security notes
 
@@ -76,7 +78,7 @@ Tests run against mongomock (no Mongo needed).
   reuse of a rotated token revokes all of the user's sessions), `mbp_csrf` (readable, double-submit).
 - Every unsafe `/api/*` request needs `X-CSRF-Token` == `mbp_csrf` cookie (except login/register/join),
   and `Origin`, if sent, must equal `APP_ORIGIN`.
-- Rate limits (in-memory, per IP): auth 10/min, everything else 300/min. Behind the Next proxy all
+- Rate limits (in-memory, per IP): auth 10/min, receipts 20/min, statement uploads 10/min, everything else 300/min. Behind the Next proxy all
   traffic shares one peer IP unless a trusted edge sets `RATE_LIMIT_CLIENT_IP_HEADER`.
 - Per-account login lockout: 10 failed logins per email per 15 min -> 429 `too_many_attempts`
   (trade-off: someone who knows the email can lock that account for up to 15 min).

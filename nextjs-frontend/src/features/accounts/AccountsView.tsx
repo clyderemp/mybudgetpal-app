@@ -18,6 +18,7 @@ import {
 import { formatFils } from "@/lib/money";
 import { useArchiveAccount } from "@/lib/queries";
 import type { Account, AccountType, Transaction } from "@/lib/types";
+import { ImportStatementLink } from "@/features/import/ImportStatementLink";
 import { TransactionDetailDrawer } from "@/features/transactions/TransactionDetailDrawer";
 import { useTxnLookups } from "@/features/transactions/useTxnLookups";
 import { AccountDetailDrawer } from "./AccountDetailDrawer";
@@ -308,11 +309,14 @@ export function AccountsView() {
         title="Accounts"
         description="Balances across banks, cards and cash."
         actions={
-          accounts.length > 0 ? (
-            <Button onClick={openAdd}>
-              <Plus /> Add account
-            </Button>
-          ) : null
+          <>
+            <ImportStatementLink />
+            {accounts.length > 0 ? (
+              <Button onClick={openAdd}>
+                <Plus /> Add account
+              </Button>
+            ) : null}
+          </>
         }
       />
       {body}
