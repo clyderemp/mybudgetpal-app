@@ -14,6 +14,7 @@ from app.errors import not_found, validation_error
 from app.models import Transaction, utcnow
 from app.schemas.base import ListResponse
 from app.schemas.transactions import (
+    ReviewCountOut,
     TransactionCreate,
     TransactionOut,
     TransactionPatch,
@@ -94,7 +95,7 @@ async def list_transactions(
         query["needs_review"] = True if needs_review else {"$ne": True}
     if q:
         rx = {"$regex": re.escape(q.strip()), "$options": "i"}
-        and_.append({"$or": [{"merchant": rx}, {"note": rx}]})
+        and_.append({"$or": [{"merchant": rx}, {"note": rx}, {"items.name": rx}]})
     if and_:
         query["$and"] = and_
 
@@ -104,6 +105,15 @@ async def list_transactions(
         member_names(current.household_id),
     )
     return ListResponse[TransactionOut](items=[transaction_out(t, names) for t in txns], total=total)
+
+
+@router.get("/review-count", response_model=ReviewCountOut)
+async def review_count(current: CurrentUser = Depends(get_current_user)) -> ReviewCountOut:
+    """How many (non-deleted) transactions are flagged for review — cheap, for nav badges."""
+    count = await Transaction.find(
+        {"household_id": current.household_id, "deleted_at": None, "needs_review": True}
+    ).count()
+    return ReviewCountOut(count=count)
 
 
 @router.post("", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
@@ -151,9 +161,9 @@ async def patch_transaction(
         raise validation_error(_pydantic_fields(exc)) from exc
     await validate_refs(data, current.household_id)
     apply_to_doc(txn, data)
-    if review is not None:  # explicit "mark reviewed" / "flag for review"
+    if review is not None:  # explicit "mark reviewed" / "flag for review" (manual flag: reason "manual")
         txn.needs_review = review
-        txn.review_reason = txn.review_reason if review else None
+        txn.review_reason = (txn.review_reason or "manual") if review else None
     txn.touch()
     _, names = await asyncio.gather(txn.save(), member_names(current.household_id))
     return transaction_out(txn, names)

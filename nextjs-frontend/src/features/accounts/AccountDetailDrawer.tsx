@@ -7,7 +7,7 @@ import { useTransactions } from "@/lib/queries";
 import type { Account, Transaction } from "@/lib/types";
 import { TransactionRowButton } from "@/features/transactions/TransactionCardList";
 import type { TxnLookups } from "@/features/transactions/format";
-import { ACCOUNT_TYPE_LABEL, isLiability, last4Label } from "./accountMeta";
+import { ACCOUNT_TYPE_LABEL, isBusiness, isLiability, last4Label } from "./accountMeta";
 
 export function AccountDetailDrawer({
   account,
@@ -69,6 +69,7 @@ export function AccountDetailDrawer({
           </div>
           <dl className="mb-6">
             <DetailRow label="Type">{ACCOUNT_TYPE_LABEL[a.type]}</DetailRow>
+            <DetailRow label="Used for">{isBusiness(a) ? "Business, kept out of household totals" : "Household"}</DetailRow>
             <DetailRow label="Institution">{a.institution || "—"}</DetailRow>
             <DetailRow label="Card or account number">
               <span className="tabular">{a.last4 ? `•••• ${a.last4}` : "—"}</span>

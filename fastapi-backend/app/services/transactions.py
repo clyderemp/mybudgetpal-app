@@ -41,6 +41,7 @@ async def validate_refs(data: TransactionCreate, household_id: PydanticObjectId)
 
 
 def apply_to_doc(txn: Transaction, data: TransactionCreate) -> None:
+    merchant_changed = bool(data.merchant) and data.merchant != txn.merchant
     txn.account_id = PydanticObjectId(data.account_id)
     txn.date = data.date
     txn.amount_fils = data.amount_fils
@@ -50,8 +51,9 @@ def apply_to_doc(txn: Transaction, data: TransactionCreate) -> None:
     txn.merchant = data.merchant
     txn.note = data.note
     txn.items = [TxnItem(name=i.name, amount_fils=i.amount_fils, quantity=i.quantity) for i in data.items]
-    # A person entering or editing a name resolves the "no name" review flag.
-    if txn.needs_review and txn.review_reason == "no_name" and data.merchant:
+    # A person entering or editing a name resolves the "no name" review flag. Editing anything
+    # else (category, amount, ...) keeps the placeholder name flagged.
+    if txn.needs_review and txn.review_reason == "no_name" and merchant_changed:
         txn.needs_review = False
         txn.review_reason = None
 

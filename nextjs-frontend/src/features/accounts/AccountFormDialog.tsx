@@ -24,6 +24,7 @@ const schema = z.object({
     .trim()
     .regex(/^(\d{4})?$/, "Exactly 4 digits")
     .optional(),
+  business: z.boolean(),
 });
 
 type FormInput = z.input<typeof schema>;
@@ -74,6 +75,7 @@ function AccountForm({
       currency: account?.currency ?? "AED",
       openingBalanceFils: account?.openingBalanceFils ?? 0,
       last4: account?.last4 ?? "",
+      business: account?.purpose === "business",
     },
   });
 
@@ -88,6 +90,7 @@ function AccountForm({
       currency: v.currency,
       openingBalanceFils: v.openingBalanceFils,
       last4: v.last4 || null,
+      purpose: v.business ? "business" : "household",
     };
     try {
       if (account) await updateM.mutateAsync({ id: account.id, ...body });
@@ -167,6 +170,27 @@ function AccountForm({
             {...register("last4")}
           />
         </Field>
+        <label
+          htmlFor="acc-business"
+          className="flex min-w-0 cursor-pointer items-start gap-3 rounded-container border border-line bg-surface-2 p-3 md:col-span-2"
+        >
+          <input
+            id="acc-business"
+            type="checkbox"
+            role="switch"
+            aria-describedby="acc-business-hint"
+            className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+            {...register("business")}
+          />
+          <span className="min-w-0">
+            <span className="block text-meta font-medium text-ink">Business account — kept out of household totals</span>
+            <span id="acc-business-hint" className="mt-0.5 block text-xs text-ink-2">
+              For money that isn&apos;t the household&apos;s, such as a company account. Its balance and spending stay out of net
+              worth, budgets and insights. Money moved from it into a household account counts as household income; money
+              moved into it counts as household spending.
+            </span>
+          </span>
+        </label>
       </FormGrid>
     </FormDialog>
   );

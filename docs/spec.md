@@ -67,9 +67,9 @@ All have `id` (ObjectId, serialized as string `id`), `household_id`, `created_at
 - `households`: `name`, `base_currency="AED"`, `owner_id`.
 - `invites`: `code_hash`, `created_by`, `expires_at`, `used_by?`, `used_at?`.
 - `sessions`: `user_id`, `token_hash`, `expires_at`, `revoked_at?`, `replaced_by?`, `user_agent?`.
-- `accounts`: `name`, `institution?` (e.g. "Mashreq Neo", "Emirates NBD"), `type` (`bank|savings|credit_card|cash|loan|investment`), `currency="AED"`, `opening_balance_fils` (int, may be negative for credit), `last4?`, `color?`, `archived=false`.
+- `accounts`: `name`, `institution?` (e.g. "Mashreq Neo", "Emirates NBD"), `type` (`bank|savings|credit_card|cash|loan|investment`), `currency="AED"`, `opening_balance_fils` (int, may be negative for credit), `last4?`, `color?`, `archived=false`, `purpose` (`household|business`, default household). A **business** account (e.g. Sessions DXB) holds money that isn't the household's: see "Business accounts" in §6.
 - `categories`: `name`, `kind` (`income|expense`), `group` (`essentials|lifestyle|debt|savings|income|other`), `icon?` (lucide name), `color?`, `archived=false`. Seed defaults on household creation (Salary, Other income; Rent, Utilities, Groceries, Transport, Fuel, Telecom, Insurance, Dining, Shopping, Entertainment, Health, Education, Travel, Gifts, Subscriptions, Fees, Debt payment, Other).
-- `transactions`: `account_id`, `date` (date), `amount_fils` (int **> 0**), `type` (`income|expense|transfer`), `category_id?` (required unless transfer), `to_account_id?` (required for transfer), `merchant?`, `note?`, `created_by` (user id), `source` (`manual|import`), `deleted_at?`. Index: `(household_id, date desc)`, `(household_id, category_id)`.
+- `transactions`: `account_id`, `date` (date), `amount_fils` (int **> 0**), `type` (`income|expense|transfer`), `category_id?` (required unless transfer), `to_account_id?` (required for transfer), `merchant?`, `note?`, `created_by` (user id), `source` (`manual|import`), `deleted_at?`, `items: [{name, amount_fils?, quantity?}]` (optional line items; `amount_fils` is the line total), `needs_review` (bool) + `review_reason?` (`no_name` = bank row without a payee name, `manual` = flagged by a person), `source_ref?`, `import_batch?`, `bill_id?`. Index: `(household_id, date desc)`, `(household_id, category_id)`, `(household_id, needs_review)`.
 - `budgets`: one per household per month: `month` ("YYYY-MM", unique with household), `lines: [{category_id, limit_fils}]`, `note?`.
 - `debts`: `name`, `kind` (`credit_card|personal_loan|car_loan|mortgage|bnpl|other`), `balance_fils`, `apr_bps` (annual rate in basis points, 2999 = 29.99%), `min_payment_fils`, `due_day` (1–28), `account_id?`, `archived=false`.
 - `goals` (savings goals): `name`, `target_fils`, `saved_fils`, `target_date?`, `priority` (1 = highest), `account_id?`, `archived=false`.
@@ -99,8 +99,9 @@ Household
 Accounts: `GET /accounts` (each with `balanceFils`), `POST /accounts`, `PATCH /accounts/{id}`, `POST /accounts/{id}/archive`
 Categories: `GET /categories`, `POST /categories`, `PATCH /categories/{id}`, `POST /categories/{id}/archive`
 Transactions:
-- `GET /transactions?from=&to=&accountId=&categoryId=&type=&q=&page=1&pageSize=50&sort=date|-date|amount|-amount` → `{items, total}`; `createdBy` included (member name as `createdByName`).
-- `POST /transactions`, `PATCH /transactions/{id}`, `DELETE /transactions/{id}` (soft delete) → 204
+- `GET /transactions?from=&to=&accountId=&categoryId=&type=&q=&needsReview=true|false&page=1&pageSize=50&sort=date|-date|amount|-amount` → `{items, total}`; `createdBy` included (member name as `createdByName`). `q` matches merchant, note and item names (case-insensitive).
+- `GET /transactions/review-count` → `{count}`: non-deleted transactions with `needsReview` (nav badges).
+- `POST /transactions`, `PATCH /transactions/{id}`, `DELETE /transactions/{id}` (soft delete) → 204. Both accept `items` (PATCH replaces the list; `[]` clears it). PATCH `needsReview: true` flags any row (reason `manual` unless it already has one); `needsReview: false` marks it reviewed (reason cleared). Changing the merchant to a new non-empty name clears a `no_name` flag; editing anything else keeps it.
 Budgets:
 - `GET /budgets/{month}` → `{month, lines: [{categoryId, categoryName, group, limitFils, spentFils, remainingFils}], totalLimitFils, totalSpentFils, incomeFils, unbudgetedSpentFils}` (404-free: returns empty lines if none)
 - `PUT /budgets/{month}` `{lines: [{categoryId, limitFils}], note?}`
@@ -115,7 +116,7 @@ Plan:
 - `GET /plan` → plan settings; `PUT /plan` settings
 - `GET /plan/payoff?strategy=&monthlyBudgetFils=` → result of `simulate_payoff` (§6) for current debts; defaults from saved plan
 - `GET /plan/compare?monthlyBudgetFils=` → `{avalanche: PayoffResult, snowball: PayoffResult}`
-Insights:
+Insights (every endpoint below takes `includeBusiness=true` to count business accounts as household money; default false, see §6 "Business accounts"):
 - `GET /insights/summary?month=YYYY-MM` → `monthly_summary` for that month + previous month deltas
 - `GET /insights/trends?months=12&end=YYYY-MM` → `monthly_series` (`end` defaults to the current month)
 - `GET /insights/forecast` → `forecast_next_month`
@@ -168,8 +169,10 @@ Next.js (latest stable, App Router, TypeScript strict, `src/` dir), Tailwind CSS
   - `/login`, `/join` (invite code), `/setup` (first-run register, only if `registrationOpen`)
   - `/` Dashboard
   - `/transactions` (filters, table on desktop via MUI DataGrid, card list on phones, add/edit in dialog)
-- Receipt scanning (new-transaction dialog, "Scan receipt"): Tesseract (tesseract.js, self-hosted in `public/ocr/<version>/` by `scripts/copy-ocr-assets.mjs` on install/dev/build) reads the photo in a Web Worker on the device after canvas preprocessing (EXIF rotation, rescale, grayscale, contrast); the text goes to `POST /receipts/read` and the reply prefills an expense for review.
-  - `/accounts` (cards with balances, add/edit dialog, archive)
+- Receipt scanning (new-transaction dialog, "Scan receipt"): Tesseract (tesseract.js, self-hosted in `public/ocr/<version>/` by `scripts/copy-ocr-assets.mjs` on install/dev/build) reads the photo in a Web Worker on the device after canvas preprocessing (EXIF rotation, rescale, grayscale, contrast); the text goes to `POST /receipts/read` and the reply prefills an expense for review. Scanned items fill the items list (prices only when the receipt is in the account's currency); the note keeps VAT and a foreign-currency total.
+  - Line items: items editor (name, optional amount, optional qty; sum vs the transaction amount, warning when items exceed it) in the transaction dialog and the detail drawer; "n items" hint in lists.
+  - Needs review: amber "Needs review" badge on grid rows, phone cards, dashboard recent list and the drawer; count badge on the Transactions nav item (sidebar and phone tab bar); "Needs review (n)" chip (URL `review=1`, all dates). The drawer's review box edits merchant/category in place, "Mark reviewed & next" / "Skip" walk the flagged rows; "Flag for review" on any row.
+  - `/accounts` (cards with balances, add/edit dialog, archive). Account form toggle "Business account — kept out of household totals"; business accounts are grouped separately with their own subtotal and left out of net worth (also on the dashboard accounts panel). Account pickers/filters (transactions, transaction form, Insights) show them under a "Business" heading; Insights has an "Include business accounts" toggle (URL `biz=1`, default off).
   - `/budget` (zero-based plan summary on top, month switcher, per-category progress bars, edit limits, copy last month)
   - `/bills` (tabs: This month checklist with status and expected vs actual, All recurring, Subscriptions with monthly and yearly totals, Income; suggestions; add/edit in dialogs). Dashboard adds Safe to spend, Waiting for and Upcoming bills.
   - `/plan` (tabs: Debts | Savings goals | Payoff plan — strategy toggle, monthly budget input, debt-free date, timeline chart, avalanche vs snowball comparison)
@@ -181,6 +184,13 @@ Next.js (latest stable, App Router, TypeScript strict, `src/` dir), Tailwind CSS
 ## 6. Analytics (pure functions — `fastapi-backend/app/analytics/`)
 
 Input transactions are plain dicts/dataclasses: `{date: date, amount_fils: int, type: "income"|"expense"|"transfer", category_id: str|None, account_id: str}`. Transfers are ignored by all spending/income maths. Savings = income − expense for a period.
+
+**Business accounts.** `services/analytics_data.py::apply_business_boundary` is the single place business money is kept out; `load_analytics_txns` applies it, so dashboard, budgets, insights (summary, trends, forecast, anomalies, health, explore) and plan/health all see the household view:
+- income/expense on a business account → dropped;
+- transfer business → household → household **income** on the household account, `category_id = "business:<business account id>"`, merchant "From <business account>";
+- transfer household → business → household **expense** on the household account, same synthetic category, merchant "To <business account>";
+- business ↔ business → dropped; household ↔ household → neutral transfer as before.
+Converted rows carry `business_account_id`, and the explore account filter also matches it (filtering on the business account shows the household's flows with it). Archived business accounts still count as business. Health's liquid balance leaves out business accounts, and debts linked to a business account are left out of health, `/plan/payoff|compare` defaults and dashboard upcoming payments (`GET /debts` still lists them). With `includeBusiness=true` the loader skips the rule (everything counts as recorded, every transfer neutral). Explore labels the synthetic category "From/To <account>" (group "Business"). Account balances and `GET /accounts` are unchanged; the UI groups business accounts and leaves them out of household totals.
 
 `summary.py`
 - `monthly_summary(txns, month: str) -> dict`: `{month, incomeFils, expenseFils, netFils, savingsRate (float 0–1 or null), byCategory: [{categoryId, expenseFils, share}] sorted desc}`

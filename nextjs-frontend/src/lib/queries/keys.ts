@@ -11,6 +11,7 @@ export const qk = {
   transactions: {
     all: ["transactions"] as const,
     list: (q: TransactionQuery) => ["transactions", "list", q] as const,
+    reviewCount: ["transactions", "review-count"] as const,
   },
   budgets: { all: ["budgets"] as const, month: (month: string) => ["budgets", month] as const },
   debts: { all: ["debts"] as const },
@@ -23,11 +24,12 @@ export const qk = {
   },
   insights: {
     all: ["insights"] as const,
-    summary: (month: string) => ["insights", "summary", month] as const,
+    summary: (month: string, biz = false) => ["insights", "summary", month, { biz }] as const,
     trends: (months: number, end?: string) => ["insights", "trends", months, end ?? "current"] as const,
-    forecast: ["insights", "forecast"] as const,
-    anomalies: (month: string) => ["insights", "anomalies", month] as const,
+    forecast: (biz = false) => ["insights", "forecast", { biz }] as const,
+    anomalies: (month: string, biz = false) => ["insights", "anomalies", month, { biz }] as const,
     health: ["insights", "health"] as const,
+    healthFor: (biz = false) => ["insights", "health", { biz }] as const,
     explore: (params: object) => ["insights", "explore", params] as const,
   },
   dashboard: ["dashboard"] as const,

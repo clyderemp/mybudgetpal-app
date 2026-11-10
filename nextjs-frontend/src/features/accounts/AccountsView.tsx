@@ -1,5 +1,6 @@
 "use client";
-import { ChevronRight, Plus, Wallet } from "lucide-react";
+import { Briefcase, ChevronRight, Plus, Wallet, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -21,7 +22,16 @@ import { TransactionDetailDrawer } from "@/features/transactions/TransactionDeta
 import { useTxnLookups } from "@/features/transactions/useTxnLookups";
 import { AccountDetailDrawer } from "./AccountDetailDrawer";
 import { AccountFormDialog } from "./AccountFormDialog";
-import { ACCOUNT_GROUP_LABEL, ACCOUNT_TYPE_ICON, ACCOUNT_TYPES, isLiability } from "./accountMeta";
+import { ACCOUNT_GROUP_LABEL, ACCOUNT_TYPE_ICON, ACCOUNT_TYPES, isBusiness, isLiability } from "./accountMeta";
+
+interface AccountGroup {
+  key: string;
+  label: string;
+  hint?: string;
+  icon: LucideIcon;
+  liability: boolean;
+  list: Account[];
+}
 
 export function AccountsView() {
   const { lookups, accountsQ } = useTxnLookups();
@@ -35,8 +45,13 @@ export function AccountsView() {
   const accounts = useMemo(() => (accountsQ.data ?? []).filter((a) => !a.archived), [accountsQ.data]);
   const selected = accounts.find((a) => a.id === selectedId) ?? null;
 
+  // Business accounts (e.g. Sessions DXB) aren't the household's money: own group, own subtotal,
+  // left out of the household totals.
+  const householdAccounts = useMemo(() => accounts.filter((a) => !isBusiness(a)), [accounts]);
+  const businessAccounts = useMemo(() => accounts.filter(isBusiness), [accounts]);
+
   const summary = useMemo(() => {
-    const aed = accounts.filter((a) => a.currency === "AED");
+    const aed = householdAccounts.filter((a) => a.currency === "AED");
     const sum = (types: AccountType[]) => aed.filter((a) => types.includes(a.type)).reduce((s, a) => s + a.balanceFils, 0);
     const count = (types: AccountType[]) => aed.filter((a) => types.includes(a.type)).length;
     const owed = aed.filter((a) => isLiability(a.type) && a.balanceFils < 0).reduce((s, a) => s - a.balanceFils, 0);
@@ -50,17 +65,33 @@ export function AccountsView() {
       owed,
       owedCount: count(["credit_card", "loan"]),
       aedCount: aed.length,
-      foreign: accounts.filter((a) => a.currency !== "AED"),
+      foreign: householdAccounts.filter((a) => a.currency !== "AED"),
+      businessCount: businessAccounts.length,
     };
-  }, [accounts]);
+  }, [householdAccounts, businessAccounts]);
 
-  const groups = useMemo(
-    () =>
-      ACCOUNT_TYPES.map((t) => [t, accounts.filter((a) => a.type === t).sort((a, b) => a.name.localeCompare(b.name))] as const).filter(
-        ([, list]) => list.length > 0,
-      ),
-    [accounts],
-  );
+  const groups = useMemo<AccountGroup[]>(() => {
+    const byName = (a: Account, b: Account) => a.name.localeCompare(b.name);
+    const household: AccountGroup[] = ACCOUNT_TYPES.map((t) => ({
+      key: t,
+      label: ACCOUNT_GROUP_LABEL[t],
+      icon: ACCOUNT_TYPE_ICON[t],
+      liability: isLiability(t),
+      list: householdAccounts.filter((a) => a.type === t).sort(byName),
+    })).filter((g) => g.list.length > 0);
+    if (!businessAccounts.length) return household;
+    return [
+      ...household,
+      {
+        key: "business",
+        label: "Business",
+        hint: "Not household money",
+        icon: Briefcase,
+        liability: false,
+        list: [...businessAccounts].sort(byName),
+      },
+    ];
+  }, [householdAccounts, businessAccounts]);
 
   const openAdd = () => {
     setEditing(null);
@@ -136,6 +167,12 @@ export function AccountsView() {
             in {summary.foreign.length === 1 ? "its" : "their"} own currency and left out of the AED totals.
           </p>
         ) : null}
+        {summary.businessCount > 0 ? (
+          <p className="text-meta text-ink-2">
+            Totals are household money only. {plural(summary.businessCount, "business account")}{" "}
+            {summary.businessCount === 1 ? "is" : "are"} listed separately below.
+          </p>
+        ) : null}
 
         {/* Desktop: one dense table grouped by type. */}
         <Panel flush className="hidden md:block">
@@ -167,23 +204,23 @@ export function AccountsView() {
                 </th>
               </tr>
             </thead>
-            {groups.map(([type, list]) => {
+            {groups.map(({ key, label, hint, icon: Icon, liability, list }) => {
               const aedList = list.filter((a) => a.currency === "AED");
               const subtotal = aedList.reduce((s, a) => s + a.balanceFils, 0);
-              const Icon = ACCOUNT_TYPE_ICON[type];
               return (
-                <tbody key={type} className="border-b border-line last:border-b-0">
+                <tbody key={key} className={cn("border-b border-line last:border-b-0", key === "business" && "border-t-4 border-t-surface-2")}>
                   <tr className="h-9 border-b border-line">
                     <th scope="rowgroup" colSpan={3} className="px-4 text-left font-semibold text-ink">
                       <span className="flex items-center gap-2">
                         <Icon className="size-4 text-ink-3" aria-hidden />
-                        {ACCOUNT_GROUP_LABEL[type]}
+                        {label}
                         <span className="tabular font-normal text-ink-2">{list.length}</span>
+                        {hint ? <span className="text-xs font-normal text-ink-2">· {hint}, kept out of the totals above</span> : null}
                       </span>
                     </th>
                     <td className="px-3 text-right font-semibold">
                       {aedList.length > 0 ? (
-                        <Money fils={subtotal} tone={isLiability(type) && subtotal < 0 ? "danger" : undefined} />
+                        <Money fils={subtotal} tone={liability && subtotal < 0 ? "danger" : undefined} />
                       ) : null}
                     </td>
                     <td />
@@ -218,15 +255,18 @@ export function AccountsView() {
 
         {/* Phones: list rows grouped by type. */}
         <div className="flex flex-col gap-4 md:hidden">
-          {groups.map(([type, list]) => {
+          {groups.map(({ key, label, hint, liability, list }) => {
             const aedList = list.filter((a) => a.currency === "AED");
             const subtotal = aedList.reduce((s, a) => s + a.balanceFils, 0);
             return (
-              <section key={type} aria-label={ACCOUNT_GROUP_LABEL[type]} className="overflow-hidden rounded-container border border-line bg-surface">
-                <div className="flex h-9 items-center justify-between gap-3 border-b border-line bg-surface-2 px-4">
-                  <h2 className="truncate text-meta font-semibold text-ink">{ACCOUNT_GROUP_LABEL[type]}</h2>
+              <section key={key} aria-label={label} className={cn("overflow-hidden rounded-container border border-line bg-surface", key === "business" && "mt-2")}>
+                <div className="flex min-h-9 items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-1.5">
+                  <h2 className="min-w-0 text-meta font-semibold text-ink">
+                    <span className="block truncate">{label}</span>
+                    {hint ? <span className="block text-xs font-normal text-ink-2">{hint}, kept out of the totals</span> : null}
+                  </h2>
                   {aedList.length > 0 ? (
-                    <Money fils={subtotal} tone={isLiability(type) && subtotal < 0 ? "danger" : undefined} className="text-meta font-semibold" />
+                    <Money fils={subtotal} tone={liability && subtotal < 0 ? "danger" : undefined} className="text-meta font-semibold" />
                   ) : null}
                 </div>
                 <ul className="divide-y divide-line">

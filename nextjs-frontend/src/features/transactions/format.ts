@@ -6,13 +6,32 @@ export interface TxnLookups {
   categories: Map<string, Category>;
 }
 
+/**
+ * Transfers crossing the household/business line count as household money (spec: business → household
+ * = income "From <business>", household → business = spending "To <business>"). Null otherwise.
+ */
+export function businessFlow(t: Transaction, l: TxnLookups): { dir: "from" | "to"; account: Account } | null {
+  if (t.type !== "transfer" || !t.toAccountId) return null;
+  const src = l.accounts.get(t.accountId);
+  const dst = l.accounts.get(t.toAccountId);
+  const srcBiz = src?.purpose === "business";
+  const dstBiz = dst?.purpose === "business";
+  if (srcBiz && dst && !dstBiz) return { dir: "from", account: src };
+  if (dstBiz && src && !srcBiz) return { dir: "to", account: dst };
+  return null;
+}
+
 export function txnTitle(t: Transaction, l: TxnLookups): string {
   if (t.merchant) return t.merchant;
+  const biz = businessFlow(t, l);
+  if (biz) return `${biz.dir === "from" ? "From" : "To"} ${biz.account.name}`;
   if (t.type === "transfer") return "Transfer";
   return (t.categoryId && l.categories.get(t.categoryId)?.name) || (t.type === "income" ? "Income" : "Expense");
 }
 
 export function txnCategory(t: Transaction, l: TxnLookups): string {
+  const biz = businessFlow(t, l);
+  if (biz) return biz.dir === "from" ? "Household income" : "Household spending";
   if (t.type === "transfer") return "Transfer";
   if (!t.categoryId) return "Uncategorised";
   return l.categories.get(t.categoryId)?.name ?? "Unknown category";
@@ -52,18 +71,26 @@ export const TYPE_LABEL: Record<Transaction["type"], string> = {
   transfer: "Transfer",
 };
 
-/** In / out / net over a set of transactions (AED only; transfers excluded). */
-export function txnTotals(rows: Transaction[], l: TxnLookups) {
+/**
+ * In / out / net over a set of transactions (AED only; transfers excluded).
+ * `household` (default): same rule as the backend analytics — income/expense on business accounts
+ * is left out, and transfers between a business and a household account count as household
+ * income ("From …") or spending ("To …"). Pass false for a business account's own view.
+ */
+export function txnTotals(rows: Transaction[], l: TxnLookups, opts: { household?: boolean } = {}) {
+  const household = opts.household ?? true;
   let inFils = 0;
   let outFils = 0;
   let foreign = 0;
   for (const t of rows) {
-    if (t.type === "transfer") continue;
+    const biz = household ? businessFlow(t, l) : null;
+    if (t.type === "transfer" && !biz) continue;
+    if (!biz && household && l.accounts.get(t.accountId)?.purpose === "business") continue;
     if (txnCurrency(t, l) !== "AED") {
       foreign += 1;
       continue;
     }
-    if (t.type === "income") inFils += t.amountFils;
+    if (biz ? biz.dir === "from" : t.type === "income") inFils += t.amountFils;
     else outFils += t.amountFils;
   }
   return { inFils, outFils, netFils: inFils - outFils, foreign };

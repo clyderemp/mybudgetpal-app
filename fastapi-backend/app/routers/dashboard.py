@@ -9,13 +9,14 @@ from fastapi import APIRouter, Depends
 from app.models import Budget, Category, Transaction
 from app.routers.budgets import compose_budget_out
 from app.security.deps import CurrentUser, get_current_user
-from app.services.analytics_data import filter_txns
+from app.services.analytics_data import apply_business_boundary, business_accounts, filter_txns
 from app.services.insights import (
     active_accounts,
     active_debts,
     compute_health,
     get_today,
     health_range,
+    household_debts,
     load_months,
     month_str,
     shift_month,
@@ -44,11 +45,14 @@ async def dashboard(
     # Every query is independent: run them all in one concurrent round trip. Transactions are
     # loaded once for the widest range (health: last 6 months + current) and narrowed in
     # memory for the summary (previous + current month) and the budget (current month).
+    # Business accounts are looked up once here and applied to both transactions and debts
+    # (same household view as load_analytics_txns / active_debts, one query fewer).
     first, last = health_range(today)
-    txns, (accounts, balances), debts, recent, names, budget, cats = await asyncio.gather(
-        load_months(hid, first, last),
+    raw, (accounts, balances), all_debts, business, recent, names, budget, cats = await asyncio.gather(
+        load_months(hid, first, last, include_business=True),
         active_accounts(hid),
-        active_debts(hid),
+        active_debts(hid, include_business=True),
+        business_accounts(hid),
         Transaction.find({"household_id": hid, "deleted_at": None})
         .sort([("date", -1), ("created_at", -1)])
         .limit(RECENT_TRANSACTIONS)
@@ -57,6 +61,8 @@ async def dashboard(
         Budget.find_one({"household_id": hid, "month": month}),
         Category.find({"household_id": hid}).to_list(),
     )
+    txns = apply_business_boundary(raw, business)
+    debts = household_debts(all_debts, business)
     summary_start, _ = month_bounds(shift_month(month, -1))
     month_start, month_end = month_bounds(month)
     return {

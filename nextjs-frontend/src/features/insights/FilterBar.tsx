@@ -9,6 +9,7 @@ import {
   type DropdownOption,
 } from "@/components/ui";
 import { inputClasses } from "@/components/ui/Field";
+import { accountPickerGroup, householdFirst, isBusiness } from "@/features/accounts/accountMeta";
 import { useCategoryColor } from "@/features/transactions/CategoryDot";
 import { formatDate, todayISO } from "@/lib/dates";
 import { useAccounts, useCategories, useMe } from "@/lib/queries";
@@ -63,12 +64,17 @@ export function FilterBar({ f }: { f: ExploreFilters }) {
       { value: "none", label: "Uncategorised" },
     ];
   }, [categories.data, f.flow, color]);
+  const activeAccounts = useMemo(() => (accounts.data ?? []).filter((a) => !a.archived), [accounts.data]);
+  const hasBusiness = activeAccounts.some(isBusiness);
   const acctOptions = useMemo<DropdownOption[]>(
     () =>
-      (accounts.data ?? [])
-        .filter((a) => !a.archived)
-        .map((a) => ({ value: a.id, label: a.name })),
-    [accounts.data],
+      householdFirst(activeAccounts).map((a) => ({
+        value: a.id,
+        label: a.name,
+        group: accountPickerGroup(a, activeAccounts),
+        description: isBusiness(a) && !f.includeBusiness ? "Shows money moved to and from it" : undefined,
+      })),
+    [activeAccounts, f.includeBusiness],
   );
   const members = me.data?.household.members ?? [];
   const memberOptions: DropdownOption[] = members.map((m) => ({
@@ -212,6 +218,21 @@ export function FilterBar({ f }: { f: ExploreFilters }) {
               className={cn(inputClasses, "h-8 pl-8 pointer-coarse:h-11")}
             />
           </div>
+          {hasBusiness || f.includeBusiness ? (
+            <label
+              className="inline-flex cursor-pointer items-center gap-2 text-meta text-ink-2 pointer-coarse:min-h-11"
+              title="Business accounts are kept out of household figures. Money moved between them and household accounts counts as household income or spending."
+            >
+              <input
+                type="checkbox"
+                role="switch"
+                className="size-4 accent-[var(--color-accent)]"
+                checked={f.includeBusiness}
+                onChange={(e) => f.set({ biz: e.target.checked ? "1" : null })}
+              />
+              Include business accounts
+            </label>
+          ) : null}
         </div>
       </div>
 

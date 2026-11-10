@@ -6,6 +6,7 @@ import { DataTable, Money } from "@/components/ui";
 import { formatDate } from "@/lib/dates";
 import type { Transaction, TransactionSort } from "@/lib/types";
 import { CategoryLabel } from "./CategoryDot";
+import { ItemsHint, ReviewBadge } from "./review";
 import { accountName, txnCategory, txnCurrency, txnFlow, txnTitle, type TxnLookups } from "./format";
 
 export const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -56,6 +57,8 @@ export function TransactionsGrid({
         renderCell: ({ row }) => (
           <div className="flex h-full min-w-0 items-center gap-2">
             <span className="truncate font-medium text-ink">{txnTitle(row, lookups)}</span>
+            <ReviewBadge t={row} compact />
+            <ItemsHint t={row} />
             {row.note ? <span className="min-w-0 truncate text-meta text-ink-2">{row.note}</span> : null}
           </div>
         ),

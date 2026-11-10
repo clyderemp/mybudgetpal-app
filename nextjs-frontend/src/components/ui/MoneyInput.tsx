@@ -21,6 +21,8 @@ export interface MoneyInputProps {
   required?: boolean;
   autoFocus?: boolean;
   className?: string;
+  /** Accessible name when there is no visible label (e.g. a row in a list). */
+  "aria-label"?: string;
 }
 
 /**
@@ -28,7 +30,24 @@ export interface MoneyInputProps {
  * Use with react-hook-form via <Controller/>; validate with z.number().int().positive().
  */
 export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyInput(
-  { value, onChange, onBlur, currency = "AED", label, error, hint, id, name, placeholder = "0.00", allowNegative, disabled, required, autoFocus, className },
+  {
+    value,
+    onChange,
+    onBlur,
+    currency = "AED",
+    label,
+    error,
+    hint,
+    id,
+    name,
+    placeholder = "0.00",
+    allowNegative,
+    disabled,
+    required,
+    autoFocus,
+    className,
+    "aria-label": ariaLabel,
+  },
   ref,
 ) {
   const autoId = useId();
@@ -58,6 +77,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
           autoFocus={autoFocus}
           disabled={disabled}
           placeholder={placeholder}
+          aria-label={ariaLabel}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${inputId}-error` : undefined}
           className={cn(inputClasses, "tabular pl-12 text-right")}

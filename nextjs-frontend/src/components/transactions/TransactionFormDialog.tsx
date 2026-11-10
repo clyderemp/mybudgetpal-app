@@ -1,14 +1,15 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2 } from "lucide-react";
+import { ListPlus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { todayISO } from "@/lib/dates";
 import { useAccounts, useCategories, useCreateTransaction, useDeleteTransaction, useUpdateTransaction } from "@/lib/queries";
 import { formatFils } from "@/lib/money";
-import type { CategoryGroup, ReceiptReading, Transaction, TransactionCreate, TransactionType } from "@/lib/types";
+import type { CategoryGroup, ReceiptReading, Transaction, TransactionCreate, TransactionType, TxnItem } from "@/lib/types";
+import { accountPickerGroup, householdFirst } from "@/features/accounts/accountMeta";
 import { Button } from "@/components/ui/Button";
 import { DateField } from "@/components/ui/DateField";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
@@ -17,7 +18,11 @@ import { FormDialog, FormGrid } from "@/components/ui/FormDialog";
 import { MoneyInput } from "@/components/ui/MoneyInput";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { notify } from "@/components/ui/notify";
+import { emptyDraft, fromDrafts, ItemsEditor, toDrafts, type ItemDraft } from "./ItemsEditor";
 import { ReceiptScanner } from "./ReceiptScanner";
+
+/** Stable comparison key for an item list. */
+const itemsKey = (items: TxnItem[]) => JSON.stringify(items.map((i) => [i.name, i.amountFils ?? null]));
 
 const schema = z
   .object({
@@ -86,6 +91,15 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
   const updateM = useUpdateTransaction();
   const deleteM = useDeleteTransaction();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [items, setItems] = useState<ItemDraft[]>(() => toDrafts(transaction?.items ?? defaults?.items));
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [itemsOpen, setItemsOpen] = useState(items.length > 0);
+  // Items the receipt scanner wrote last (to tell whether the user has edited them since).
+  const scannedItems = useRef<TxnItem[]>([]);
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const accounts = useMemo(() => accountsQ.data ?? [], [accountsQ.data]);
   const categories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data]);
@@ -123,6 +137,7 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
 
   const type = useWatch({ control, name: "type" }) as TransactionType;
   const accountId = useWatch({ control, name: "accountId" });
+  const amountFils = useWatch({ control, name: "amountFils" });
 
   // Default account once accounts load (create mode only).
   const firstAccountId = accounts[0]?.id;
@@ -130,12 +145,13 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
     if (!isEdit && !accountId && firstAccountId) setValue("accountId", firstAccountId);
   }, [isEdit, accountId, firstAccountId, setValue]);
 
-  const accountOptions: DropdownOption[] = accounts.map((a) => ({
+  const accountOptions: DropdownOption[] = householdFirst(accounts).map((a) => ({
     value: a.id,
     label: a.name,
     description: [a.institution, a.last4 ? `•••• ${a.last4}` : null, a.currency !== "AED" ? a.currency : null]
       .filter(Boolean)
       .join(", ") || undefined,
+    group: accountPickerGroup(a, accounts),
   }));
 
   const categoryOptions: DropdownOption[] = categories
@@ -158,12 +174,10 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
       if (prev && (getValues(name) ?? null) !== (before ?? null) && getValues(name)) return;
       setValue(name, value as never, opts);
     };
+    // Items go to the items list; the note keeps only VAT and a foreign-currency total.
     const note = (x: ReceiptReading) => {
       const c = x.currency ?? accountCurrency;
       return [
-        x.items.length
-          ? x.items.map((i) => (i.amountFils != null ? `${i.name} ${formatFils(i.amountFils, c, { hideCurrency: true })}` : i.name)).join(", ")
-          : null,
         x.vatFils ? `VAT ${formatFils(x.vatFils, c)}` : null,
         x.currency && x.currency !== accountCurrency && x.amountFils != null ? `Receipt total ${formatFils(x.amountFils, x.currency)}` : null,
       ]
@@ -182,10 +196,34 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
     fill("categoryId", r.categoryId, prev?.categoryId);
     fill("accountId", r.accountId, prev?.accountId);
     fill("note", note(r) || null, prev ? note(prev) : null);
+    // Line items: written when found, unless the user edited the list after the first pass.
+    // Prices are only kept when the receipt is in the account's currency.
+    const sameCurrency = !r.currency || r.currency === accountCurrency;
+    const scanned = r.items
+      .filter((i) => i.name.trim())
+      .map((i) => ({ name: i.name.trim().slice(0, 200), amountFils: sameCurrency ? i.amountFils : null }));
+    if (scanned.length) {
+      const cur = itemsRef.current;
+      const untouched = !prev || itemsKey(fromDrafts(cur).items) === itemsKey(scannedItems.current);
+      if (untouched || !cur.some((d) => d.name.trim())) {
+        scannedItems.current = scanned;
+        setItems(toDrafts(scanned));
+        setItemsError(null);
+        setItemsOpen(true);
+      }
+    }
   }
 
   const onSubmit = handleSubmit(async (v) => {
+    const parsed = fromDrafts(items);
+    if (parsed.error) {
+      setItemsError(parsed.error);
+      setItemsOpen(true);
+      return;
+    }
+    setItemsError(null);
     const body: TransactionCreate = {
+      items: parsed.items,
       type: v.type,
       accountId: v.accountId,
       amountFils: v.amountFils,
@@ -376,6 +414,40 @@ function TransactionForm({ open, onOpenChange, transaction, defaults, onSaved }:
         <Field label="Note" htmlFor="txn-note" error={errors.note?.message} hint="Optional" className="md:col-span-2">
           <Textarea id="txn-note" rows={2} invalid={Boolean(errors.note)} {...register("note")} />
         </Field>
+
+        {type !== "transfer" || items.length > 0 ? (
+          <div className="flex min-w-0 flex-col gap-1.5 md:col-span-2">
+            <span className={labelClasses}>
+              Items <span className="font-normal text-ink-2">(optional)</span>
+            </span>
+            {itemsOpen || items.length > 0 ? (
+              <ItemsEditor
+                value={items}
+                onChange={(next) => {
+                  setItems(next);
+                  if (itemsError) setItemsError(null);
+                }}
+                totalFils={amountFils}
+                currency={accountCurrency}
+                error={itemsError}
+              />
+            ) : (
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setItems([emptyDraft()]);
+                    setItemsOpen(true);
+                  }}
+                >
+                  <ListPlus /> Add items
+                </Button>
+                <span className="text-xs text-ink-2">What was bought, for example from a receipt.</span>
+              </div>
+            )}
+          </div>
+        ) : null}
       </FormGrid>
     </FormDialog>
   );

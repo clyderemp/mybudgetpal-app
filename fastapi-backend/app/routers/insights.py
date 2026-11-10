@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from app.analytics.explore import GRANULARITIES, GROUP_BYS, apply_filters, auto_granularity, explore, period_start
 from app.errors import AppError
 from app.models import Account, Category, User
-from app.services.analytics_data import load_analytics_txns
+from app.services.analytics_data import BUSINESS_CATEGORY_PREFIX, is_business_category, load_analytics_txns
 
 from app.analytics import detect_anomalies, forecast_next_month, monthly_series
 from app.security.deps import CurrentUser, get_current_user
@@ -32,12 +32,15 @@ def _ids(raw: str | None) -> set[str] | None:
 @router.get("/summary")
 async def summary(
     month: str | None = Query(None),
+    include_business: bool = Query(False, alias="includeBusiness"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
     """monthly_summary for ``month`` (default: current month) + previous month + deltas."""
     m = parse_month(month) if month else month_str(today)
-    txns = await load_months(current.household_id, shift_month(m, -1), m)
+    txns = await load_months(
+        current.household_id, shift_month(m, -1), m, include_business=include_business
+    )
     return summary_with_previous(txns, m)
 
 
@@ -45,43 +48,52 @@ async def summary(
 async def trends(
     months: int = Query(12, ge=1, le=60),
     end: str | None = Query(None, description="last month of the series (YYYY-MM); default: current month"),
+    include_business: bool = Query(False, alias="includeBusiness"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
     end = parse_month(end) if end else month_str(today)
-    txns = await load_months(current.household_id, shift_month(end, -(months - 1)), end)
+    txns = await load_months(
+        current.household_id, shift_month(end, -(months - 1)), end, include_business=include_business
+    )
     items = monthly_series(txns, end, months)
     return {"items": items, "total": len(items)}
 
 
 @router.get("/forecast")
 async def forecast(
+    include_business: bool = Query(False, alias="includeBusiness"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
     cur = month_str(today)
-    txns = await load_months(current.household_id, shift_month(cur, -FORECAST_HISTORY_MONTHS), cur)
+    first = shift_month(cur, -FORECAST_HISTORY_MONTHS)
+    txns = await load_months(current.household_id, first, cur, include_business=include_business)
     return forecast_next_month(txns, today, FORECAST_HISTORY_MONTHS)
 
 
 @router.get("/anomalies")
 async def anomalies(
     month: str | None = Query(None),
+    include_business: bool = Query(False, alias="includeBusiness"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
     m = parse_month(month) if month else month_str(today)
-    txns = await load_months(current.household_id, shift_month(m, -ANOMALY_LOOKBACK_MONTHS), m)
+    txns = await load_months(
+        current.household_id, shift_month(m, -ANOMALY_LOOKBACK_MONTHS), m, include_business=include_business
+    )
     items = detect_anomalies(txns, m, ANOMALY_LOOKBACK_MONTHS)
     return {"items": items, "total": len(items)}
 
 
 @router.get("/health")
 async def health(
+    include_business: bool = Query(False, alias="includeBusiness"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
-    return await health_for(current.household_id, today)
+    return await health_for(current.household_id, today, include_business=include_business)
 
 
 @router.get("/explore")
@@ -96,6 +108,7 @@ async def explore_endpoint(
     members: str | None = Query(None),
     merchant: str | None = Query(None, max_length=80),
     horizon: int = Query(3, ge=1, le=12),
+    include_business: bool = Query(False, alias="includeBusiness"),
     current: CurrentUser = Depends(get_current_user),
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
@@ -126,7 +139,7 @@ async def explore_endpoint(
     load_to = max(end, cur - dt.timedelta(days=1))
     hid = current.household_id
     raw, cats, accts, users = await asyncio.gather(
-        load_analytics_txns(hid, load_from, load_to, detail=True),
+        load_analytics_txns(hid, load_from, load_to, detail=True, include_business=include_business),
         Category.find({"household_id": hid}).to_list(),
         Account.find({"household_id": hid}).to_list(),
         User.find({"household_id": hid}).to_list(),
@@ -148,11 +161,19 @@ async def explore_endpoint(
     user_name = {str(u.id): u.name or u.username or "Member" for u in users}
     group_label = {
         "essentials": "Essentials", "lifestyle": "Lifestyle", "savings": "Savings", "debt": "Debt",
-        "income": "Income", "other": "Other",
+        "income": "Income", "other": "Other", "business": "Business",
     }
+    # Money crossing the business boundary (see apply_business_boundary): "From/To <account>".
+    biz_prefix = "From" if flow == "income" else "To"
+
+    def category_label(k: str) -> str:
+        if is_business_category(k):
+            return f"{biz_prefix} {acct_name.get(k[len(BUSINESS_CATEGORY_PREFIX):], 'business account')}"
+        return cat_name.get(k, "Uncategorised")
+
     labels = {
-        "category": lambda k: cat_name.get(k, "Uncategorised"),
-        "category_group": lambda k: cat_group.get(k, "other"),
+        "category": category_label,
+        "category_group": lambda k: "business" if is_business_category(k) else cat_group.get(k, "other"),
         "group": lambda k: group_label.get(k, k.replace("_", " ").title()),
         "account": lambda k: acct_name.get(k, "Unknown account"),
         "member": lambda k: user_name.get(k, "Unknown"),

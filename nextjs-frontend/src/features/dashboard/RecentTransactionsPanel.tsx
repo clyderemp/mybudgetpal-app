@@ -11,6 +11,8 @@ import { useElementWidth } from "@/features/common/useElementWidth";
 import { formatDate, formatDayLabel, todayISO } from "@/lib/dates";
 import { formatFils } from "@/lib/money";
 import type { Account, Category, Transaction } from "@/lib/types";
+import { ItemsHint, ReviewBadge } from "@/features/transactions/review";
+import { businessFlow, txnCategory, txnTitle } from "@/features/transactions/format";
 
 interface Row {
   id: string;
@@ -29,11 +31,25 @@ interface Row {
 function toRows(items: Transaction[], categories: Category[], accounts: Account[]): Row[] {
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   const acct = new Map(accounts.map((a) => [a.id, a]));
+  const lookups = { accounts: acct, categories: new Map(categories.map((c) => [c.id, c])) };
   return items.map((t) => {
     const account = acct.get(t.accountId);
-    const category = t.type === "transfer" ? "Transfer" : (t.categoryId && catName.get(t.categoryId)) || "Uncategorised";
+    // Transfers to/from a business account read "From/To <account>" (household income/spending).
+    const biz = businessFlow(t, lookups);
+    const category = biz
+      ? txnCategory(t, lookups)
+      : t.type === "transfer"
+        ? "Transfer"
+        : (t.categoryId && catName.get(t.categoryId)) || "Uncategorised";
     const title =
-      t.merchant || (t.type === "transfer" ? `Transfer to ${acct.get(t.toAccountId ?? "")?.name ?? "account"}` : t.type === "income" ? "Income" : category);
+      t.merchant ||
+      (biz
+        ? txnTitle(t, lookups)
+        : t.type === "transfer"
+          ? `Transfer to ${acct.get(t.toAccountId ?? "")?.name ?? "account"}`
+          : t.type === "income"
+            ? "Income"
+            : category);
     return {
       id: t.id,
       date: t.date,
@@ -116,7 +132,12 @@ export function RecentTransactionsPanel({
         flex: 1.4,
         minWidth: 110,
         sortable: false,
-        renderCell: ({ row }) => <TruncCell text={row.title} className="font-medium text-ink" />,
+        renderCell: ({ row }) => (
+          <span className="flex h-full min-w-0 items-center gap-1.5">
+            <TruncCell text={row.title} className="min-w-0 font-medium text-ink" />
+            <ReviewBadge t={row.txn} compact />
+          </span>
+        ),
       },
       {
         field: "category",
@@ -222,10 +243,14 @@ export function RecentTransactionsPanel({
                   aria-label={`Edit ${r.title}, ${formatFils(r.amount, r.currency)}`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-ink">{r.title}</span>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-sm font-medium text-ink">{r.title}</span>
+                      <ReviewBadge t={r.txn} compact />
+                    </span>
                     <span className="flex min-w-0 gap-2 text-xs text-ink-2">
                       <span className="shrink-0">{formatDayLabel(r.date, today)}</span>
                       <span className="min-w-0 truncate">{r.category}</span>
+                      <ItemsHint t={r.txn} />
                     </span>
                   </span>
                   <Amount row={r} />

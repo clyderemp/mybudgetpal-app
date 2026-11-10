@@ -149,7 +149,7 @@ export function InsightsView() {
               <ForecastView f={f} />
             </TabsContent>
             <TabsContent value="health">
-              <HealthView to={f.to} />
+              <HealthView to={f.to} includeBusiness={f.includeBusiness} />
             </TabsContent>
           </div>
         )}
@@ -983,9 +983,11 @@ function ForecastView({ f }: { f: ExploreFilters }) {
     granularity: gran,
     horizon: gran === "day" ? horizon * 7 : horizon,
   });
-  const next = useInsightsForecast();
+  const biz = { includeBusiness: f.includeBusiness };
+  const next = useInsightsForecast(biz);
   const lastMonth = useInsightsSummary(
     next.data ? addMonths(next.data.month, -2) : "",
+    biz,
   );
   const categories = useCategories();
   const d = q.data;
@@ -1153,10 +1155,10 @@ function Figure({
 
 /* ---------------- Health ---------------- */
 
-function HealthView({ to }: { to: string }) {
+function HealthView({ to, includeBusiness }: { to: string; includeBusiness: boolean }) {
   const month = to.slice(0, 7);
-  const anomalies = useInsightsAnomalies(month);
-  const health = useInsightsHealth();
+  const anomalies = useInsightsAnomalies(month, { includeBusiness });
+  const health = useInsightsHealth({ includeBusiness });
   const categories = useCategories();
   return (
     <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-2">

@@ -5,6 +5,7 @@ import { Button, Money } from "@/components/ui";
 import { formatDayLabel } from "@/lib/dates";
 import type { Transaction } from "@/lib/types";
 import { useCategoryColor } from "./CategoryDot";
+import { ItemsHint, ReviewBadge } from "./review";
 import { txnAccountLabel, txnCategory, txnCurrency, txnFlow, txnTitle, txnTotals, type TxnLookups } from "./format";
 
 /** Phone list: grouped by day with a day net total; each row opens the detail drawer. */
@@ -80,10 +81,14 @@ export function TransactionRowButton({
     >
       <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color(cat) }} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-ink">{txnTitle(t, lookups)}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-sm font-medium text-ink">{txnTitle(t, lookups)}</span>
+          <ReviewBadge t={t} compact />
+        </span>
         <span className="flex min-w-0 items-center gap-2 text-xs text-ink-2">
           {showDate ? <span className="shrink-0 tabular">{formatDayLabel(t.date)}</span> : null}
           <span className="truncate">{secondary}</span>
+          <ItemsHint t={t} />
         </span>
       </span>
       {showAddedBy && t.createdByName ? <MemberAvatar userId={t.createdBy} name={t.createdByName} size="xs" title={`Added by ${t.createdByName}`} /> : null}

@@ -8,7 +8,7 @@ import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
 import { Button, EmptyState, InlineError, Money, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
 import { todayISO } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
-import { useTransactions } from "@/lib/queries";
+import { useReviewCount, useTransactions } from "@/lib/queries";
 import type { Transaction, TransactionQuery, TransactionSort, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { txnTotals } from "./format";
@@ -52,8 +52,10 @@ export function TransactionsView() {
       categoryId: params.get("categoryId") || undefined,
       type: type && TYPES.includes(type) ? type : undefined,
       q: params.get("q") || undefined,
+      review: params.get("review") === "1" || undefined,
     };
   }, [params]);
+  const reviewCountQ = useReviewCount();
 
   // Picking a month in the period selector means "show that month".
   const lastMonth = useRef(period.month);
@@ -93,6 +95,7 @@ export function TransactionsView() {
     if (filters.categoryId) q.categoryId = filters.categoryId;
     if (filters.type) q.type = filters.type;
     if (filters.q) q.q = filters.q;
+    if (filters.review) q.needsReview = true;
     return q;
   }, [from, to, filters]);
 
@@ -102,18 +105,31 @@ export function TransactionsView() {
 
   // Totals for the whole filtered range: reuse the page when it holds every row, else fetch up to 500.
   const needTotalsQuery = Boolean(txQ.data) && total > rows.length;
+  // Household money unless the account filter is a business account (then: that account as recorded).
+  const filterIsBusiness = filters.accountId ? lookups.accounts.get(filters.accountId)?.purpose === "business" : false;
+  const totalsOpts = useMemo(() => ({ household: !filterIsBusiness }), [filterIsBusiness]);
+  const householdOnly = !filterIsBusiness && [...lookups.accounts.values()].some((a) => a.purpose === "business");
   const totalsQ = useTransactions({ ...baseQuery, page: 1, pageSize: TOTALS_LIMIT, sort: "-date" }, { enabled: needTotalsQuery });
   const totals = useMemo(() => {
     if (!txQ.data) return null;
-    if (!needTotalsQuery) return { ...txnTotals(rows, lookups), partial: false };
+    if (!needTotalsQuery) return { ...txnTotals(rows, lookups, totalsOpts), partial: false };
     if (!totalsQ.data) return null;
-    return { ...txnTotals(totalsQ.data.items, lookups), partial: totalsQ.data.total > totalsQ.data.items.length };
-  }, [txQ.data, needTotalsQuery, rows, totalsQ.data, lookups]);
+    return { ...txnTotals(totalsQ.data.items, lookups, totalsOpts), partial: totalsQ.data.total > totalsQ.data.items.length };
+  }, [txQ.data, needTotalsQuery, rows, totalsQ.data, lookups, totalsOpts]);
 
-  const hasFilters = filters.range !== "month" || Boolean(filters.accountId || filters.categoryId || filters.type || filters.q);
+  const hasFilters =
+    filters.range !== "month" || Boolean(filters.accountId || filters.categoryId || filters.type || filters.q || filters.review);
 
   // Keep the drawer showing fresh data after an edit elsewhere.
   const selectedFresh = selected ? (rows.find((r) => r.id === selected.id) ?? selected) : null;
+
+  // Review flow: the next flagged row on this page after the open one (wrapping to the start).
+  const nextFlagged = useMemo(() => {
+    if (!selected) return null;
+    const flagged = rows.filter((r) => r.needsReview && r.id !== selected.id);
+    const idx = rows.findIndex((r) => r.id === selected.id);
+    return flagged.find((r) => rows.indexOf(r) > idx) ?? flagged[0] ?? null;
+  }, [rows, selected]);
 
   const changeFilters = (patch: TxnFilterPatch) => set({ ...patch, page: null });
 
@@ -180,14 +196,14 @@ export function TransactionsView() {
           onSortChange={(s) => set({ sort: s !== "-date" ? s : null, page: null })}
           onOpen={setSelected}
         />
-        <TotalsBar totals={totals} count={total} className="border-t border-line" />
+        <TotalsBar totals={totals} count={total} householdOnly={householdOnly} className="border-t border-line" />
       </Panel>
     );
   } else {
     body = (
       <>
         <Panel flush className="mb-3">
-          <TotalsBar totals={totals} count={total} />
+          <TotalsBar totals={totals} count={total} householdOnly={householdOnly} />
         </Panel>
         <TransactionCardList rows={rows} lookups={lookups} onOpen={setSelected} />
         {total > pageSize ? <Pager page={page} pageSize={pageSize} total={total} onPage={(p) => set({ page: p > 1 ? p : null })} /> : null}
@@ -213,13 +229,23 @@ export function TransactionsView() {
         categories={categoriesQ.data ?? []}
         monthLabel={period.label}
         resultCount={txQ.data ? total : null}
+        reviewCount={reviewCountQ.data}
         onChange={changeFilters}
       />
       {txQ.isError && txQ.data ? (
         <InlineError className="mb-4" error={txQ.error} onRetry={() => void txQ.refetch()} title="Couldn't refresh transactions" />
       ) : null}
       {body}
-      <TransactionDetailDrawer transaction={selectedFresh} lookups={lookups} onClose={() => setSelected(null)} />
+      <TransactionDetailDrawer
+        transaction={selectedFresh}
+        lookups={lookups}
+        onClose={() => setSelected(null)}
+        onNext={nextFlagged ? () => setSelected(nextFlagged) : undefined}
+        onReviewed={() => {
+          // The empty "Needs review" list then says the rest; no second toast.
+          setSelected(nextFlagged ?? null);
+        }}
+      />
     </>
   );
 }
@@ -227,7 +253,17 @@ export function TransactionsView() {
 type Totals = ReturnType<typeof txnTotals> & { partial: boolean };
 
 /** In / out / net for the filtered range (AED; transfers excluded). */
-function TotalsBar({ totals, count, className }: { totals: Totals | null; count: number; className?: string }) {
+function TotalsBar({
+  totals,
+  count,
+  householdOnly,
+  className,
+}: {
+  totals: Totals | null;
+  count: number;
+  householdOnly?: boolean;
+  className?: string;
+}) {
   const cells: { label: string; node: ReactNode }[] = totals
     ? [
         { label: "Money in", node: <Money fils={totals.inFils} flow="in" /> },
@@ -248,6 +284,7 @@ function TotalsBar({ totals, count, className }: { totals: Totals | null; count:
         Totals for <span className="tabular">{count.toLocaleString("en-US")}</span> {count === 1 ? "transaction" : "transactions"}
         {totals?.partial ? <span>, first {TOTALS_LIMIT} only</span> : null}
         {totals && totals.foreign > 0 ? <span>, excluding non-AED accounts</span> : null}
+        {householdOnly ? <span>, household money only</span> : null}
       </p>
       <dl className="flex min-w-0 flex-col gap-1 md:flex-row md:gap-8">
         {totals

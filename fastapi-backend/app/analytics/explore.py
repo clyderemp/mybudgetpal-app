@@ -96,7 +96,12 @@ def apply_filters(
             continue
         if category_ids and (get(t, "category_id") or "none") not in category_ids:
             continue
-        if account_ids and str(get(t, "account_id")) not in account_ids:
+        if (
+            account_ids
+            and str(get(t, "account_id")) not in account_ids
+            # money to/from a business account (household view) also matches that account
+            and str(get(t, "business_account_id") or "") not in account_ids
+        ):
             continue
         if member_ids and str(get(t, "created_by") or "") not in member_ids:
             continue

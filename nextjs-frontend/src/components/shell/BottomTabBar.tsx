@@ -3,6 +3,7 @@ import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useReviewCount } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { MoreSheet } from "./MoreSheet";
 import { MORE_ITEMS, TAB_ITEMS, isActive } from "./nav";
@@ -11,6 +12,7 @@ import { MORE_ITEMS, TAB_ITEMS, isActive } from "./nav";
 export function BottomTabBar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { data: reviewCount } = useReviewCount();
   const moreActive = MORE_ITEMS.some((i) => isActive(pathname, i.href));
   const tab =
     "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium min-[360px]:text-xs " +
@@ -23,10 +25,26 @@ export function BottomTabBar() {
         <ul className="flex h-14">
           {TAB_ITEMS.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href);
+            const badge = href === "/transactions" ? (reviewCount ?? 0) : 0;
             return (
               <li key={href} className={cn("flex min-w-0", href === "/transactions" ? "flex-[1.35]" : "flex-1")}>
-                <Link href={href} aria-current={active ? "page" : undefined} className={cn(tab, active ? cn("text-ink", indicator) : "text-ink-2")}>
-                  <Icon className="size-5" aria-hidden />
+                <Link
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={badge > 0 ? `${label}, ${badge} to review` : undefined}
+                  className={cn(tab, active ? cn("text-ink", indicator) : "text-ink-2")}
+                >
+                  <span className="relative">
+                    <Icon className="size-5" aria-hidden />
+                    {badge > 0 ? (
+                      <span
+                        aria-hidden
+                        className="tabular absolute -top-1.5 left-3 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warn px-1 text-[10px] leading-none font-semibold text-surface ring-2 ring-surface"
+                      >
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="max-w-full truncate">{label}</span>
                 </Link>
               </li>
