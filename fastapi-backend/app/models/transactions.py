@@ -10,7 +10,6 @@ from app.models.base import HouseholdDocument
 
 TxnType = Literal["income", "expense", "transfer"]
 SOURCE_REF_INDEX = "household_source_ref_unique"
-LEGACY_SOURCE_REF_INDEX = "household_id_1_source_ref_1"
 
 
 class TxnItem(BaseModel):
@@ -53,7 +52,8 @@ class Transaction(HouseholdDocument):
             IndexModel([("household_id", ASCENDING), ("date", DESCENDING)]),
             IndexModel([("household_id", ASCENDING), ("category_id", ASCENDING)]),
             # One transaction per statement row per household (imports are idempotent even under
-            # concurrent commits). Replaces the earlier non-unique index on the same keys (see db.py).
+            # concurrent commits). Explicit name: MongoDB 8 keeps it alongside the earlier non-unique
+            # index on the same keys (different options), so older checkouts sharing a DB still start.
             IndexModel([("household_id", ASCENDING), ("source_ref", ASCENDING)], unique=True,
                        partialFilterExpression={"source_ref": {"$type": "string"}},
                        name=SOURCE_REF_INDEX),

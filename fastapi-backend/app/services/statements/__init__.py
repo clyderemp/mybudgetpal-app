@@ -36,12 +36,14 @@ __all__ = [
     "StatementSection",
     "StatementTooComplex",
     "parse_statement",
+    "parse_statement_in_process",
 ]
 
 
 def _content_too_big(page: object) -> bool:
-    """Inflate each page content stream ourselves with an output cap (a zip bomb stops at the cap)
-    before pdfminer decompresses it without one."""
+    """Cheap first gate (the child process limits are the real guard): inflate each page content
+    stream ourselves with an output cap before pdfminer decompresses it without one. Fails CLOSED:
+    a decode error, a chained filter or any filter other than FlateDecode counts as too big."""
     from pdfminer.pdftypes import resolve1
 
     size = 0
@@ -49,17 +51,19 @@ def _content_too_big(page: object) -> bool:
         stream = resolve1(stream)
         raw = getattr(stream, "rawdata", None)
         if raw is None:
-            continue
-        filters = [getattr(f, "name", str(f)) for f in stream.get_filters()] if hasattr(stream, "get_filters") else []
-        filters = [f[0] if isinstance(f, tuple) else f for f in filters]
-        if any("Flate" in str(f) for f in filters):
+            return True
+        filters = [f[0] if isinstance(f, tuple) else f for f in stream.get_filters()]
+        names = [getattr(f, "name", str(f)) for f in filters]
+        if not names:
+            size += len(raw)
+        elif names == ["FlateDecode"]:
             try:
                 out = zlib.decompressobj().decompress(raw, MAX_PAGE_CONTENT_BYTES + 1 - size)
             except zlib.error:
-                return False  # let pdfminer report the malformed stream
+                return True
             size += len(out)
         else:
-            size += len(raw)
+            return True
         if size > MAX_PAGE_CONTENT_BYTES:
             return True
     return False
@@ -112,7 +116,17 @@ def _parse_pdf(data: bytes) -> ParsedStatement:
     raise StatementError("not a supported statement (Emirates NBD or Mashreq NEO PDF, or CSV)")
 
 
-def parse_statement(data: bytes, filename: str = "", time_budget: float | None = PARSE_SECONDS) -> ParsedStatement:
+def parse_statement(data: bytes, filename: str = "") -> ParsedStatement:
+    """Entry point for uploads: PDFs are parsed in a resource-limited child process (``sandbox``)."""
+    if data[:5] == b"%PDF-":
+        from app.services.statements.sandbox import parse_pdf_isolated
+
+        return parse_pdf_isolated(data, filename)
+    return parse_statement_in_process(data, filename)
+
+
+def parse_statement_in_process(data: bytes, filename: str = "", time_budget: float | None = PARSE_SECONDS) -> ParsedStatement:
+    """Parse in this process (the sandbox child, CSVs, and tests). Untrusted PDFs: use ``parse_statement``."""
     if data[:5] == b"%PDF-":
         set_deadline(time_budget)
         try:

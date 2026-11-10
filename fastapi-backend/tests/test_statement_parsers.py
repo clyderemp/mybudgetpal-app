@@ -4,7 +4,8 @@ import datetime as dt
 import pytest
 
 import app.services.statements as statements
-from app.services.statements import StatementError, StatementTooComplex, parse_statement
+from app.services.statements import StatementError, StatementTooComplex, parse_statement, parse_statement_in_process
+from app.services.statements.sandbox import parse_pdf_isolated
 from app.services.statements.classify import classify_row, holder_names, same_person
 from app.services.statements.types import mask_numbers
 from tests.statement_fixtures import Page, build_pdf, csv_bytes, enbd_pdf, mashreq_account_pdf, mashreq_consolidated_pdf
@@ -161,8 +162,36 @@ def test_total_object_cap_and_time_budget(monkeypatch):
     data = enbd_statement(rows_per_page=3)
     monkeypatch.setattr(statements, "MAX_TOTAL_OBJECTS", 500)
     with pytest.raises(StatementTooComplex):
-        parse_statement(data)
+        parse_statement_in_process(data)
     monkeypatch.undo()
     with pytest.raises(StatementTooComplex):
-        parse_statement(data, time_budget=0)
-    assert parse_statement(data).sections[0].rows  # normal budget still fine
+        parse_statement_in_process(data, time_budget=0)
+    assert parse_statement_in_process(data).sections[0].rows  # normal budget still fine
+
+
+def test_sandbox_round_trips_a_statement():
+    data = enbd_statement()
+    isolated = parse_pdf_isolated(data, "s.pdf")
+    direct = parse_statement_in_process(data, "s.pdf")
+    assert isolated == direct  # same dataclasses through the child's JSON
+
+
+def test_sandbox_kills_a_slow_child():
+    with pytest.raises(StatementTooComplex, match="too long"):
+        parse_pdf_isolated(b"%PDF-1.4", "s.pdf", timeout=1.0, module="tests.sandbox_slow_child")
+
+
+def test_sandbox_reports_not_a_statement_and_crashes():
+    with pytest.raises(StatementError) as err:
+        parse_pdf_isolated(b"%PDF-1.4 garbage", "s.pdf")
+    assert not isinstance(err.value, StatementTooComplex)
+    with pytest.raises(StatementTooComplex):
+        parse_pdf_isolated(b"%PDF-1.4", "s.pdf", module="tests.sandbox_crash_child")
+
+
+def test_unsupported_content_filter_fails_closed():
+    p = Page(612, 792)
+    p.text(20, 100, "Emirates NBD")
+    data = build_pdf([p]).replace(b"<< /Length", b"<< /Filter /LZWDecode /Length", 1)
+    with pytest.raises(StatementError):
+        parse_statement_in_process(data)

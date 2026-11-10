@@ -77,22 +77,8 @@ def make_client(settings: Settings) -> Any:
     )
 
 
-async def _drop_legacy_indexes(db: Any) -> None:
-    """The non-unique (household_id, source_ref) index became a unique partial one with an explicit
-    name; Mongo refuses two indexes on the same keys, so drop the old one before Beanie creates the new."""
-    from app.models.transactions import LEGACY_SOURCE_REF_INDEX
-
-    try:
-        info = await db["transactions"].index_information()
-        if LEGACY_SOURCE_REF_INDEX in info:
-            await db["transactions"].drop_index(LEGACY_SOURCE_REF_INDEX)
-    except Exception:  # pragma: no cover - missing collection / permissions: init_beanie will report
-        pass
-
-
 async def init_db(settings: Settings) -> Any:
     """Create the Mongo client and initialise Beanie. Returns the client."""
     client = make_client(settings)
-    await _drop_legacy_indexes(client[settings.mongodb_db])
     await init_beanie(database=client[settings.mongodb_db], document_models=document_models)
     return client
