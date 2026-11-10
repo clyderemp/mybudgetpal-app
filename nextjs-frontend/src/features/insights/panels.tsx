@@ -35,13 +35,19 @@ import type {
   Trend,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { businessCategoryLabel } from "@/features/accounts/accountMeta";
+import { useAccounts } from "@/lib/queries";
 
 type QueryState = { loading?: boolean; error?: unknown; onRetry?: () => void };
 
-function catNamer(categories: Category[]) {
+/** Category id → name. Money moved into a business account (synthetic "business:<id>") reads "To <account>". */
+function useCatNamer(categories: Category[]) {
+  const accounts = useAccounts();
   const names = new Map(categories.map((c) => [c.id, c.name]));
   return (id: string | null | undefined) =>
-    (id && names.get(id)) || "Uncategorised";
+    businessCategoryLabel(id, accounts.data ?? [], "to") ||
+    (id && names.get(id)) ||
+    "Uncategorised";
 }
 
 /* ---------------- Spending by category ---------------- */
@@ -60,7 +66,7 @@ export function CategoryBreakdownPanel({
   categories: Category[];
   month: string;
 }) {
-  const name = catNamer(categories);
+  const name = useCatNamer(categories);
   const sorted = [...(items ?? [])]
     .filter((i) => i.expenseFils > 0)
     .sort((a, b) => b.expenseFils - a.expenseFils);
@@ -242,7 +248,7 @@ export function ForecastPanel({
   lastMonth?: InsightsSummary;
   categories: Category[];
 }) {
-  const name = catNamer(categories);
+  const name = useCatNamer(categories);
   const last = new Map(
     (lastMonth?.byCategory ?? []).map((c) => [
       c.categoryId ?? "__none",
@@ -417,7 +423,7 @@ export function AnomaliesPanel({
   error,
   onRetry,
 }: QueryState & { items?: Anomaly[]; categories: Category[]; month: string }) {
-  const name = catNamer(categories);
+  const name = useCatNamer(categories);
   return (
     <Panel
       title="Unusual activity"

@@ -6,6 +6,7 @@ import { formatDate, todayISO } from "@/lib/dates";
 import { formatFils } from "@/lib/money";
 import type { Account, FinancialHealth, UpcomingDebtPayment } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { householdFirst, isBusiness } from "@/features/accounts/accountMeta";
 import { daysBetween, hasHealthData, healthComponents, scoreBand } from "./format";
 
 /* ---------------- Upcoming payments ---------------- */
@@ -154,9 +155,13 @@ const TYPE_LABEL: Record<Account["type"], string> = {
   investment: "Investment",
 };
 
-export function AccountsPanel({ accounts }: { accounts: Account[] }) {
-  const aed = accounts.filter((a) => a.currency === "AED");
-  const excluded = accounts.length - aed.length;
+export function AccountsPanel({ accounts: all }: { accounts: Account[] }) {
+  // Household first; business accounts are listed but kept out of the household total.
+  const accounts = householdFirst(all);
+  const household = accounts.filter((a) => !isBusiness(a));
+  const aed = household.filter((a) => a.currency === "AED");
+  const excluded = household.length - aed.length;
+  const businessCount = accounts.length - household.length;
   const total = aed.reduce((s, a) => s + a.balanceFils, 0);
   return (
     <Panel
@@ -189,7 +194,7 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-meta font-medium text-ink">{a.name}</p>
                   <p className="flex min-w-0 gap-2 text-xs text-ink-2">
-                    <span className="shrink-0">{TYPE_LABEL[a.type]}</span>
+                    <span className="shrink-0">{isBusiness(a) ? `Business · ${TYPE_LABEL[a.type]}` : TYPE_LABEL[a.type]}</span>
                     {a.institution ? <span className="min-w-0 truncate">{a.institution}</span> : null}
                     {a.last4 ? <span className="tabular shrink-0">•••• {a.last4}</span> : null}
                   </p>
@@ -207,6 +212,11 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
             <span className="text-meta text-ink-2">
               Net total
               {excluded ? <span className="block text-xs">Excludes {excluded} non-AED {excluded === 1 ? "account" : "accounts"}</span> : null}
+              {businessCount ? (
+                <span className="block text-xs">
+                  Household only, excludes {businessCount} business {businessCount === 1 ? "account" : "accounts"}
+                </span>
+              ) : null}
             </span>
             <Money fils={total} tone={total < 0 ? "danger" : undefined} className="text-sm font-semibold" />
           </div>

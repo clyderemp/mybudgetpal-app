@@ -6,13 +6,32 @@ export interface TxnLookups {
   categories: Map<string, Category>;
 }
 
+/**
+ * Transfers crossing the household/business line count as household money (spec: business → household
+ * = income "From <business>", household → business = spending "To <business>"). Null otherwise.
+ */
+export function businessFlow(t: Transaction, l: TxnLookups): { dir: "from" | "to"; account: Account } | null {
+  if (t.type !== "transfer" || !t.toAccountId) return null;
+  const src = l.accounts.get(t.accountId);
+  const dst = l.accounts.get(t.toAccountId);
+  const srcBiz = src?.purpose === "business";
+  const dstBiz = dst?.purpose === "business";
+  if (srcBiz && dst && !dstBiz) return { dir: "from", account: src };
+  if (dstBiz && src && !srcBiz) return { dir: "to", account: dst };
+  return null;
+}
+
 export function txnTitle(t: Transaction, l: TxnLookups): string {
   if (t.merchant) return t.merchant;
+  const biz = businessFlow(t, l);
+  if (biz) return `${biz.dir === "from" ? "From" : "To"} ${biz.account.name}`;
   if (t.type === "transfer") return "Transfer";
   return (t.categoryId && l.categories.get(t.categoryId)?.name) || (t.type === "income" ? "Income" : "Expense");
 }
 
 export function txnCategory(t: Transaction, l: TxnLookups): string {
+  const biz = businessFlow(t, l);
+  if (biz) return biz.dir === "from" ? "Household income" : "Household spending";
   if (t.type === "transfer") return "Transfer";
   if (!t.categoryId) return "Uncategorised";
   return l.categories.get(t.categoryId)?.name ?? "Unknown category";

@@ -84,6 +84,8 @@ export interface ExploreFilters {
   accounts: string[];
   members: string[];
   merchant: string;
+  /** Count business accounts as household money (URL `biz=1`; default off). */
+  includeBusiness: boolean;
   /** Number of active narrowing filters (categories, accounts, members, merchant). */
   activeCount: number;
   params: ExploreParams;
@@ -100,7 +102,8 @@ export interface ExploreFilters {
         | "cat"
         | "acct"
         | "who"
-        | "q",
+        | "q"
+        | "biz",
         string | string[] | null
       >
     >,
@@ -154,6 +157,7 @@ export function useExploreFilters(): ExploreFilters {
     const accounts = list(sp.get("acct"));
     const members = list(sp.get("who"));
     const merchant = sp.get("q") ?? "";
+    const includeBusiness = sp.get("biz") === "1";
     const activeCount =
       (categories.length ? 1 : 0) +
       (accounts.length ? 1 : 0) +
@@ -171,6 +175,7 @@ export function useExploreFilters(): ExploreFilters {
       accounts,
       members,
       merchant,
+      includeBusiness,
       activeCount,
       params: {
         from,
@@ -183,6 +188,7 @@ export function useExploreFilters(): ExploreFilters {
         members,
         merchant,
         horizon: 3,
+        includeBusiness,
       },
       set,
       clearNarrowing: () => set({ cat: null, acct: null, who: null, q: null }),
