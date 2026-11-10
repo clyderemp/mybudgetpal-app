@@ -12,6 +12,7 @@ import { formatDate, formatDayLabel, todayISO } from "@/lib/dates";
 import { formatFils } from "@/lib/money";
 import type { Account, Category, Transaction } from "@/lib/types";
 import { ItemsHint, ReviewBadge } from "@/features/transactions/review";
+import { businessFlow, txnCategory, txnTitle } from "@/features/transactions/format";
 
 interface Row {
   id: string;
@@ -30,11 +31,25 @@ interface Row {
 function toRows(items: Transaction[], categories: Category[], accounts: Account[]): Row[] {
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   const acct = new Map(accounts.map((a) => [a.id, a]));
+  const lookups = { accounts: acct, categories: new Map(categories.map((c) => [c.id, c])) };
   return items.map((t) => {
     const account = acct.get(t.accountId);
-    const category = t.type === "transfer" ? "Transfer" : (t.categoryId && catName.get(t.categoryId)) || "Uncategorised";
+    // Transfers to/from a business account read "From/To <account>" (household income/spending).
+    const biz = businessFlow(t, lookups);
+    const category = biz
+      ? txnCategory(t, lookups)
+      : t.type === "transfer"
+        ? "Transfer"
+        : (t.categoryId && catName.get(t.categoryId)) || "Uncategorised";
     const title =
-      t.merchant || (t.type === "transfer" ? `Transfer to ${acct.get(t.toAccountId ?? "")?.name ?? "account"}` : t.type === "income" ? "Income" : category);
+      t.merchant ||
+      (biz
+        ? txnTitle(t, lookups)
+        : t.type === "transfer"
+          ? `Transfer to ${acct.get(t.toAccountId ?? "")?.name ?? "account"}`
+          : t.type === "income"
+            ? "Income"
+            : category);
     return {
       id: t.id,
       date: t.date,
@@ -121,7 +136,6 @@ export function RecentTransactionsPanel({
           <span className="flex h-full min-w-0 items-center gap-1.5">
             <TruncCell text={row.title} className="min-w-0 font-medium text-ink" />
             <ReviewBadge t={row.txn} compact />
-            <ItemsHint t={row.txn} />
           </span>
         ),
       },

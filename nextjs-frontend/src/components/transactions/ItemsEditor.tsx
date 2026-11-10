@@ -80,16 +80,14 @@ export function ItemsTotalLine({
       <span className="tabular">
         Items {formatFils(sumFils, currency)}
         {total > 0 ? ` of ${formatFils(total, currency)}` : ""}
-      </span>
-      {total > 0 ? (
-        <span className="tabular">
-          {over
-            ? `· more than the total by ${formatFils(-diff, currency)}`
+        {total > 0
+          ? over
+            ? `, ${formatFils(-diff, currency)} more than the total`
             : diff === 0
-              ? "· matches the total"
-              : `· ${formatFils(diff, currency)} not itemised`}
-        </span>
-      ) : null}
+              ? ", matches the total"
+              : `, ${formatFils(diff, currency)} not itemised`
+          : ""}
+      </span>
     </p>
   );
 }
@@ -162,11 +160,11 @@ export function ItemsEditor({
           ))}
         </ul>
       ) : null}
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+      <ItemsTotalLine sumFils={sum} totalFils={totalFils} currency={currency} />
+      <div>
         <Button variant="secondary" size="sm" onClick={() => onChange([...value, emptyDraft()])}>
           <Plus /> {value.length ? "Add another item" : "Add items"}
         </Button>
-        <ItemsTotalLine sumFils={sum} totalFils={totalFils} currency={currency} />
       </div>
       {error ? (
         <p role="alert" className="text-xs text-danger">

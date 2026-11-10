@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PeriodSelector } from "@/components/shell/PeriodSelector";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
 import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
-import { Button, EmptyState, InlineError, Money, notify, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
+import { Button, EmptyState, InlineError, Money, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
 import { todayISO } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
 import { useReviewCount, useTransactions } from "@/lib/queries";
@@ -105,13 +105,17 @@ export function TransactionsView() {
 
   // Totals for the whole filtered range: reuse the page when it holds every row, else fetch up to 500.
   const needTotalsQuery = Boolean(txQ.data) && total > rows.length;
+  // Household money unless the account filter is a business account (then: that account as recorded).
+  const filterIsBusiness = filters.accountId ? lookups.accounts.get(filters.accountId)?.purpose === "business" : false;
+  const totalsOpts = useMemo(() => ({ household: !filterIsBusiness }), [filterIsBusiness]);
+  const householdOnly = !filterIsBusiness && [...lookups.accounts.values()].some((a) => a.purpose === "business");
   const totalsQ = useTransactions({ ...baseQuery, page: 1, pageSize: TOTALS_LIMIT, sort: "-date" }, { enabled: needTotalsQuery });
   const totals = useMemo(() => {
     if (!txQ.data) return null;
-    if (!needTotalsQuery) return { ...txnTotals(rows, lookups), partial: false };
+    if (!needTotalsQuery) return { ...txnTotals(rows, lookups, totalsOpts), partial: false };
     if (!totalsQ.data) return null;
-    return { ...txnTotals(totalsQ.data.items, lookups), partial: totalsQ.data.total > totalsQ.data.items.length };
-  }, [txQ.data, needTotalsQuery, rows, totalsQ.data, lookups]);
+    return { ...txnTotals(totalsQ.data.items, lookups, totalsOpts), partial: totalsQ.data.total > totalsQ.data.items.length };
+  }, [txQ.data, needTotalsQuery, rows, totalsQ.data, lookups, totalsOpts]);
 
   const hasFilters =
     filters.range !== "month" || Boolean(filters.accountId || filters.categoryId || filters.type || filters.q || filters.review);
@@ -192,14 +196,14 @@ export function TransactionsView() {
           onSortChange={(s) => set({ sort: s !== "-date" ? s : null, page: null })}
           onOpen={setSelected}
         />
-        <TotalsBar totals={totals} count={total} className="border-t border-line" />
+        <TotalsBar totals={totals} count={total} householdOnly={householdOnly} className="border-t border-line" />
       </Panel>
     );
   } else {
     body = (
       <>
         <Panel flush className="mb-3">
-          <TotalsBar totals={totals} count={total} />
+          <TotalsBar totals={totals} count={total} householdOnly={householdOnly} />
         </Panel>
         <TransactionCardList rows={rows} lookups={lookups} onOpen={setSelected} />
         {total > pageSize ? <Pager page={page} pageSize={pageSize} total={total} onPage={(p) => set({ page: p > 1 ? p : null })} /> : null}
@@ -238,11 +242,8 @@ export function TransactionsView() {
         onClose={() => setSelected(null)}
         onNext={nextFlagged ? () => setSelected(nextFlagged) : undefined}
         onReviewed={() => {
-          if (nextFlagged) setSelected(nextFlagged);
-          else {
-            setSelected(null);
-            if (filters.review) notify.success("All caught up: nothing left to review");
-          }
+          // The empty "Needs review" list then says the rest; no second toast.
+          setSelected(nextFlagged ?? null);
         }}
       />
     </>
@@ -252,7 +253,17 @@ export function TransactionsView() {
 type Totals = ReturnType<typeof txnTotals> & { partial: boolean };
 
 /** In / out / net for the filtered range (AED; transfers excluded). */
-function TotalsBar({ totals, count, className }: { totals: Totals | null; count: number; className?: string }) {
+function TotalsBar({
+  totals,
+  count,
+  householdOnly,
+  className,
+}: {
+  totals: Totals | null;
+  count: number;
+  householdOnly?: boolean;
+  className?: string;
+}) {
   const cells: { label: string; node: ReactNode }[] = totals
     ? [
         { label: "Money in", node: <Money fils={totals.inFils} flow="in" /> },
@@ -273,6 +284,7 @@ function TotalsBar({ totals, count, className }: { totals: Totals | null; count:
         Totals for <span className="tabular">{count.toLocaleString("en-US")}</span> {count === 1 ? "transaction" : "transactions"}
         {totals?.partial ? <span>, first {TOTALS_LIMIT} only</span> : null}
         {totals && totals.foreign > 0 ? <span>, excluding non-AED accounts</span> : null}
+        {householdOnly ? <span>, household money only</span> : null}
       </p>
       <dl className="flex min-w-0 flex-col gap-1 md:flex-row md:gap-8">
         {totals

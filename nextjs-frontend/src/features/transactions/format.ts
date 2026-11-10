@@ -71,18 +71,26 @@ export const TYPE_LABEL: Record<Transaction["type"], string> = {
   transfer: "Transfer",
 };
 
-/** In / out / net over a set of transactions (AED only; transfers excluded). */
-export function txnTotals(rows: Transaction[], l: TxnLookups) {
+/**
+ * In / out / net over a set of transactions (AED only; transfers excluded).
+ * `household` (default): same rule as the backend analytics — income/expense on business accounts
+ * is left out, and transfers between a business and a household account count as household
+ * income ("From …") or spending ("To …"). Pass false for a business account's own view.
+ */
+export function txnTotals(rows: Transaction[], l: TxnLookups, opts: { household?: boolean } = {}) {
+  const household = opts.household ?? true;
   let inFils = 0;
   let outFils = 0;
   let foreign = 0;
   for (const t of rows) {
-    if (t.type === "transfer") continue;
+    const biz = household ? businessFlow(t, l) : null;
+    if (t.type === "transfer" && !biz) continue;
+    if (!biz && household && l.accounts.get(t.accountId)?.purpose === "business") continue;
     if (txnCurrency(t, l) !== "AED") {
       foreign += 1;
       continue;
     }
-    if (t.type === "income") inFils += t.amountFils;
+    if (biz ? biz.dir === "from" : t.type === "income") inFils += t.amountFils;
     else outFils += t.amountFils;
   }
   return { inFils, outFils, netFils: inFils - outFils, foreign };
