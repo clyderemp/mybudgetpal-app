@@ -341,6 +341,13 @@ def test_detect_recurring():
     assert out[0]["confidence"] == "high"
 
 
+def test_detect_recurring_skips_stopped_payments():
+    txns = [txn(f"2026-{m}-04", 9_100, "Cake n More") for m in ("05", "06", "07")]
+    assert detect_recurring(txns, [], TODAY) == []  # last one in July: more than 45 days ago
+    out = detect_recurring([txn(f"2026-{m}-04", 9_100, "Corner shop") for m in ("09", "10", "11")], [], TODAY)
+    assert out[0]["kind"] == "other"
+
+
 def test_detect_recurring_skips_linked_transactions():
     txns = [txn(f"2026-{m}-03", 2_474, "Spotify", bill_id="sp") for m in ("08", "09", "10")]
     assert detect_recurring(txns, [], TODAY) == []

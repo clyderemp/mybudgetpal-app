@@ -44,6 +44,7 @@ INCOME_SLACK_DAYS = 3  # income may land this many days either side of its usual
 DUE_SOON_DAYS = 3
 PRICE_CHANGE_BAND = 0.5  # a text match within +/-50% is still the bill, flagged as a price change
 ESTIMATE_HISTORY = 3
+STALE_DAYS = 45  # a suggestion needs a payment this recent
 COMMITMENT_KINDS = ("bill", "subscription", "loan", "bnpl", "debt_payment", "other")
 
 CONF_RANK = {"linked": 3, "high": 2, "medium": 1}
@@ -581,7 +582,7 @@ def guess_kind(text: str) -> str:
     for kind, words in _KIND_WORDS:
         if any(w in hay for w in words):
             return kind
-    return "bill"
+    return "other"
 
 
 def _clusters(rows: list[Any]) -> list[list[Any]]:
@@ -598,7 +599,7 @@ def _clusters(rows: list[Any]) -> list[list[Any]]:
 def detect_recurring(txns: list[Any], bills: list[Any], today: dt.date, months: int = 6) -> list[dict[str, Any]]:
     """Recurring expense candidates from the last ``months`` months: the same merchant roughly monthly
     (seen in >= 2 distinct months, at most ~1.5 times a month, median gap 20-40 days when >= 3 times)
-    at a similar amount. Skips transactions already linked to a bill and merchants an active bill already
+    at a similar amount, last paid within 45 days. Skips transactions already linked to a bill and merchants an active bill already
     matches. Sorted by confidence, then amount."""
     since = add_months(f"{today.year:04d}-{today.month:02d}", -months)
     start = day_in_month(since, 1)
@@ -629,6 +630,8 @@ def detect_recurring(txns: list[Any], bills: list[Any], today: dt.date, months: 
                 continue
             if len(c) == 2 and not 20 <= gaps[0] <= 40:
                 continue
+            if (today - _date(c[-1])).days > STALE_DAYS:
+                continue  # stopped: nothing in the last ~6 weeks
             amounts = [int(get(t, "amount_fils")) for t in c]
             mid = int(median(amounts))
             spread = (max(amounts) - min(amounts)) / mid if mid else 0
