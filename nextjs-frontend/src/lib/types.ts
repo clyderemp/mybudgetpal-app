@@ -120,6 +120,7 @@ export interface Account {
   last4?: string | null;
   color?: string | null;
   archived: boolean;
+  purpose?: AccountPurpose;
   createdAt?: ISODateTime;
   updatedAt?: ISODateTime;
 }
@@ -132,6 +133,7 @@ export interface AccountCreate {
   openingBalanceFils: number;
   last4?: string | null;
   color?: string | null;
+  purpose?: AccountPurpose;
 }
 
 export type AccountUpdate = Partial<AccountCreate>;
@@ -169,6 +171,15 @@ export type CategoryUpdate = Partial<CategoryCreate>;
 export type TransactionType = "income" | "expense" | "transfer";
 export type TransactionSource = "manual" | "import";
 
+export interface TxnItem {
+  name: string;
+  amountFils?: number | null;
+  quantity?: number | null;
+}
+
+/** "business" accounts (e.g. Sessions DXB) are kept out of household totals. */
+export type AccountPurpose = "household" | "business";
+
 export interface Transaction {
   id: ID;
   householdId?: ID;
@@ -183,6 +194,13 @@ export interface Transaction {
   createdBy: ID;
   createdByName?: string | null;
   source: TransactionSource;
+  items?: TxnItem[];
+  /** Flagged for a person to check, e.g. a bank row with no merchant/payee name. */
+  needsReview?: boolean;
+  reviewReason?: string | null;
+  sourceRef?: string | null;
+  importBatch?: string | null;
+  billId?: ID | null;
   deletedAt?: ISODateTime | null;
   createdAt?: ISODateTime;
   updatedAt?: ISODateTime;
@@ -197,9 +215,10 @@ export interface TransactionCreate {
   toAccountId?: ID | null;
   merchant?: string | null;
   note?: string | null;
+  items?: TxnItem[];
 }
 
-export type TransactionUpdate = Partial<TransactionCreate>;
+export type TransactionUpdate = Partial<TransactionCreate> & { needsReview?: boolean };
 
 export type TransactionSort = "date" | "-date" | "amount" | "-amount";
 

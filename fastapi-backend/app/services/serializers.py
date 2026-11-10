@@ -6,7 +6,7 @@ from app.schemas.auth import DEFAULT_AVATAR_STYLE, UserOut
 from app.schemas.categories import CategoryOut
 from app.schemas.debts import DebtOut
 from app.schemas.goals import GoalOut
-from app.schemas.transactions import TransactionOut
+from app.schemas.transactions import TransactionOut, TxnItemOut
 
 
 def _s(v: object) -> str | None:
@@ -37,6 +37,7 @@ def account_out(a: Account, balance_fils: int) -> AccountOut:
         last4=a.last4,
         color=a.color,
         archived=a.archived,
+        purpose=a.purpose,
         created_at=a.created_at,
         updated_at=a.updated_at,
     )
@@ -71,6 +72,12 @@ def transaction_out(t: Transaction, names: dict[str, str] | None = None) -> Tran
         created_by=created_by,
         created_by_name=(names or {}).get(created_by),
         source=t.source,
+        items=[TxnItemOut(name=i.name, amount_fils=i.amount_fils, quantity=i.quantity) for i in t.items],
+        needs_review=t.needs_review,
+        review_reason=t.review_reason,
+        source_ref=t.source_ref,
+        import_batch=t.import_batch,
+        bill_id=_s(t.bill_id),
         created_at=t.created_at,
         updated_at=t.updated_at,
     )

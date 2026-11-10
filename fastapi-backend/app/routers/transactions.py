@@ -67,6 +67,7 @@ async def list_transactions(
     category_id: str | None = Query(None, alias="categoryId"),
     type_: TxnType | None = Query(None, alias="type"),
     q: str | None = Query(None, max_length=100),
+    needs_review: bool | None = Query(None, alias="needsReview"),
     page: int = Query(1, ge=1, le=100_000),
     page_size: int = Query(50, ge=1, le=500, alias="pageSize"),
     sort: TxnSort = Query("-date"),
@@ -89,6 +90,8 @@ async def list_transactions(
         query["category_id"] = cat
     if type_ is not None:
         query["type"] = type_
+    if needs_review is not None:
+        query["needs_review"] = True if needs_review else {"$ne": True}
     if q:
         rx = {"$regex": re.escape(q.strip()), "$options": "i"}
         and_.append({"$or": [{"merchant": rx}, {"note": rx}]})
@@ -131,8 +134,13 @@ async def patch_transaction(
         "to_account_id": str(txn.to_account_id) if txn.to_account_id else None,
         "merchant": txn.merchant,
         "note": txn.note,
+        "items": [i.model_dump() for i in txn.items],
     }
-    merged.update(body.model_dump(exclude_unset=True))
+    patch = body.model_dump(exclude_unset=True)
+    review = patch.pop("needs_review", None)
+    if patch.get("items") is None:
+        patch.pop("items", None)
+    merged.update(patch)
     if merged["type"] == "transfer" and "category_id" not in body.model_fields_set:
         merged["category_id"] = None
     if merged["type"] != "transfer" and "to_account_id" not in body.model_fields_set:
@@ -143,6 +151,9 @@ async def patch_transaction(
         raise validation_error(_pydantic_fields(exc)) from exc
     await validate_refs(data, current.household_id)
     apply_to_doc(txn, data)
+    if review is not None:  # explicit "mark reviewed" / "flag for review"
+        txn.needs_review = review
+        txn.review_reason = txn.review_reason if review else None
     txn.touch()
     _, names = await asyncio.gather(txn.save(), member_names(current.household_id))
     return transaction_out(txn, names)

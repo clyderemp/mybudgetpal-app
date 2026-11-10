@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import StringConstraints
 
-from app.models.accounts import AccountType
+from app.models.accounts import AccountPurpose, AccountType
 from app.schemas.base import ApiModel, Color, Currency, Fils, InputModel, Name, ShortText
 
 Last4 = Annotated[str, StringConstraints(pattern=r"^\d{4}$")]
@@ -19,6 +19,7 @@ class AccountCreate(InputModel):
     opening_balance_fils: Fils = 0
     last4: Last4 | None = None
     color: Color | None = None
+    purpose: AccountPurpose = "household"
 
 
 class AccountPatch(InputModel):
@@ -29,6 +30,7 @@ class AccountPatch(InputModel):
     opening_balance_fils: Fils | None = None
     last4: Last4 | None = None
     color: Color | None = None
+    purpose: AccountPurpose | None = None
 
 
 class AccountOut(ApiModel):
@@ -42,5 +44,6 @@ class AccountOut(ApiModel):
     last4: str | None
     color: str | None
     archived: bool
+    purpose: str = "household"
     created_at: datetime
     updated_at: datetime

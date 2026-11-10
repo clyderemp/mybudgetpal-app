@@ -10,6 +10,18 @@ from app.models.transactions import TxnType
 from app.schemas.base import ApiModel, InputModel, LongText, ObjectIdStr, PosFils, ShortText
 
 
+class TxnItemIn(InputModel):
+    name: ShortText
+    amount_fils: PosFils | None = None
+    quantity: float | None = None
+
+
+class TxnItemOut(ApiModel):
+    name: str
+    amount_fils: int | None = None
+    quantity: float | None = None
+
+
 class TransactionCreate(InputModel):
     account_id: ObjectIdStr
     date: dt.date
@@ -19,6 +31,7 @@ class TransactionCreate(InputModel):
     to_account_id: ObjectIdStr | None = None
     merchant: ShortText | None = None
     note: LongText | None = None
+    items: list[TxnItemIn] = []
 
     @model_validator(mode="after")
     def _rules(self) -> "TransactionCreate":
@@ -44,6 +57,8 @@ class TransactionPatch(InputModel):
     to_account_id: ObjectIdStr | None = None
     merchant: ShortText | None = None
     note: LongText | None = None
+    items: list[TxnItemIn] | None = None
+    needs_review: bool | None = None
 
 
 class TransactionOut(ApiModel):
@@ -59,6 +74,12 @@ class TransactionOut(ApiModel):
     created_by: str
     created_by_name: str | None
     source: str
+    items: list[TxnItemOut] = []
+    needs_review: bool = False
+    review_reason: str | None = None
+    source_ref: str | None = None
+    import_batch: str | None = None
+    bill_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
