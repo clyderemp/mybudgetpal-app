@@ -87,7 +87,9 @@ function buildUrl(path: string, query?: Query): string {
 async function rawFetch(path: string, opts: RequestOptions): Promise<Response> {
   const method = opts.method ?? "GET";
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  // FormData (file uploads): the browser sets the multipart Content-Type with its boundary.
+  const isForm = typeof FormData !== "undefined" && opts.body instanceof FormData;
+  if (opts.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
   if (!SAFE_METHODS.has(method)) {
     const csrf = readCookie("mbp_csrf");
     if (csrf) headers["X-CSRF-Token"] = csrf;
@@ -96,7 +98,7 @@ async function rawFetch(path: string, opts: RequestOptions): Promise<Response> {
     method,
     headers,
     credentials: "include",
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
     signal: opts.signal,
     cache: "no-store",
   });

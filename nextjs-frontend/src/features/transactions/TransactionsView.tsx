@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PeriodSelector } from "@/components/shell/PeriodSelector";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
 import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
+import { ImportStatementLink } from "@/features/import/ImportStatementLink";
 import { Button, EmptyState, InlineError, Money, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
 import { todayISO } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
@@ -203,6 +204,7 @@ export function TransactionsView() {
         actions={
           <>
             {filters.range === "month" ? <PeriodSelector className="md:hidden" /> : null}
+            <ImportStatementLink />
             <div className="hidden md:block">{addButton()}</div>
           </>
         }
