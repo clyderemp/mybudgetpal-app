@@ -28,6 +28,7 @@ export const qk = {
     forecast: ["insights", "forecast"] as const,
     anomalies: (month: string) => ["insights", "anomalies", month] as const,
     health: ["insights", "health"] as const,
+    explore: (params: object) => ["insights", "explore", params] as const,
   },
   dashboard: ["dashboard"] as const,
 };

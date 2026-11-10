@@ -26,7 +26,7 @@ export const NAV_GROUPS: { label: Exclude<NavGroupLabel, "Settings">; items: Nav
     label: "Overview",
     items: [
       { href: "/", label: "Dashboard", icon: LayoutDashboard, group: "Overview", period: true },
-      { href: "/insights", label: "Insights", icon: LineChart, group: "Overview", period: true },
+      { href: "/insights", label: "Insights", icon: LineChart, group: "Overview" },
     ],
   },
   {

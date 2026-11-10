@@ -9,6 +9,8 @@ from app.models import Transaction
 from app.services.ids import to_oid
 
 _PROJECTION = {"_id": 1, "date": 1, "amount_fils": 1, "type": 1, "category_id": 1, "account_id": 1, "to_account_id": 1}
+# The explorer also filters/groups by who recorded it and by merchant.
+_DETAIL_PROJECTION = {**_PROJECTION, "merchant": 1, "created_by": 1}
 # Large first batch: the whole range normally arrives in a single round trip (no getMore).
 _BATCH_SIZE = 10_000
 
@@ -22,7 +24,7 @@ def _as_date(value: Any) -> dt.date:
 
 
 async def load_analytics_txns(
-    household_id: str | PydanticObjectId, start: dt.date | None, end: dt.date | None
+    household_id: str | PydanticObjectId, start: dt.date | None, end: dt.date | None, *, detail: bool = False
 ) -> list[dict[str, Any]]:
     """Non-deleted household transactions in [start, end] (inclusive) as plain dicts (spec §6).
 
@@ -41,7 +43,7 @@ async def load_analytics_txns(
     # per-document model validation is done.
     cursor = (
         Transaction.get_motor_collection()
-        .find(query, _PROJECTION, batch_size=_BATCH_SIZE)
+        .find(query, _DETAIL_PROJECTION if detail else _PROJECTION, batch_size=_BATCH_SIZE)
         .sort("date", 1)
     )
     return [
@@ -53,6 +55,11 @@ async def load_analytics_txns(
             "category_id": str(t["category_id"]) if t.get("category_id") else None,
             "account_id": str(t["account_id"]),
             "to_account_id": str(t["to_account_id"]) if t.get("to_account_id") else None,
+            **(
+                {"merchant": t.get("merchant"), "created_by": str(t["created_by"]) if t.get("created_by") else None}
+                if detail
+                else {}
+            ),
         }
         for t in await cursor.to_list(None)
     ]

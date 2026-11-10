@@ -121,6 +121,18 @@ Insights:
 - `GET /insights/forecast` → `forecast_next_month`
 - `GET /insights/anomalies?month=` → `detect_anomalies`
 - `GET /insights/health` → `financial_health`
+- `GET /insights/explore` → `analytics/explore.py` (Insights page). Query: `from`, `to` (default: last
+  12 months from the 1st), `flow` (`expense`|`income`), `granularity` (`day`|`week`|`month`; default by
+  range: ≤45 days daily, ≤200 weekly, else monthly), `groupBy` (`category`|`group`|`account`|`member`|
+  `merchant`|`weekday`), filters `categories`/`accounts`/`members` (comma-separated ids; `none` =
+  uncategorised) and `merchant` (case-insensitive substring), `horizon` (1–12 forecast periods). Range ≤ 5
+  years. Returns totals and the same totals for the previous equal-length range, a zero-filled series
+  (with the previous range aligned by position and a running net), the breakdown, the breakdown stacked
+  per period (top 6 + Other), weekday averages, daily amounts, top merchants, largest items, the pace of
+  the current period, and a forecast: per complete period before today's, leading/trailing empty periods
+  dropped, point = ½·EWMA(α 0.5) + ½·max(0, linear trend), 80% band = ±1.2816·residual sd·√h (sd ≥ 10% of
+  the mean); confidence low when stale (nothing in the latest complete period) or < 4 periods, medium 4–5,
+  high ≥ 6. Transfers never count.
 - `GET /dashboard` → `{summary, health, budget (current month), upcomingDebtPayments: [{debtId, name, dueDate, minPaymentFils}], recentTransactions (10), accounts}`
 
 - `POST /receipts/read` `{text}` (OCR text, 1–8000 chars; the image never reaches the server) → `{merchant, amountFils, currency, date, categoryId, accountId (card last 4 matched to an account), cardLast4, vatFils, items: [{name, amountFils}], source: "ai"|"text", aiUnavailable}`. Long numbers are redacted to their last 4 digits before the text goes to OpenRouter (free models only, `OPENROUTER_MODEL`, tried in order with a per-model time limit); a local parser fills missing fields, and a date printed on the receipt beats the AI's. Without `OPENROUTER_API_KEY` only the local parser runs. Saves nothing. Rate limit `RATE_LIMIT_RECEIPTS_PER_MIN` (20) per IP.

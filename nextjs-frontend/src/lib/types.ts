@@ -466,3 +466,100 @@ export interface ReceiptReading {
   source: "ai" | "text";
   aiUnavailable: boolean;
 }
+
+/* ---------------- Insights explorer (/insights/explore) ---------------- */
+
+export type ExploreGranularity = "day" | "week" | "month";
+export type ExploreGroupBy = "category" | "group" | "account" | "member" | "merchant" | "weekday";
+export type ExploreFlow = "expense" | "income";
+
+export interface ExploreParams {
+  from: ISODate;
+  to: ISODate;
+  flow: ExploreFlow;
+  granularity?: ExploreGranularity;
+  groupBy: ExploreGroupBy;
+  categories?: ID[];
+  accounts?: ID[];
+  members?: ID[];
+  merchant?: string;
+  horizon?: number;
+}
+
+export interface ExploreTotals {
+  incomeFils: number;
+  expenseFils: number;
+  netFils: number;
+  count: number;
+  expenseCount: number;
+  savingsRate: number | null;
+  avgDailyExpenseFils: number;
+  avgExpenseFils: number;
+}
+
+export interface ExplorePoint {
+  period: string;
+  start: ISODate;
+  end: ISODate;
+  incomeFils: number;
+  expenseFils: number;
+  netFils: number;
+  count: number;
+  cumulativeNetFils: number;
+  prevIncomeFils: number | null;
+  prevExpenseFils: number | null;
+  partial: boolean;
+}
+
+export interface ExploreGroup {
+  key: string;
+  label: string;
+  fils: number;
+  count: number;
+  share: number;
+  avgFils: number;
+}
+
+export interface ExploreForecastPoint {
+  period: string;
+  expenseFils: number | null;
+  expenseLowFils: number | null;
+  expenseHighFils: number | null;
+  incomeFils: number | null;
+  incomeLowFils: number | null;
+  incomeHighFils: number | null;
+}
+
+export interface ExploreResult {
+  range: { from: ISODate; to: ISODate; days: number };
+  previousRange: { from: ISODate; to: ISODate };
+  granularity: ExploreGranularity;
+  groupBy: ExploreGroupBy;
+  flow: ExploreFlow;
+  totals: ExploreTotals;
+  previous: ExploreTotals;
+  series: ExplorePoint[];
+  breakdown: ExploreGroup[];
+  stackKeys: { key: string; label: string }[];
+  stacked: { period: string; values: Record<string, number> }[];
+  weekday: { weekday: number; label: string; fils: number; count: number; avgFils: number }[];
+  daily: { date: ISODate; fils: number }[];
+  topMerchants: { merchant: string; fils: number; count: number }[];
+  largest: { id: ID; date: ISODate; fils: number; merchant: string | null; categoryId: ID | null }[];
+  forecast: {
+    points: ExploreForecastPoint[];
+    confidence: Confidence;
+    basedOnPeriods: number;
+    /** Nothing recorded in the latest complete period; the forecast rests on older history. */
+    stale: boolean;
+    lastDataPeriod: string | null;
+  };
+  pace: {
+    period: string;
+    spentFils: number;
+    elapsedDays: number;
+    totalDays: number;
+    projectedFils: number;
+    forecastFils: number | null;
+  } | null;
+}

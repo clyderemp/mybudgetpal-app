@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+
+from app.analytics.explore import GRANULARITIES, GROUP_BYS, apply_filters, auto_granularity, explore, period_start
+from app.errors import AppError
+from app.models import Account, Category, User
+from app.services.analytics_data import load_analytics_txns
 
 from app.analytics import detect_anomalies, forecast_next_month, monthly_series
 from app.security.deps import CurrentUser, get_current_user
@@ -14,6 +20,13 @@ router = APIRouter(prefix="/insights", tags=["insights"])
 
 FORECAST_HISTORY_MONTHS = 6
 ANOMALY_LOOKBACK_MONTHS = 6
+EXPLORE_MAX_DAYS = 366 * 5
+FORECAST_HISTORY_PERIODS = {"day": 60, "week": 26, "month": 12}
+
+
+def _ids(raw: str | None) -> set[str] | None:
+    vals = {v.strip() for v in (raw or "").split(",") if v.strip()}
+    return vals or None
 
 
 @router.get("/summary")
@@ -69,3 +82,82 @@ async def health(
     today: dt.date = Depends(get_today),
 ) -> dict[str, Any]:
     return await health_for(current.household_id, today)
+
+
+@router.get("/explore")
+async def explore_endpoint(
+    from_: dt.date | None = Query(None, alias="from"),
+    to: dt.date | None = Query(None),
+    flow: str = Query("expense", pattern="^(expense|income)$"),
+    granularity: str | None = Query(None, description="day | week | month; default: by range length"),
+    group_by: str = Query("category", alias="groupBy"),
+    categories: str | None = Query(None, description="comma-separated category ids; 'none' = uncategorised"),
+    accounts: str | None = Query(None),
+    members: str | None = Query(None),
+    merchant: str | None = Query(None, max_length=80),
+    horizon: int = Query(3, ge=1, le=12),
+    current: CurrentUser = Depends(get_current_user),
+    today: dt.date = Depends(get_today),
+) -> dict[str, Any]:
+    """Filtered totals, series, breakdowns and forecast for any date range (spec §6 explore)."""
+    end = to or today
+    if from_ is not None:
+        start = from_
+    else:  # default: the last 12 months, starting on the 1st
+        y, m = (end.year, end.month - 11) if end.month > 11 else (end.year - 1, end.month + 1)
+        start = dt.date(y, m, 1)
+    if start > end:
+        raise AppError(422, "invalid_range", "'from' must be on or before 'to'.")
+    if (end - start).days > EXPLORE_MAX_DAYS:
+        raise AppError(422, "range_too_long", "Choose a range of 5 years or less.")
+    if granularity is not None and granularity not in GRANULARITIES:
+        raise AppError(422, "invalid_granularity", "granularity must be day, week or month.")
+    if group_by not in GROUP_BYS:
+        raise AppError(422, "invalid_group_by", f"groupBy must be one of: {', '.join(GROUP_BYS)}.")
+
+    gran = granularity or auto_granularity(start, end)
+    days = (end - start).days + 1
+    prev_start = start - dt.timedelta(days=days)
+    cur = period_start(today, gran)
+    hist_start = cur
+    for _ in range(FORECAST_HISTORY_PERIODS[gran]):
+        hist_start = period_start(hist_start - dt.timedelta(days=1), gran)
+    load_from = min(prev_start, hist_start)
+    load_to = max(end, cur - dt.timedelta(days=1))
+    hid = current.household_id
+    raw, cats, accts, users = await asyncio.gather(
+        load_analytics_txns(hid, load_from, load_to, detail=True),
+        Category.find({"household_id": hid}).to_list(),
+        Account.find({"household_id": hid}).to_list(),
+        User.find({"household_id": hid}).to_list(),
+    )
+    filtered = apply_filters(
+        raw,
+        category_ids=_ids(categories),
+        account_ids=_ids(accounts),
+        member_ids=_ids(members),
+        merchant=merchant,
+    )
+    in_range = [t for t in filtered if start <= t["date"] <= end]
+    prev = [t for t in filtered if prev_start <= t["date"] < start]
+    history = [t for t in filtered if hist_start <= t["date"] < cur]
+
+    cat_name = {str(c.id): c.name for c in cats}
+    cat_group = {str(c.id): c.group for c in cats}
+    acct_name = {str(a.id): a.name for a in accts}
+    user_name = {str(u.id): u.name or u.username or "Member" for u in users}
+    group_label = {
+        "essentials": "Essentials", "lifestyle": "Lifestyle", "savings": "Savings", "debt": "Debt",
+        "income": "Income", "other": "Other",
+    }
+    labels = {
+        "category": lambda k: cat_name.get(k, "Uncategorised"),
+        "category_group": lambda k: cat_group.get(k, "other"),
+        "group": lambda k: group_label.get(k, k.replace("_", " ").title()),
+        "account": lambda k: acct_name.get(k, "Unknown account"),
+        "member": lambda k: user_name.get(k, "Unknown"),
+    }
+    return explore(
+        in_range, prev, start, end, today,
+        granularity=gran, group_by=group_by, flow=flow, horizon=horizon, history=history, labels=labels,
+    )
