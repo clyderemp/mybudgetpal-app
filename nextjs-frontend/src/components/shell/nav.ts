@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  CalendarClock,
   Landmark,
   LayoutDashboard,
   LineChart,
@@ -35,6 +36,7 @@ export const NAV_GROUPS: { label: Exclude<NavGroupLabel, "Settings">; items: Nav
       { href: "/transactions", label: "Transactions", icon: ArrowLeftRight, group: "Money", period: true },
       { href: "/accounts", label: "Accounts", icon: Landmark, group: "Money" },
       { href: "/budget", label: "Budget", icon: PieChart, group: "Money", period: true },
+      { href: "/bills", label: "Bills", icon: CalendarClock, group: "Money", period: true },
     ],
   },
   {
@@ -51,7 +53,7 @@ const byHref = (h: string) => NAV_ITEMS.find((i) => i.href === h)!;
 
 /** Phone bottom tabs (the rest live under "More"). */
 export const TAB_ITEMS: NavItem[] = ["/", "/transactions", "/budget", "/plan"].map(byHref);
-export const MORE_ITEMS: NavItem[] = ["/accounts", "/insights", "/settings"].map(byHref);
+export const MORE_ITEMS: NavItem[] = ["/bills", "/accounts", "/insights", "/settings"].map(byHref);
 
 export function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
