@@ -7,6 +7,7 @@ import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
 import { formatMonth } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
 import { useBudget, useCategories, useDashboard, useInsightsSummary, useInsightsTrends, useTransactions } from "@/lib/queries";
+import { BillsOverviewPanels } from "./BillsPanels";
 import { BudgetPanel } from "./BudgetPanel";
 import { CashFlowChart } from "./CashFlowChart";
 import { MonthStatBand } from "./MonthStatBand";
@@ -88,6 +89,7 @@ export function DashboardView() {
             onRetry={recent.retry}
           />
           <div className="flex min-w-0 flex-col gap-4 lg:gap-5">
+            {isCurrent ? <BillsOverviewPanels /> : null}
             {dash.isPending ? (
               <>
                 <Skeleton className="h-40 w-full rounded-container" />

@@ -29,6 +29,7 @@ import type { Budget, BudgetLine, CategoryGroup } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CategoryLabel } from "@/features/transactions/CategoryDot";
 import { EditLimitsDialog } from "./EditLimitsDialog";
+import { ZeroBasedPlanPanel } from "./ZeroBasedPlanPanel";
 import { GROUP_LABEL, groupBy } from "./groups";
 
 function txnHref(month: string, thisMonth: string, extra: Record<string, string>) {
@@ -94,6 +95,7 @@ export function BudgetView() {
     const lineSpent = b.lines.reduce((s, l) => s + l.spentFils, 0);
     body = (
       <div className="flex flex-col gap-5">
+        <ZeroBasedPlanPanel plan={b.plan} categories={categoriesQ.data ?? []} />
         <BudgetBand budget={b} prev={prevQ.data} lastMonthLabel={formatMonth(lastMonth)} />
 
         {b.unbudgetedSpentFils > 0 && hasLines ? (
