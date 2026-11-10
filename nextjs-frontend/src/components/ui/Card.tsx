@@ -47,7 +47,7 @@ export function PanelHeader({
     <div className={cn("flex min-h-12 items-center justify-between gap-3 border-b border-line px-4 py-2.5 md:px-5", className)}>
       <div className="min-w-0">
         {title ? <h2 className="truncate text-sm font-semibold text-ink">{title}</h2> : null}
-        {description ? <p className="truncate text-meta text-ink-2">{description}</p> : null}
+        {description ? <p className="text-pretty text-meta text-ink-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>

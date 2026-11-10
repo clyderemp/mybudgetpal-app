@@ -28,7 +28,15 @@ const schema = z.object({
 type FormInput = z.input<typeof schema>;
 type FormOutput = z.output<typeof schema>;
 
-export function DebtFormDialog({ debt, onClose }: { debt: Debt | null; onClose: () => void }) {
+/** Starting values for a new debt, e.g. from a credit card account that isn't tracked yet. */
+export interface DebtPrefill {
+  name: string;
+  kind: Debt["kind"];
+  balanceFils: number;
+  accountId: string;
+}
+
+export function DebtFormDialog({ debt, prefill, onClose }: { debt: Debt | null; prefill?: DebtPrefill; onClose: () => void }) {
   const accounts = useAccounts();
   const createM = useCreateDebt();
   const updateM = useUpdateDebt();
@@ -51,13 +59,13 @@ export function DebtFormDialog({ debt, onClose }: { debt: Debt | null; onClose: 
           accountId: debt.accountId ?? "",
         }
       : {
-          name: "",
-          kind: "credit_card",
-          balanceFils: undefined as unknown as number,
+          name: prefill?.name ?? "",
+          kind: prefill?.kind ?? "credit_card",
+          balanceFils: prefill?.balanceFils ?? (undefined as unknown as number),
           apr: "",
           minPaymentFils: undefined as unknown as number,
           dueDay: 1,
-          accountId: "",
+          accountId: prefill?.accountId ?? "",
         },
   });
 

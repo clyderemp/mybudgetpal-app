@@ -8,6 +8,7 @@ import { ActionMenu, Button, ConfirmDialog, Dropdown, EmptyState, Field, FormDia
 import { applyApiErrors } from "@/lib/form-errors";
 import { useArchiveCategory, useCategories, useCreateCategory, useUpdateCategory } from "@/lib/queries";
 import type { Category, CategoryGroup, CategoryKind } from "@/lib/types";
+import { useCategoryColor } from "@/features/transactions/CategoryDot";
 import { SectionHeader } from "./SectionHeader";
 
 const GROUP_LABEL: Record<CategoryGroup, string> = {
@@ -26,6 +27,7 @@ const GROUPS_FOR: Record<CategoryKind, CategoryGroup[]> = {
 export function CategoriesSection() {
   const categories = useCategories();
   const archiveM = useArchiveCategory();
+  const categoryColor = useCategoryColor();
   const [kind, setKind] = useState<CategoryKind>("expense");
   const [editing, setEditing] = useState<Category | "new" | null>(null);
   const [archiving, setArchiving] = useState<Category | null>(null);
@@ -85,7 +87,7 @@ export function CategoriesSection() {
                   <ul>
                     {g.items.map((c) => (
                       <li key={c.id} className="flex h-10 items-center gap-3 border-b border-line pr-2 pl-4 md:pl-5">
-                        <span aria-hidden className="size-2.5 shrink-0 rounded-chip" style={{ background: c.color || "var(--color-line-strong)" }} />
+                        <span aria-hidden className="size-2.5 shrink-0 rounded-chip" style={{ background: categoryColor(c) }} />
                         <span className="min-w-0 flex-1 truncate text-sm text-ink">{c.name}</span>
                         <ActionMenu
                           trigger={

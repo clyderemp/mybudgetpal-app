@@ -315,7 +315,13 @@ function BudgetBand({
       <StatBandItem
         label="Budgeted"
         value={formatFils(b.totalLimitFils, "AED", { noDecimals: true })}
-        hint={b.incomeFils > 0 ? `${formatPercent(b.totalLimitFils / b.incomeFils)} of income` : "No income recorded yet"}
+        hint={
+          b.totalLimitFils <= 0
+            ? "No limits set"
+            : b.incomeFils > 0
+              ? `${formatPercent(b.totalLimitFils / b.incomeFils)} of income`
+              : "Across all categories"
+        }
       />
       <StatBandItem label="Spent" value={formatFils(b.totalSpentFils, "AED", { noDecimals: true })} delta={spentDelta} hint={spentDelta ? undefined : "All expenses"} />
       <StatBandItem

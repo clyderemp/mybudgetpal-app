@@ -105,7 +105,7 @@ export function RecentTransactionsPanel({
       {
         field: "date",
         headerName: "Date",
-        width: 76,
+        width: 100, // fits "27 Dec 2025": short dates keep the year outside the current year
         sortable: false,
         valueFormatter: (v: string) => formatDate(v, true),
         cellClassName: "tabular text-ink-2",

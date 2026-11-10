@@ -23,8 +23,8 @@ import { useElementWidth } from "@/features/common/useElementWidth";
 import { formatDate, todayISO } from "@/lib/dates";
 import { formatBps } from "@/lib/money";
 import { useAccounts, useArchiveDebt, useDebts } from "@/lib/queries";
-import type { AccountType, Debt } from "@/lib/types";
-import { DebtFormDialog } from "./DebtFormDialog";
+import type { Account, AccountType, Debt } from "@/lib/types";
+import { DebtFormDialog, type DebtPrefill } from "./DebtFormDialog";
 import { DebtPaymentDialog } from "./DebtPaymentDialog";
 import { SummaryStrip } from "./SummaryStrip";
 import { daysBetween, DEBT_KIND_LABEL, monthlyInterestFils, nextDueDate, ordinal } from "./labels";
@@ -48,11 +48,49 @@ function linkedBalanceLabel(type?: AccountType) {
   return type === "credit_card" ? "Card balance" : type === "loan" ? "Loan account balance" : "Linked account balance";
 }
 
+/** Card and loan accounts that owe money but have no debt linked, so the payoff plan misses them. */
+function UntrackedAccountsPanel({ accounts, onAdd }: { accounts: Account[]; onAdd: (a: Account) => void }) {
+  if (!accounts.length) return null;
+  const owed = accounts.reduce((s, a) => s - a.balanceFils, 0);
+  return (
+    <Panel
+      title="Cards and loans not in your plan"
+      description={
+        <>
+          These accounts owe <Money fils={owed} noDecimals className="font-medium text-ink" /> in total. Add each as a debt with its
+          interest rate and minimum payment to include it in the payoff plan.
+        </>
+      }
+      flush
+    >
+      <ul className="divide-y divide-line">
+        {accounts.map((a) => (
+          <li key={a.id} className="flex items-center gap-3 px-4 py-3 md:px-5">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-ink">{a.name}</span>
+              <span className="block truncate text-meta text-ink-2">
+                {a.type === "loan" ? "Loan" : "Credit card"}
+                {a.institution ? `, ${a.institution}` : ""}
+              </span>
+              <Money fils={a.balanceFils} className="mt-0.5 block text-sm font-medium sm:hidden" tone="danger" />
+            </span>
+            <Money fils={a.balanceFils} className="hidden text-sm font-medium sm:inline" tone="danger" />
+            <Button variant="secondary" size="sm" onClick={() => onAdd(a)} aria-label={`Add ${a.name} as a debt`}>
+              <Plus aria-hidden /> Add as debt
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 export function DebtsTab() {
   const debts = useDebts();
   const accounts = useAccounts();
   const archiveM = useArchiveDebt();
   const [editing, setEditing] = useState<Debt | "new" | null>(null);
+  const [prefill, setPrefill] = useState<DebtPrefill | undefined>(undefined);
   const [paying, setPaying] = useState<Debt | null>(null);
   const [archiving, setArchiving] = useState<Debt | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -69,6 +107,14 @@ export function DebtsTab() {
   const total = rows.reduce((s, d) => s + d.balanceFils, 0);
   const mins = rows.reduce((s, d) => s + Math.min(d.minPaymentFils, d.balanceFils), 0);
   const weightedApr = total > 0 ? Math.round(rows.reduce((s, d) => s + d.aprBps * d.balanceFils, 0) / total) : 0;
+  const linkedIds = new Set((debts.data ?? []).map((d) => d.accountId).filter(Boolean));
+  const untracked = debts.data
+    ? (accounts.data ?? []).filter((a) => isDebtAccount(a.type) && !a.archived && a.balanceFils < 0 && !linkedIds.has(a.id))
+    : [];
+  const addFromAccount = (a: Account) => {
+    setPrefill({ name: a.name, kind: a.type === "loan" ? "personal_loan" : "credit_card", balanceFils: -a.balanceFils, accountId: a.id });
+    setEditing("new");
+  };
   const accountName = (id?: string | null) => (id ? (accounts.data ?? []).find((a) => a.id === id)?.name : undefined);
 
   const rowMenu = (d: Debt) => (
@@ -205,6 +251,7 @@ export function DebtsTab() {
 
   return (
     <div className="flex flex-col gap-5">
+      <UntrackedAccountsPanel accounts={untracked} onAdd={addFromAccount} />
       {debts.isPending ? (
         <Panel flush>
           <SkeletonList rows={4} className="px-4" />
@@ -368,7 +415,14 @@ export function DebtsTab() {
         ) : null}
       </DetailDrawer>
 
-      {editing ? <DebtFormDialog debt={editing === "new" ? null : editing} onClose={() => setEditing(null)} /> : null}
+      {editing ? <DebtFormDialog
+          debt={editing === "new" ? null : editing}
+          prefill={editing === "new" ? prefill : undefined}
+          onClose={() => {
+            setEditing(null);
+            setPrefill(undefined);
+          }}
+        /> : null}
       {paying ? <DebtPaymentDialog debt={paying} onClose={() => setPaying(null)} /> : null}
       <ConfirmDialog
         open={archiving !== null}

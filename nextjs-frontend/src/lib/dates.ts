@@ -56,7 +56,7 @@ export function formatMonth(month: string | null | undefined, long = false): str
   return d.toLocaleDateString("en-US", { month: long ? "long" : "short", year: "numeric", timeZone: "UTC" });
 }
 
-/** "2026-02-14" → "14 Feb 2026" (or "14 Feb" when short). */
+/** "2026-02-14" → "14 Feb 2026" (or "14 Feb" when short and in the current year). */
 export function formatDate(date: string | null | undefined, short = false): string {
   if (!date) return "—";
   const [y, m, d] = date.slice(0, 10).split("-").map(Number);
@@ -64,7 +64,8 @@ export function formatDate(date: string | null | undefined, short = false): stri
   return dt.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
-    ...(short ? {} : { year: "numeric" }),
+    // Short drops the year only for this year's dates, so "13 Nov" never means last November.
+    ...(short && y === Number(todayISO().slice(0, 4)) ? {} : { year: "numeric" }),
     timeZone: "UTC",
   });
 }

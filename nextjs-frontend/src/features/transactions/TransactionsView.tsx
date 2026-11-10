@@ -4,6 +4,7 @@ import { ArrowLeftRight, Plus, SearchX } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PeriodSelector } from "@/components/shell/PeriodSelector";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
+import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
 import { Button, EmptyState, InlineError, Money, PageHeader, Panel, Skeleton, SkeletonList } from "@/components/ui";
 import { todayISO } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
@@ -152,12 +153,15 @@ export function TransactionsView() {
             }
           />
         ) : (
+          <>
+          <QuietMonthNotice empty className="mb-2 border-0 bg-surface-2" />
           <EmptyState
             icon={ArrowLeftRight}
             title={`No transactions in ${period.label}`}
             description="Record an expense or income, or pick another month in the period selector."
             action={addButton()}
           />
+          </>
         )}
       </Panel>
     );

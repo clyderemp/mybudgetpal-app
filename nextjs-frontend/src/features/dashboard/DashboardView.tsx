@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BarChart3 } from "lucide-react";
 import { EmptyState, InlineError, PageHeader, Panel, Skeleton, buttonClasses } from "@/components/ui";
 import { PeriodSelector } from "@/components/shell/PeriodSelector";
+import { QuietMonthNotice } from "@/features/common/QuietMonthNotice";
 import { formatMonth } from "@/lib/dates";
 import { usePeriod } from "@/lib/period";
 import { useBudget, useCategories, useDashboard, useInsightsSummary, useInsightsTrends, useTransactions } from "@/lib/queries";
@@ -37,6 +38,7 @@ export function DashboardView() {
       />
 
       <div className="flex flex-col gap-4 lg:gap-5">
+        <QuietMonthNotice empty={Boolean(summary.data && !summary.data.incomeFils && !summary.data.expenseFils)} />
         {summary.isError ? (
           <InlineError error={summary.error} onRetry={() => summary.refetch()} title={`Couldn't load the summary for ${label}`} />
         ) : (

@@ -1,10 +1,14 @@
 "use client";
 import { Plus } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTransactionDialog } from "@/components/transactions/TransactionDialogProvider";
 
-/** Floating add button on phones; opens the shared TransactionFormDialog. */
+/** Floating add button on phones (not on Settings); opens the shared TransactionFormDialog. */
 export function AddTransactionFab() {
   const { openCreate } = useTransactionDialog();
+  const pathname = usePathname();
+  // Settings has its own forms and nothing to record; the button only covers them there.
+  if (pathname?.startsWith("/settings")) return null;
   return (
     <button
       type="button"
