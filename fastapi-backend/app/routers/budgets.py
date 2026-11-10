@@ -12,6 +12,7 @@ from app.models import Budget, BudgetLine, Category
 from app.schemas.budgets import BudgetLineOut, BudgetOut, BudgetPut
 from app.security.deps import CurrentUser, get_current_user
 from app.services.analytics_data import load_analytics_txns
+from app.services.bills import PlanInputs, compose_plan, load_plan_inputs
 from app.services.months import month_bounds, parse_month
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])
@@ -80,9 +81,19 @@ def compose_budget_out(
     )
 
 
+def with_plan(out: BudgetOut, plan_inputs: PlanInputs) -> BudgetOut:
+    """Attach the zero-based plan (bills, expected income and these limits) to a budget response."""
+    out.plan = compose_plan(plan_inputs, out.month, out.total_limit_fils, [ln.category_id for ln in out.lines])
+    return out
+
+
 @router.get("/{month}", response_model=BudgetOut)
 async def get_budget(month: str, current: CurrentUser = Depends(get_current_user)) -> BudgetOut:
-    return await build_budget_out(current.household_id, parse_month(month))
+    month = parse_month(month)
+    inputs, plan_inputs = await asyncio.gather(
+        load_budget_inputs(current.household_id, month), load_plan_inputs(current.household_id, month)
+    )
+    return with_plan(compose_budget_out(month, *inputs), plan_inputs)
 
 
 async def _upsert(
@@ -105,12 +116,13 @@ async def _upsert_and_build(
 ) -> BudgetOut:
     """Write the budget while the month's transactions / categories load concurrently."""
     start, end = month_bounds(month)
-    budget, txns, cats = await asyncio.gather(
+    budget, txns, cats, plan_inputs = await asyncio.gather(
         _upsert(household_id, month, lines, note),
         load_analytics_txns(household_id, start, end),
         Category.find({"household_id": household_id}).to_list(),
+        load_plan_inputs(household_id, month),
     )
-    return compose_budget_out(month, budget, txns, {str(c.id): c for c in cats})
+    return with_plan(compose_budget_out(month, budget, txns, {str(c.id): c for c in cats}), plan_inputs)
 
 
 @router.put("/{month}", response_model=BudgetOut)

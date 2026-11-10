@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import Field
 
 from app.schemas.base import ApiModel, InputModel, LongText, NonNegFils, ObjectIdStr
@@ -32,3 +34,6 @@ class BudgetOut(ApiModel):
     total_spent_fils: int
     income_fils: int
     unbudgeted_spent_fils: int
+    # Zero-based plan (GET/PUT /budgets/{month}, copy): expected income -> commitments -> sinking funds
+    # -> flexible limits -> left to assign. Built by app.analytics.bills.zero_based_plan; null elsewhere.
+    plan: dict[str, Any] | None = None

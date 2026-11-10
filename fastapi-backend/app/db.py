@@ -8,6 +8,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import Settings
 from app.models import (
     Account,
+    Bill,
+    IncomeStream,
     Budget,
     Category,
     Debt,
@@ -32,6 +34,8 @@ document_models: list[type] = [
     Debt,
     Goal,
     Plan,
+    Bill,
+    IncomeStream,
 ]
 
 

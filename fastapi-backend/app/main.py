@@ -17,6 +17,7 @@ from app.ratelimit import LoginFailureTracker, RateLimitMiddleware
 from app.routers import (
     accounts,
     auth,
+    bills,
     budgets,
     categories,
     dashboard,
@@ -43,7 +44,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 def build_api_router() -> APIRouter:
     api = APIRouter(prefix="/api/v1")
     routers = (auth, household, accounts, categories, transactions, budgets, debts, goals, plan, insights, dashboard)
-    for mod in (*routers, receipts):
+    for mod in (*routers, receipts, bills):
         api.include_router(mod.router)
     return api
 
