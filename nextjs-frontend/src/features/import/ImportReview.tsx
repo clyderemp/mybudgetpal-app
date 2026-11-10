@@ -165,7 +165,7 @@ function Review({ imp, refetch }: { imp: StatementImport; refetch: () => Promise
       else if (r.status === "recorded") c.recorded++;
       else if (r.status === "transfer") c.transfer++;
       else if (r.status === "review") c.review++;
-      if (r.action === "skip") c.skipped++;
+      if (r.action === "skip" && r.status !== "recorded" && !r.pairedRowId) c.skipped++;
       else c.toImport++;
     }
     return c;

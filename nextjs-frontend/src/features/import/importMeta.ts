@@ -47,7 +47,7 @@ export const FILTER_LABEL: Record<Exclude<RowFilter, "all">, string> = {
 
 export function matchesFilter(r: ImportRow, f: RowFilter): boolean {
   if (f === "all") return true;
-  if (f === "skipped") return r.action === "skip";
+  if (f === "skipped") return r.action === "skip" && r.status !== "recorded" && !r.pairedRowId;
   return r.status === f;
 }
 
