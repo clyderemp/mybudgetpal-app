@@ -115,7 +115,7 @@ async def test_dashboard_db_ops_bounded(seeded, db_rounds):  # type: ignore[no-u
     db_rounds.reset()
     r = await seeded.get("/api/v1/dashboard")
     assert r.status_code == 200
-    assert db_rounds.ops <= 8, db_rounds.ops
+    assert db_rounds.ops <= 9, db_rounds.ops  # 8 + the business-accounts lookup
     body = r.json()
     balances = {a["name"]: a["balanceFils"] for a in body["accounts"]}
     assert balances == {"Bank": 100_000 - 15_000 - 1_000, "Cash": 1_000}

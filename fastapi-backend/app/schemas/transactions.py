@@ -84,4 +84,8 @@ class TransactionOut(ApiModel):
     updated_at: datetime
 
 
+class ReviewCountOut(ApiModel):
+    count: int
+
+
 TxnSort = Literal["date", "-date", "amount", "-amount"]

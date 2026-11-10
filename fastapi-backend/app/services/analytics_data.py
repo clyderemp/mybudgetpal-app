@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from typing import Any
 
 from beanie import PydanticObjectId
 
-from app.models import Transaction
+from app.models import Account, Transaction
 from app.services.ids import to_oid
 
 _PROJECTION = {"_id": 1, "date": 1, "amount_fils": 1, "type": 1, "category_id": 1, "account_id": 1, "to_account_id": 1}
@@ -13,6 +14,17 @@ _PROJECTION = {"_id": 1, "date": 1, "amount_fils": 1, "type": 1, "category_id": 
 _DETAIL_PROJECTION = {**_PROJECTION, "merchant": 1, "created_by": 1}
 # Large first batch: the whole range normally arrives in a single round trip (no getMore).
 _BATCH_SIZE = 10_000
+
+# Synthetic category id for money crossing the household/business boundary: "business:<account id>".
+BUSINESS_CATEGORY_PREFIX = "business:"
+
+
+def business_category_id(account_id: str) -> str:
+    return f"{BUSINESS_CATEGORY_PREFIX}{account_id}"
+
+
+def is_business_category(category_id: str | None) -> bool:
+    return bool(category_id) and str(category_id).startswith(BUSINESS_CATEGORY_PREFIX)
 
 
 def _as_date(value: Any) -> dt.date:
@@ -23,13 +35,84 @@ def _as_date(value: Any) -> dt.date:
     return dt.date.fromisoformat(str(value)[:10])
 
 
+async def business_accounts(household_id: str | PydanticObjectId) -> dict[str, str]:
+    """{account id: name} of the household's business accounts. Archived ones are included:
+    their history must stay out of household figures too."""
+    rows = await (
+        Account.get_motor_collection()
+        .find({"household_id": to_oid(household_id), "purpose": "business"}, {"_id": 1, "name": 1})
+        .to_list(None)
+    )
+    return {str(r["_id"]): r.get("name") or "Business" for r in rows}
+
+
+def apply_business_boundary(txns: list[dict[str, Any]], business: dict[str, str]) -> list[dict[str, Any]]:
+    """Household view of analytics transactions — the ONE place business money is kept out (pure).
+
+    * income/expense on a business account: dropped (not the household's money);
+    * transfer business -> household: household **income** on the household account, category
+      ``business:<id>``, merchant "From <business account>";
+    * transfer household -> business: household **expense** on the household account, category
+      ``business:<id>``, merchant "To <business account>";
+    * transfer business -> business: dropped; household -> household: unchanged (neutral).
+
+    Converted rows carry ``business_account_id`` (the business side) so an account filter on the
+    business account still finds them.
+    """
+    if not business:
+        return txns
+    out: list[dict[str, Any]] = []
+    for t in txns:
+        src = t["account_id"]
+        dst = t.get("to_account_id")
+        src_biz = src in business
+        dst_biz = dst is not None and dst in business
+        if t["type"] != "transfer":
+            if not src_biz:
+                out.append(t)
+        elif src_biz and dst is not None and not dst_biz:
+            out.append(
+                {
+                    **t,
+                    "type": "income",
+                    "account_id": dst,
+                    "to_account_id": None,
+                    "category_id": business_category_id(src),
+                    "merchant": f"From {business[src]}",
+                    "business_account_id": src,
+                }
+            )
+        elif dst_biz and not src_biz:
+            out.append(
+                {
+                    **t,
+                    "type": "expense",
+                    "to_account_id": None,
+                    "category_id": business_category_id(dst),
+                    "merchant": f"To {business[dst]}",
+                    "business_account_id": dst,
+                }
+            )
+        elif not src_biz:
+            out.append(t)  # household <-> household: neutral
+    return out
+
+
 async def load_analytics_txns(
-    household_id: str | PydanticObjectId, start: dt.date | None, end: dt.date | None, *, detail: bool = False
+    household_id: str | PydanticObjectId,
+    start: dt.date | None,
+    end: dt.date | None,
+    *,
+    detail: bool = False,
+    include_business: bool = False,
 ) -> list[dict[str, Any]]:
     """Non-deleted household transactions in [start, end] (inclusive) as plain dicts (spec §6).
 
     Shape: {id, date: date, amount_fils: int, type, category_id: str|None, account_id: str,
     to_account_id: str|None}. Sorted by date ascending.
+
+    Business accounts are kept out via ``apply_business_boundary`` unless ``include_business``
+    (then everything counts as-is and every transfer is neutral).
     """
     query: dict[str, Any] = {"household_id": to_oid(household_id), "deleted_at": None}
     date_q: dict[str, Any] = {}
@@ -46,7 +129,12 @@ async def load_analytics_txns(
         .find(query, _DETAIL_PROJECTION if detail else _PROJECTION, batch_size=_BATCH_SIZE)
         .sort("date", 1)
     )
-    return [
+    business: dict[str, str] = {}
+    if include_business:
+        docs = await cursor.to_list(None)
+    else:  # both reads in flight together: still one DB round
+        docs, business = await asyncio.gather(cursor.to_list(None), business_accounts(household_id))
+    rows = [
         {
             "id": str(t["_id"]),
             "date": _as_date(t["date"]),
@@ -61,8 +149,9 @@ async def load_analytics_txns(
                 else {}
             ),
         }
-        for t in await cursor.to_list(None)
+        for t in docs
     ]
+    return apply_business_boundary(rows, business)
 
 
 def filter_txns(txns: list[dict[str, Any]], start: dt.date | None, end: dt.date | None) -> list[dict[str, Any]]:
