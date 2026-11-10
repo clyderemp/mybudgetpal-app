@@ -31,6 +31,14 @@ export const qk = {
     explore: (params: object) => ["insights", "explore", params] as const,
   },
   dashboard: ["dashboard"] as const,
+  bills: {
+    all: ["bills"] as const,
+    list: ["bills", "list"] as const,
+    month: (month: string) => ["bills", "month", month] as const,
+    overview: ["bills", "overview"] as const,
+    suggestions: ["bills", "suggestions"] as const,
+    income: ["bills", "income"] as const,
+  },
 };
 
 /** After any money movement: refresh everything derived from transactions. */
@@ -41,6 +49,7 @@ export function invalidateMoney(qc: QueryClient) {
     qc.invalidateQueries({ queryKey: qk.budgets.all }),
     qc.invalidateQueries({ queryKey: qk.insights.all }),
     qc.invalidateQueries({ queryKey: qk.dashboard }),
+    qc.invalidateQueries({ queryKey: qk.bills.all }),
   ]);
 }
 
