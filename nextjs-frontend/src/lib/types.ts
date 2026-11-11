@@ -106,7 +106,8 @@ export interface InviteSummary {
 
 /* ---------------- Accounts ---------------- */
 
-export type AccountType = "bank" | "savings" | "credit_card" | "cash" | "loan" | "investment";
+export type AccountType =
+  "bank" | "savings" | "credit_card" | "cash" | "loan" | "investment";
 
 export interface Account {
   id: ID;
@@ -141,7 +142,8 @@ export type AccountUpdate = Partial<AccountCreate>;
 /* ---------------- Categories ---------------- */
 
 export type CategoryKind = "income" | "expense";
-export type CategoryGroup = "essentials" | "lifestyle" | "debt" | "savings" | "income" | "other";
+export type CategoryGroup =
+  "essentials" | "lifestyle" | "debt" | "savings" | "income" | "other";
 
 export interface Category {
   id: ID;
@@ -218,7 +220,9 @@ export interface TransactionCreate {
   items?: TxnItem[];
 }
 
-export type TransactionUpdate = Partial<TransactionCreate> & { needsReview?: boolean };
+export type TransactionUpdate = Partial<TransactionCreate> & {
+  needsReview?: boolean;
+};
 
 export type TransactionSort = "date" | "-date" | "amount" | "-amount";
 
@@ -271,7 +275,8 @@ export interface BudgetPut {
 
 /* ---------------- Debts ---------------- */
 
-export type DebtKind = "credit_card" | "personal_loan" | "car_loan" | "mortgage" | "bnpl" | "other";
+export type DebtKind =
+  "credit_card" | "personal_loan" | "car_loan" | "mortgage" | "bnpl" | "other";
 
 export interface Debt {
   id: ID;
@@ -371,7 +376,8 @@ export interface PayoffPerDebt {
   interestFils: number;
 }
 
-export type PayoffInfeasibleReason = "budget_below_minimums" | "negative_amortization";
+export type PayoffInfeasibleReason =
+  "budget_below_minimums" | "negative_amortization";
 
 export interface PayoffResult {
   feasible: boolean;
@@ -493,7 +499,8 @@ export interface ReceiptReading {
 /* ---------------- Insights explorer (/insights/explore) ---------------- */
 
 export type ExploreGranularity = "day" | "week" | "month";
-export type ExploreGroupBy = "category" | "group" | "account" | "member" | "merchant" | "weekday";
+export type ExploreGroupBy =
+  "category" | "group" | "account" | "member" | "merchant" | "weekday";
 export type ExploreFlow = "expense" | "income";
 
 export interface ExploreParams {
@@ -567,10 +574,22 @@ export interface ExploreResult {
   breakdown: ExploreGroup[];
   stackKeys: { key: string; label: string }[];
   stacked: { period: string; values: Record<string, number> }[];
-  weekday: { weekday: number; label: string; fils: number; count: number; avgFils: number }[];
+  weekday: {
+    weekday: number;
+    label: string;
+    fils: number;
+    count: number;
+    avgFils: number;
+  }[];
   daily: { date: ISODate; fils: number }[];
   topMerchants: { merchant: string; fils: number; count: number }[];
-  largest: { id: ID; date: ISODate; fils: number; merchant: string | null; categoryId: ID | null }[];
+  largest: {
+    id: ID;
+    date: ISODate;
+    fils: number;
+    merchant: string | null;
+    categoryId: ID | null;
+  }[];
   forecast: {
     points: ExploreForecastPoint[];
     confidence: Confidence;
@@ -591,7 +610,14 @@ export interface ExploreResult {
 
 /* ---------------- Bills and expected income (/bills, /income-streams) ---------------- */
 
-export type BillKind = "bill" | "subscription" | "loan" | "bnpl" | "debt_payment" | "savings" | "other";
+export type BillKind =
+  | "bill"
+  | "subscription"
+  | "loan"
+  | "bnpl"
+  | "debt_payment"
+  | "savings"
+  | "other";
 export type BillCadence = "monthly" | "quarterly" | "yearly";
 /** estimate: expect the average of the last 3 payments (amountFils until there are any). */
 export type AmountMode = "fixed" | "estimate";
@@ -653,7 +679,8 @@ export interface BillCreate {
 
 export type BillUpdate = Partial<BillCreate>;
 
-export type BillStatus = "paid" | "skipped" | "overdue" | "due_soon" | "upcoming";
+export type BillStatus =
+  "paid" | "skipped" | "overdue" | "due_soon" | "upcoming";
 export type IncomeStatus = "received" | "overdue" | "due_soon" | "upcoming";
 
 export interface BillMatch {
@@ -734,9 +761,19 @@ export interface SafeToSpend {
   incomeExpectedFils: number;
   safeToSpendFils: number;
   until: ISODate;
-  nextSalary: { streamName: string; label: string; dueFrom: ISODate; dueTo: ISODate } | null;
+  nextSalary: {
+    streamName: string;
+    label: string;
+    dueFrom: ISODate;
+    dueTo: ISODate;
+  } | null;
   bills: { billId: ID; name: string; dueFrom: ISODate; amountFils: number }[];
-  income: { streamName: string; label: string; dueFrom: ISODate; amountFils: number }[];
+  income: {
+    streamName: string;
+    label: string;
+    dueFrom: ISODate;
+    amountFils: number;
+  }[];
   accounts: { accountId: ID; name: string; balanceFils: number }[];
 }
 
@@ -792,11 +829,14 @@ export interface IncomeStream {
   notes: string | null;
   archived: boolean;
   monthlyFils: number;
+}
+
 /* ---------------- Statement import (/imports, /merchant-rules) ---------------- */
 
 export type ImportRowStatus = "new" | "recorded" | "transfer" | "review";
 export type ImportRowAction = "import" | "skip";
-export type ImportStatus = "draft" | "committing" | "committed" | "rolling_back" | "rolled_back";
+export type ImportStatus =
+  "draft" | "committing" | "committed" | "rolling_back" | "rolled_back";
 
 export interface ImportReconciliation {
   ok: boolean;
@@ -971,7 +1011,14 @@ export interface ZeroBasedPlan {
   commitmentsFils: number;
   commitmentsByKind: { kind: BillKind; amountFils: number }[];
   sinkingFundsFils: number;
-  sinkingFunds: { billId: ID; name: string; monthlyFils: number; amountFils: number; cadence: BillCadence; dueThisMonth: boolean }[];
+  sinkingFunds: {
+    billId: ID;
+    name: string;
+    monthlyFils: number;
+    amountFils: number;
+    cadence: BillCadence;
+    dueThisMonth: boolean;
+  }[];
   savingsFils: number;
   flexibleFils: number;
   leftToAssignFils: number;
@@ -981,6 +1028,7 @@ export interface ZeroBasedPlan {
   hasBills: boolean;
   hasIncome: boolean;
 }
+
 export interface MerchantRuleCreate {
   pattern: string;
   categoryId: ID;
